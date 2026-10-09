@@ -21,9 +21,11 @@ rules:
     - Incluir unit tests e integration tests para cada cambio funcional; agregar E2E cuando afecte flujos críticos.
 operations:
   apply:
-    - Leer specs y ADR aplicables antes de editar código.
-    - Ejecutar los comandos de verificación disponibles y reportar los resultados reales.
-    - No editar main directamente, no desactivar tests para ocultar fallas y no usar secretos productivos.
+    guidance:
+      - Leer specs y ADR aplicables antes de editar código.
+      - Ejecutar los comandos de verificación disponibles y reportar los resultados reales.
+      - No editar main directamente, no desactivar tests para ocultar fallas y no usar secretos productivos.
   archive:
-    - Verificar que las pruebas requeridas pasan y que las specs canónicas reflejan el comportamiento entregado.
-    - No archivar como completado un cambio con tareas pendientes o pruebas no ejecutadas sin documentar explícitamente la excepción.
+    guidance:
+      - Verificar que las pruebas requeridas pasan y que las specs canónicas reflejan el comportamiento entregado.
+      - No archivar como completado un cambio con tareas pendientes o pruebas no ejecutadas sin documentar explícitamente la excepción.
