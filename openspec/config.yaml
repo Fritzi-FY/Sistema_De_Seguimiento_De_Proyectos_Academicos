@@ -1,0 +1,29 @@
+schema: spec-driven
+context: |
+  Proyecto académico IS488: Sistema de Seguimiento de Proyectos Académicos de la Universidad Nacional de San Cristóbal de Huamanga.
+  Stack de referencia: React + TypeScript + Vite; Cloudflare Workers TypeScript; PostgreSQL gestionado mediante Hyperdrive; OpenRouter detrás de AIProvider.
+  Arquitectura: monolito modular con arquitectura hexagonal/Clean Architecture. Evitar microservicios sin justificación medida.
+  Priorizar costo bajo, seguridad por defecto, pruebas unitarias e integración obligatorias, pruebas E2E y carga en staging.
+  El asistente IA no califica estudiantes ni toma decisiones académicas finales. No enviar secretos ni datos fuera del ámbito autorizado.
+  Git: una rama por EPIC y pull request a main. Antigravity es el agente/IDE principal; OpenSpec controla los cambios de comportamiento.
+rules:
+  proposal:
+    - Explicar el problema, el valor académico y el alcance del cambio.
+    - Evitar introducir gasto recurrente sin cuantificarlo y pedir aprobación.
+  specs:
+    - Usar requisitos verificables y escenarios Given/When/Then o equivalente claro.
+    - Incluir permisos, errores, límites y casos negativos relevantes.
+  design:
+    - Mantener dependencias hacia el dominio y los casos de uso; infraestructura detrás de puertos.
+    - Registrar decisiones arquitectónicas con trade-offs y alternativas rechazadas.
+  tasks:
+    - Dividir en tareas pequeñas verificables y marcar solo las realmente completadas.
+    - Incluir unit tests e integration tests para cada cambio funcional; agregar E2E cuando afecte flujos críticos.
+operations:
+  apply:
+    - Leer specs y ADR aplicables antes de editar código.
+    - Ejecutar los comandos de verificación disponibles y reportar los resultados reales.
+    - No editar main directamente, no desactivar tests para ocultar fallas y no usar secretos productivos.
+  archive:
+    - Verificar que las pruebas requeridas pasan y que las specs canónicas reflejan el comportamiento entregado.
+    - No archivar como completado un cambio con tareas pendientes o pruebas no ejecutadas sin documentar explícitamente la excepción.
