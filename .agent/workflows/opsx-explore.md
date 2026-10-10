@@ -4,7 +4,13 @@ description: "Enter explore mode - think through ideas, investigate problems, cl
 
 Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
+**IMPORTANT: Explore mode operates strictly under Level A (Inspection & Analysis).**
+- You may read files, search code, map architecture, analyze tradeoffs, and investigate the codebase, but you must **NEVER** write code or implement features.
+- If the user asks you to implement something, explain that they must exit explore mode, formulate an OpenSpec proposal, and obtain explicit **Level D** human authorization before any code can be touched.
+- Distinguish between formulating recommendations and editing artifacts: formulating advice does not modify files.
+- Document modifications must be strictly limited to OpenSpec planning artifacts expressly authorized by the user (capturing thinking under Level C).
+- **NEVER** modify `CONSTITUTION.md`, `AGENTS.md`, ADRs, canonical specs (`openspec/specs/`), or protected governance documents during exploration.
+- Authorization to explore (Level A) or capture planning ideas (Level C) **NEVER** authorizes code implementation (Level D) (see [CONSTITUTION.md](../../CONSTITUTION.md) Art. III; [AGENTS.md](../../AGENTS.md)).
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -138,6 +144,8 @@ If the user mentions a change or you detect one is relevant:
    - "This changes scope. Update the proposal?"
 
 4. **The user decides** - Offer and move on. Don't pressure. Don't auto-capture.
+   - Only edit planning artifacts with explicit user request. Formulating recommendations is advice, not artifact modification.
+   - Note: Capturing insights into planning artifacts operates under Level C and **NEVER** grants authorization to implement code (Level D).
 
 ---
 
@@ -167,11 +175,13 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
+- **Strict Level A Exploration** - Never write application code or implement features. If asked to implement, remind that Level D authorization is required outside explore mode.
+- **Protected Documents Inviolable** - Never modify `CONSTITUTION.md`, `AGENTS.md`, ADRs, or canonical specs (`openspec/specs/`) during exploration.
+- **Distinguish Advice from Modification** - Formulate recommendations freely, but write only to planning artifacts expressly authorized by the user.
+- **Don't auto-capture** - Offer to save insights, don't just do it. Capturing planning artifacts is Level C and never authorizes implementation (Level D).
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
 - **Do question assumptions** - Including the user's and your own

@@ -10,7 +10,8 @@ I'll create a change with the artifacts your schema defines. With the default sp
 - design.md (how)
 - tasks.md (implementation steps)
 
-When ready to implement, run /opsx-apply
+**Governance Note (Level C):**
+This workflow operates under **Level C** (Planning & Proposal). Generating or approving planning artifacts does **NOT** grant authorization to implement code. Implementation requires separate, explicit **Level D** human authorization before running `/opsx-apply` ([CONSTITUTION.md](../../CONSTITUTION.md) Art. III; [AGENTS.md](../../AGENTS.md)).
 
 ---
 
@@ -93,8 +94,9 @@ When ready to implement, run /opsx-apply
 After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
-- What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run `/opsx-apply` to start implementing."
+- Planning status: "All planning artifacts generated (Level C) — pending human review."
+- Governance closure: Expressly state that the proposal and planning artifacts remain pending human review and approval.
+- Next steps: Do NOT present `/opsx-apply` as an automatic next step. State clearly that approving the proposal/plan does NOT authorize code implementation; starting implementation requires independent human Level D authorization. Once explicit Level D authorization is granted, the user or agent may proceed with `/opsx-apply`.
 
 **Artifact Creation Guidelines**
 
@@ -108,6 +110,9 @@ After completing all artifacts, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
+- **Planning Only (Level C)**: Only generate planning artifacts; never edit source code or implement features during proposal ([CONSTITUTION.md](../../CONSTITUTION.md) Art. III).
+- **Approval != Implementation**: Approving proposal/planning artifacts is Level C and never authorizes code implementation (Level D).
+- Do not present `/opsx-apply` as an automatic step; implementation requires explicit human Level D authorization.
 - Create every artifact the apply phase transitively depends on, not just the ids listed in `apply.requires`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum

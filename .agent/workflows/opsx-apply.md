@@ -4,6 +4,13 @@ description: "Implement tasks from an OpenSpec change (Experimental)"
 
 Implement tasks from an OpenSpec change.
 
+**Governance & Authorization Gate (Level D):**
+Implementation modifies code, schema, or tests, requiring explicit human authorization of **Level D** with clear scope before editing any code.
+- Workflow invocation (`/opsx-apply`) does **NOT** constitute implicit authorization.
+- Approval of planning artifacts (proposal, specs, design, tasks) represents **Level C** and **NEVER** authorizes implementation.
+- Level D authorization **NEVER** grants permission to merge or deploy (Level E required).
+- See [CONSTITUTION.md](../../CONSTITUTION.md) (Art. III) and [AGENTS.md](../../AGENTS.md).
+
 **Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `view`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
 **Input**: Optionally specify a change name (e.g., `/opsx-apply add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
@@ -82,11 +89,19 @@ Implement tasks from an OpenSpec change.
 
 6. **Implement tasks (loop until done or blocked)**
 
-   For each pending task:
+   **Pre-Implementation Authorization Check (Stop Gate):**
+   Before making ANY code or test modifications, verify that explicit human authorization for **Level D** exists in the conversation context for this specific change and scope.
+   - If Level D authorization has NOT been explicitly granted, **STOP immediately**. Display current progress, list pending tasks, and request explicit Level D authorization before touching code.
+   - Do NOT treat proposal/spec/task approval or workflow invocation as authorization.
+
+   Once Level D authorization is verified, for each pending task:
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
-   - Mark task complete in the tasks file: `- [ ]` → `- [x]`
+   - Run technical verification commands (tests, lint, typecheck) and inspect actual output.
+     - **NEVER** mark a task complete or claim a test passed without running it and verifying real passing output ([CONSTITUTION.md](../../CONSTITUTION.md) Art. V).
+     - If a test cannot be executed, report the limitation honestly; do NOT present it as passed.
+   - Mark task complete in the tasks file (`- [ ]` → `- [x]`) **ONLY** after work and verifications are empirically confirmed.
    - Continue to next task
 
    **Pause if:**
@@ -132,6 +147,8 @@ Working on task 4/7: <task description>
 ...
 
 All tasks complete! You can archive this change with `/opsx-archive`.
+
+Note: Completing implementation does not authorize merging to main or deploying. Integration, merge, and deployment require explicit Level E human authorization, green CI, and PR checklist review (CONSTITUTION.md Art. III & VII).
 ```
 
 **Output On Pause (Issue Encountered)**
@@ -155,12 +172,13 @@ What would you like to do?
 ```
 
 **Guardrails**
+- **Strict Level D Authorization**: Verify explicit Level D human authorization before editing code. Workflow invocation or Level C planning approval does not authorize implementation.
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
-- Update task checkbox immediately after completing each task
+- **Empirical Verification**: Mark `- [x]` only after completing code and verifying tests/checks with real tool output. Never fabricate test passes or hide execution limitations.
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
 - Do not use context or operation guidance as proof that a task is complete
@@ -168,6 +186,7 @@ What would you like to do?
 - Consider every guidance entry; explain any inapplicable or conflicting advice
 - Do not copy runtime context or operation guidance into implementation files or planning artifacts
 - Preserve CLI-controlled blocked/ready/all-done behavior and completion criteria
+- **No Automatic Merge or Deploy**: Level D implementation never authorizes merging to main or deploying (Level E required).
 
 **Fluid Workflow Integration**
 
