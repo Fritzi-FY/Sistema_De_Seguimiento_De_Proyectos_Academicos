@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.wrangler/
+coverage/
+package-lock.json
+
+# Protected governance and documentation
+.agent/
+openspec/
+docs/
+ADR/
+CONSTITUTION.md
+AGENTS.md
+README.md
+REFERENCES.md
+.github/
