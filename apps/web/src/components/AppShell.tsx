@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { HealthResponse } from '@is488/shared';
+import type { HealthResponse, ProjectResponse, CreateProjectRequest } from '@is488/shared';
 import { fetchSystemHealth } from '../services/health.service.js';
+import { fetchProjects, createProject } from '../services/project.service.js';
+import { ProjectList } from './ProjectList.js';
+import { CreateProjectModal } from './CreateProjectModal.js';
 import {
   GraduationCap,
   Activity,
@@ -10,13 +13,15 @@ import {
   RefreshCw,
   Server,
   Layers,
+  FolderKanban,
+  Info,
+  UserCheck,
 } from 'lucide-react';
 
 export interface AppShellProps {
-  /**
-   * Permite inyectar una función de consulta personalizada para pruebas o mocks.
-   */
   healthFetcher?: () => Promise<HealthResponse>;
+  projectsFetcher?: () => Promise<ProjectResponse[]>;
+  projectCreator?: (data: CreateProjectRequest) => Promise<ProjectResponse>;
 }
 
 type HealthState =
@@ -24,12 +29,25 @@ type HealthState =
   | { status: 'success'; data: HealthResponse }
   | { status: 'error'; message: string };
 
+const defaultProjectsFetcher = () => fetchProjects();
+const defaultProjectCreator = (data: CreateProjectRequest) => createProject(data);
+
 /**
- * Shell principal accesible de la aplicación que muestra la identidad institucional
- * y el estado de conexión operativa del backend (/api/health).
+ * Shell principal accesible de la aplicación que muestra la identidad institucional,
+ * el estado operativo del backend (/api/health) y el gestor de proyectos académicos.
  */
-export const AppShell: React.FC<AppShellProps> = ({ healthFetcher = fetchSystemHealth }) => {
+export const AppShell: React.FC<AppShellProps> = ({
+  healthFetcher = fetchSystemHealth,
+  projectsFetcher = defaultProjectsFetcher,
+  projectCreator = defaultProjectCreator,
+}) => {
   const [healthState, setHealthState] = useState<HealthState>({ status: 'loading' });
+
+  // Estado de proyectos
+  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadHealth = useCallback(async () => {
     setHealthState({ status: 'loading' });
@@ -43,9 +61,30 @@ export const AppShell: React.FC<AppShellProps> = ({ healthFetcher = fetchSystemH
     }
   }, [healthFetcher]);
 
+  const loadProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    setProjectsError(null);
+    try {
+      const data = await projectsFetcher();
+      setProjects(data);
+    } catch (err) {
+      setProjectsError(
+        err instanceof Error ? err.message : 'Error al cargar los proyectos académicos',
+      );
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [projectsFetcher]);
+
+  const handleCreateProject = async (data: CreateProjectRequest) => {
+    const created = await projectCreator(data);
+    setProjects((prev) => [created, ...prev]);
+  };
+
   useEffect(() => {
     void loadHealth();
-  }, [loadHealth]);
+    void loadProjects();
+  }, [loadHealth, loadProjects]);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
@@ -66,27 +105,56 @@ export const AppShell: React.FC<AppShellProps> = ({ healthFetcher = fetchSystemH
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
+            <span className="hidden items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-200 sm:inline-flex">
+              <UserCheck className="mr-1.5 h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+              Sesión Dev: dev-student-01 (Estudiante)
+            </span>
             <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               <Layers className="mr-1.5 h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              Base Técnica v0.1.0
+              v0.1.0
             </span>
           </div>
         </div>
       </header>
 
       {/* Contenido principal */}
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            Panel de Diagnóstico del Sistema
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Estado de conexión operativa entre el frontend SPA y el backend Cloudflare Worker.
-          </p>
-        </div>
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+        {/* Sección de Gestión de Proyectos Académicos */}
+        <section aria-labelledby="projects-section-title">
+          <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+            <div>
+              <div className="flex items-center space-x-2">
+                <FolderKanban className="h-6 w-6 text-unsch-garnet" aria-hidden="true" />
+                <h2
+                  id="projects-section-title"
+                  className="text-xl font-bold tracking-tight text-slate-900"
+                >
+                  Gestión de Proyectos Académicos
+                </h2>
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Crea y monitorea tus proyectos asignados con cronogramas y trazabilidad académica.
+              </p>
+            </div>
 
-        {/* Tarjeta de estado de salud */}
+            {/* Aviso de persistencia volátil en memoria */}
+            <div className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1.5 text-xs text-blue-800 border border-blue-200">
+              <Info className="mr-1.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
+              <span>Modo desarrollo: almacenamiento volátil en memoria RAM (ADR-003).</span>
+            </div>
+          </div>
+
+          <ProjectList
+            projects={projects}
+            loading={loadingProjects}
+            error={projectsError}
+            onRetry={loadProjects}
+            onOpenCreateModal={() => setIsModalOpen(true)}
+          />
+        </section>
+
+        {/* Tarjeta de estado de salud del sistema */}
         <section
           aria-labelledby="health-card-title"
           className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -98,6 +166,7 @@ export const AppShell: React.FC<AppShellProps> = ({ healthFetcher = fetchSystemH
                 Diagnóstico de Disponibilidad Operativa
               </h3>
             </div>
+
             <button
               type="button"
               onClick={() => void loadHealth()}
@@ -168,7 +237,7 @@ export const AppShell: React.FC<AppShellProps> = ({ healthFetcher = fetchSystemH
                 className="space-y-3 rounded-lg border border-rose-200 bg-rose-50/50 p-4 text-rose-900"
               >
                 <div className="flex items-center space-x-2.5">
-                  <AlertCircle className="h-5 w-5 text-rose-600" aria-hidden="true" />
+                  <AlertCircle className="h-6 w-6 text-rose-600" aria-hidden="true" />
                   <span className="text-sm font-semibold text-rose-900">
                     No fue posible conectar con el backend
                   </span>
@@ -189,21 +258,29 @@ export const AppShell: React.FC<AppShellProps> = ({ healthFetcher = fetchSystemH
         </section>
 
         {/* Guía informativa de la línea base */}
-        <section className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center space-x-2 text-slate-900">
             <Activity className="h-5 w-5 text-slate-600" aria-hidden="true" />
             <h3 className="text-base font-semibold">Arquitectura y Gobernanza</h3>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-slate-600">
-            Esta interfaz constituye la línea base técnica ejecutable del monorepo modular. El
-            frontend SPA en React y Vite se comunica a través de contratos tipados con Zod en{' '}
+            Esta interfaz integra el primer flujo vertical de negocio académico. El frontend SPA en
+            React y Vite consume la API en Cloudflare Workers / Hono validada con contratos Zod en{' '}
             <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-800">
               @is488/shared
-            </code>{' '}
-            y se integra localmente con el Cloudflare Worker en Hono mediante proxy inverso.
+            </code>
+            . Las consultas de proyectos aplican aislamiento estricto en el servidor y operan sobre
+            un repositorio en memoria antes de evaluar el spike técnico de PostgreSQL (ADR-003).
           </p>
         </section>
       </main>
+
+      {/* Modal de creación de proyecto */}
+      <CreateProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateProject}
+      />
 
       {/* Pie de página */}
       <footer className="mt-auto border-t border-slate-200 bg-white py-4" role="contentinfo">
