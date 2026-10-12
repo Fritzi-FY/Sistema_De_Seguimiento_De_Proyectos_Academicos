@@ -30,3 +30,34 @@ jobs:
 
       - name: Validate OpenSpec Specs (Strict Mode)
         run: openspec validate --specs --strict
+
+  quality-gates:
+    name: Code Quality and Build Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (clean install)
+        run: npm ci
+
+      - name: Verify code formatting
+        run: npm run format:check
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Automated Tests
+        run: npm test
+
+      - name: Verify Production Build
+        run: npm run build
