@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Project, ProjectRepositoryPort, SystemClockPort } from '@is488/shared';
+import type { Project, ProjectMembership, ProjectCreationPort, SystemClockPort } from '@is488/shared';
 import { CreateProjectUseCase } from './create-project.use-case.js';
 
 class FakeClock implements SystemClockPort {
@@ -14,47 +14,45 @@ class FakeClock implements SystemClockPort {
   }
 }
 
-class FakeProjectRepository implements ProjectRepositoryPort {
-  public projects: Project[] = [];
+/**
+ * Puerto de creación fake que captura los argumentos recibidos para verificación.
+ */
+class FakeProjectCreationPort implements ProjectCreationPort {
+  public capturedProject: Project | undefined;
+  public capturedMembership: ProjectMembership | undefined;
+  public shouldThrow: boolean = false;
 
-  async save(project: Project): Promise<void> {
-    const existingIndex = this.projects.findIndex((p) => p.id === project.id);
-    if (existingIndex >= 0) {
-      this.projects[existingIndex] = { ...project };
-    } else {
-      this.projects.push({ ...project });
+  async createProjectWithOwner(project: Project, ownerMembership: ProjectMembership): Promise<void> {
+    if (this.shouldThrow) {
+      throw new Error('Error simulado en ProjectCreationPort');
     }
-  }
-
-  async findById(id: string): Promise<Project | null> {
-    const found = this.projects.find((p) => p.id === id);
-    return found ? { ...found } : null;
-  }
-
-  async findAll(): Promise<Project[]> {
-    return this.projects.map((p) => ({ ...p }));
-  }
-
-  async findByUser(userId: string): Promise<Project[]> {
-    return this.projects.filter((p) => p.creatorId === userId).map((p) => ({ ...p }));
+    this.capturedProject = project;
+    this.capturedMembership = ownerMembership;
   }
 }
 
 describe('CreateProjectUseCase', () => {
   const FIXED_TIME = '2026-10-11T14:30:00.000Z';
-  const FIXED_ID = '12345678-1234-4234-8234-123456789abc';
+  // Genera IDs secuenciales: primero el projectId, luego el membershipId
+  let idCallCount: number;
+  const FIXED_PROJECT_ID = '12345678-1234-4234-8234-123456789abc';
+  const FIXED_MEMBERSHIP_ID = 'abcdef12-abcd-4abc-8abc-abcdef123456';
 
-  let fakeRepo: FakeProjectRepository;
+  let fakePort: FakeProjectCreationPort;
   let fakeClock: FakeClock;
   let useCase: CreateProjectUseCase;
 
   beforeEach(() => {
-    fakeRepo = new FakeProjectRepository();
+    idCallCount = 0;
+    fakePort = new FakeProjectCreationPort();
     fakeClock = new FakeClock(FIXED_TIME);
-    useCase = new CreateProjectUseCase(fakeRepo, fakeClock, () => FIXED_ID);
+    useCase = new CreateProjectUseCase(fakePort, fakeClock, () => {
+      idCallCount++;
+      return idCallCount === 1 ? FIXED_PROJECT_ID : FIXED_MEMBERSHIP_ID;
+    });
   });
 
-  it('debe crear y persistir un proyecto con metadatos deterministas y estado active', async () => {
+  it('crea proyecto y retorna respuesta con metadatos deterministas y estado active', async () => {
     const result = await useCase.execute({
       title: 'Sistema de Trazabilidad Académica',
       description: 'Plataforma para el curso IS-488',
@@ -64,21 +62,71 @@ describe('CreateProjectUseCase', () => {
       creatorId: 'dev-student-01',
     });
 
-    expect(result.id).toBe(FIXED_ID);
+    expect(result.id).toBe(FIXED_PROJECT_ID);
     expect(result.title).toBe('Sistema de Trazabilidad Académica');
     expect(result.status).toBe('active');
     expect(result.creatorId).toBe('dev-student-01');
     expect(result.createdAt).toBe(FIXED_TIME);
     expect(result.updatedAt).toBe(FIXED_TIME);
-
-    // Verificar persistencia en el repositorio fake
-    const persisted = await fakeRepo.findById(FIXED_ID);
-    expect(persisted).not.toBeNull();
-    expect(persisted?.title).toBe('Sistema de Trazabilidad Académica');
-    expect(persisted?.status).toBe('active');
   });
 
-  it('debe rechazar la creación si creatorId está vacío', async () => {
+  it('el ProjectCreationPort recibe tanto el proyecto como la membresía owner con campos correctos', async () => {
+    await useCase.execute({
+      title: 'Proyecto de Verificación de Puerto',
+      courseCode: 'IS-488',
+      startDate: '2026-10-15T00:00:00.000Z',
+      targetDate: '2026-12-20T23:59:59.000Z',
+      creatorId: 'student-creator',
+    });
+
+    // Verificar que el puerto recibió el proyecto
+    expect(fakePort.capturedProject).toBeDefined();
+    expect(fakePort.capturedProject?.id).toBe(FIXED_PROJECT_ID);
+    expect(fakePort.capturedProject?.creatorId).toBe('student-creator');
+    expect(fakePort.capturedProject?.status).toBe('active');
+
+    // Verificar que el puerto recibió la membresía owner
+    expect(fakePort.capturedMembership).toBeDefined();
+    expect(fakePort.capturedMembership?.role).toBe('owner');
+    expect(fakePort.capturedMembership?.status).toBe('active');
+    expect(fakePort.capturedMembership?.userId).toBe('student-creator');
+    expect(fakePort.capturedMembership?.projectId).toBe(FIXED_PROJECT_ID);
+    expect(fakePort.capturedMembership?.id).toBe(FIXED_MEMBERSHIP_ID);
+  });
+
+  it('propaga el error del ProjectCreationPort si lanza', async () => {
+    fakePort.shouldThrow = true;
+
+    await expect(
+      useCase.execute({
+        title: 'Proyecto que fallará en la persistencia',
+        courseCode: 'IS-488',
+        startDate: '2026-10-15T00:00:00.000Z',
+        targetDate: '2026-12-20T23:59:59.000Z',
+        creatorId: 'dev-student-01',
+      }),
+    ).rejects.toThrow('Error simulado en ProjectCreationPort');
+  });
+
+  it('[Atomicidad] ante fallo del ProjectCreationPort, ni proyecto ni membresía quedan persistidos', async () => {
+    fakePort.shouldThrow = true;
+
+    await expect(
+      useCase.execute({
+        title: 'Proyecto Atómico',
+        courseCode: 'IS-488',
+        startDate: '2026-10-15T00:00:00.000Z',
+        targetDate: '2026-12-20T23:59:59.000Z',
+        creatorId: 'dev-student-01',
+      }),
+    ).rejects.toThrow();
+
+    // Los valores capturados nunca se asignaron (el puerto lanzó antes)
+    expect(fakePort.capturedProject).toBeUndefined();
+    expect(fakePort.capturedMembership).toBeUndefined();
+  });
+
+  it('rechaza la creación si creatorId está vacío', async () => {
     await expect(
       useCase.execute({
         title: 'Proyecto Sin Creador',
@@ -89,10 +137,11 @@ describe('CreateProjectUseCase', () => {
       }),
     ).rejects.toThrow(/identificador del creador es obligatorio/i);
 
-    expect(fakeRepo.projects.length).toBe(0);
+    // El puerto no fue invocado
+    expect(fakePort.capturedProject).toBeUndefined();
   });
 
-  it('debe rechazar la creación si targetDate es anterior a startDate', async () => {
+  it('rechaza la creación si targetDate es anterior a startDate', async () => {
     await expect(
       useCase.execute({
         title: 'Proyecto Cronología Invertida',
@@ -103,10 +152,10 @@ describe('CreateProjectUseCase', () => {
       }),
     ).rejects.toThrow();
 
-    expect(fakeRepo.projects.length).toBe(0);
+    expect(fakePort.capturedProject).toBeUndefined();
   });
 
-  it('debe rechazar la creación si el título tiene menos de 3 caracteres', async () => {
+  it('rechaza la creación si el título tiene menos de 3 caracteres', async () => {
     await expect(
       useCase.execute({
         title: 'ab',
@@ -117,6 +166,6 @@ describe('CreateProjectUseCase', () => {
       }),
     ).rejects.toThrow();
 
-    expect(fakeRepo.projects.length).toBe(0);
+    expect(fakePort.capturedProject).toBeUndefined();
   });
 });

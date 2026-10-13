@@ -1,4 +1,9 @@
-import type { ProjectRepositoryPort, ProjectListResponse, ProjectResponse } from '@is488/shared';
+import type {
+  ProjectRepositoryPort,
+  MembershipRepositoryPort,
+  ProjectListResponse,
+  ProjectResponse,
+} from '@is488/shared';
 import { ProjectListResponseSchema, ProjectResponseSchema } from '@is488/shared';
 
 export interface UserContext {
@@ -19,12 +24,17 @@ export interface GetProjectByIdQuery {
  * Caso de uso para consultar proyectos aplicando reglas estrictas de autorización
  * y aislamiento en el backend.
  *
- * Reglas de aislamiento:
- * - Un estudiante solo puede consultar proyectos que haya creado o de los que sea miembro explícito.
+ * Reglas de aislamiento actualizadas (project-membership-access):
+ * - Un estudiante puede consultar proyectos que haya creado O en los que tenga membresía activa.
+ * - La unión de ambos conjuntos se deduplica por `id` para evitar duplicados si el usuario
+ *   es creador Y colaborador (invariante garantizada por CreateProjectUseCase, pero se defiende).
  * - El backend no delega la autorización ni confía en filtros del frontend.
  */
 export class ListProjectsUseCase {
-  constructor(private readonly projectRepository: ProjectRepositoryPort) {}
+  constructor(
+    private readonly projectRepository: ProjectRepositoryPort,
+    private readonly membershipRepository: MembershipRepositoryPort,
+  ) {}
 
   /**
    * Ejecuta el listado de proyectos autorizados para el usuario en contexto.
@@ -38,27 +48,58 @@ export class ListProjectsUseCase {
 
     const cleanUserId = userId.trim();
 
-    // Aislamiento por rol:
-    // Si el rol es 'student' o no está especificado, se restringe estrictamente a los proyectos del usuario.
-    // Para roles administrativos o docentes globales en este baseline, se permite findAll si no hay restricción de curso.
+    // Roles administrativos o docentes: acceso completo
     if (role === 'admin' || role === 'teacher') {
       const allProjects = await this.projectRepository.findAll();
       return ProjectListResponseSchema.parse(allProjects);
     }
 
-    // Regla predeterminada y para estudiantes: aislamiento estricto por usuario
-    const userProjects = await this.projectRepository.findByUser(cleanUserId);
-    return ProjectListResponseSchema.parse(userProjects);
+    // Regla para estudiantes: unión de proyectos creados + proyectos con membresía activa
+    const [createdProjects, activeMemberships] = await Promise.all([
+      this.projectRepository.findByUser(cleanUserId),
+      this.membershipRepository.findByUser(cleanUserId),
+    ]);
+
+    // Obtener proyectos donde el usuario es colaborador (no creador) a través de membresías
+    const memberProjectIds = activeMemberships.map((m) => m.projectId);
+    const memberProjects = await Promise.all(
+      memberProjectIds.map((id) => this.projectRepository.findById(id)),
+    );
+    const validMemberProjects = memberProjects.filter(
+      (p): p is NonNullable<typeof p> => p !== null,
+    );
+
+    // Unión deduplicada por id
+    const projectsById = new Map(createdProjects.map((p) => [p.id, p]));
+    for (const p of validMemberProjects) {
+      if (!projectsById.has(p.id)) {
+        projectsById.set(p.id, p);
+      }
+    }
+
+    return ProjectListResponseSchema.parse(Array.from(projectsById.values()));
   }
 }
 
 /**
  * Caso de uso para consultar un proyecto específico por ID con verificación de autorización.
- * Si el usuario no tiene permiso sobre el proyecto, retorna null para que el adaptador HTTP
- * responda 404 Not Found y no revele la existencia del proyecto (defensa en profundidad).
+ *
+ * Reglas de acceso actualizadas (project-membership-access):
+ * - Creador del proyecto (creatorId): acceso garantizado.
+ *   Nota: esta comprobación es una optimización válida en tanto la invariante de propietario
+ *   esté garantizada (CreateProjectUseCase siempre crea la membresía owner). Se mantiene
+ *   porque evita una consulta al repositorio de membresías para el caso más frecuente.
+ *   Si la invariante se rompe (bug), el acceso por creatorId sigue siendo correcto.
+ *   NUNCA eliminar esta comprobación creyendo que `isMember` es suficiente.
+ * - Miembro con membresía activa (collaborator): acceso concedido.
+ * - Roles elevados (admin, teacher): acceso concedido.
+ * - Cualquier otro caso: null → adaptador HTTP responde 404 (sin revelar existencia).
  */
 export class GetProjectByIdUseCase {
-  constructor(private readonly projectRepository: ProjectRepositoryPort) {}
+  constructor(
+    private readonly projectRepository: ProjectRepositoryPort,
+    private readonly membershipRepository: MembershipRepositoryPort,
+  ) {}
 
   async execute(query: GetProjectByIdQuery): Promise<ProjectResponse | null> {
     const { id, user } = query;
@@ -73,11 +114,20 @@ export class GetProjectByIdUseCase {
 
     const cleanUserId = user.userId.trim();
 
-    // Comprobar autorización: creador o roles elevados
+    // Comprobación 1: creador directo (optimización — evita consulta a membresías para el caso más común)
     const isOwner = project.creatorId === cleanUserId;
+    // Comprobación 2: roles elevados (admin, teacher)
     const isElevated = user.role === 'admin' || user.role === 'teacher';
 
-    if (!isOwner && !isElevated) {
+    if (isOwner || isElevated) {
+      return ProjectResponseSchema.parse(project);
+    }
+
+    // Comprobación 3: membresía activa como colaborador
+    const membership = await this.membershipRepository.findByProjectAndUser(id, cleanUserId);
+    const isMember = membership !== null;
+
+    if (!isMember) {
       // Retorna null para disparar 404 Not Found sin divulgar la existencia del proyecto
       return null;
     }
