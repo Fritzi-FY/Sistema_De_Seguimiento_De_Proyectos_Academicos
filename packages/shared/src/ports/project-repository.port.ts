@@ -44,8 +44,15 @@ export interface ProjectRepositoryPort {
   findAll(): Promise<Project[]>;
 
   /**
-   * Retorna los proyectos asociados a un usuario específico (como creador o miembro).
-   * Aplica la regla de aislamiento de visibilidad para estudiantes.
+   * Retorna los proyectos donde el usuario especificado es el creador (`creatorId`).
+   *
+   * @remarks
+   * Esta operación devuelve únicamente los proyectos creados directamente por el usuario.
+   * La semántica de "proyectos del usuario" (incluyendo proyectos donde es colaborador)
+   * se amplía mediante coordinación en la capa de aplicación: `ListProjectsUseCase`
+   * combina el resultado de este método con `MembershipRepositoryPort.findByUser` para
+   * formar la lista completa de proyectos accesibles por el usuario.
+   * La firma del método no cambia; la extensión ocurre exclusivamente en el caso de uso.
    */
   findByUser(userId: string): Promise<Project[]>;
 }
