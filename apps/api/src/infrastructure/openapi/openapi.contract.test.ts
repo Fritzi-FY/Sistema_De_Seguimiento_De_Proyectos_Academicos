@@ -110,4 +110,80 @@ describe('OpenAPI 3.1 Contract Specification', () => {
       expect(ProjectResponseSchema.safeParse(sampleProject).success).toBe(true);
     });
   });
+
+  describe('Rutas de membresía /api/projects/{projectId}/members', () => {
+    it('debe definir las operaciones POST y GET en /api/projects/{projectId}/members', () => {
+      const membersPath = openApiSpec.paths['/api/projects/{projectId}/members'];
+      expect(membersPath).toBeDefined();
+      expect(membersPath.post).toBeDefined();
+      expect(membersPath.get).toBeDefined();
+
+      // Respuestas POST
+      expect(membersPath.post.responses['201']).toBeDefined();
+      expect(membersPath.post.responses['400']).toBeDefined();
+      expect(membersPath.post.responses['401']).toBeDefined();
+      expect(membersPath.post.responses['403']).toBeDefined();
+      expect(membersPath.post.responses['404']).toBeDefined();
+      expect(membersPath.post.responses['409']).toBeDefined();
+
+      // Respuestas GET
+      expect(membersPath.get.responses['200']).toBeDefined();
+      expect(membersPath.get.responses['401']).toBeDefined();
+      expect(membersPath.get.responses['404']).toBeDefined();
+    });
+
+    it('debe definir la operación DELETE en /api/projects/{projectId}/members/{userId}', () => {
+      const memberPath = openApiSpec.paths['/api/projects/{projectId}/members/{userId}'];
+      expect(memberPath).toBeDefined();
+      expect(memberPath.delete).toBeDefined();
+
+      expect(memberPath.delete.responses['200']).toBeDefined();
+      expect(memberPath.delete.responses['401']).toBeDefined();
+      expect(memberPath.delete.responses['403']).toBeDefined();
+      expect(memberPath.delete.responses['404']).toBeDefined();
+      expect(memberPath.delete.responses['422']).toBeDefined();
+    });
+
+    it('los schemas AddMemberRequest, MembershipResponse y MemberListResponse deben estar en components/schemas', () => {
+      const schemas = openApiSpec.components.schemas;
+      expect(schemas.AddMemberRequest).toBeDefined();
+      expect(schemas.MembershipResponse).toBeDefined();
+      expect(schemas.MemberListResponse).toBeDefined();
+    });
+
+    it('MembershipResponse debe incluir todos los campos de ProjectMembership', () => {
+      const schema = openApiSpec.components.schemas.MembershipResponse;
+      const requiredFields = schema.required;
+      expect(requiredFields).toContain('id');
+      expect(requiredFields).toContain('projectId');
+      expect(requiredFields).toContain('userId');
+      expect(requiredFields).toContain('role');
+      expect(requiredFields).toContain('status');
+      expect(requiredFields).toContain('joinedAt');
+      expect(requiredFields).toContain('updatedAt');
+    });
+
+    it('AddMemberRequest solo acepta role collaborator en el enum', () => {
+      const schema = openApiSpec.components.schemas.AddMemberRequest;
+      const roleEnum = (schema.properties.role as unknown as { enum: string[] }).enum;
+      expect(roleEnum).toEqual(['collaborator']);
+      expect(roleEnum).not.toContain('owner');
+    });
+
+    it('los paths de membresía usan $ref a componentes (no schemas inline)', () => {
+      const membersPath = openApiSpec.paths['/api/projects/{projectId}/members'];
+      const post201Content = membersPath.post.responses['201'].content['application/json'].schema;
+      expect(post201Content).toHaveProperty('$ref');
+      expect((post201Content as { $ref: string })['$ref']).toContain('MembershipResponse');
+
+      const get200Content = membersPath.get.responses['200'].content['application/json'].schema;
+      expect(get200Content).toHaveProperty('$ref');
+      expect((get200Content as { $ref: string })['$ref']).toContain('MemberListResponse');
+
+      const memberPath = openApiSpec.paths['/api/projects/{projectId}/members/{userId}'];
+      const delete200Content = memberPath.delete.responses['200'].content['application/json'].schema;
+      expect(delete200Content).toHaveProperty('$ref');
+      expect((delete200Content as { $ref: string })['$ref']).toContain('MembershipResponse');
+    });
+  });
 });

@@ -89,7 +89,7 @@ export const openApiSpec = {
       get: {
         summary: 'Listado de proyectos autorizados',
         description:
-          'Retorna la lista de proyectos académicos a los que el usuario en sesión tiene acceso.',
+          'Retorna la lista de proyectos académicos a los que el usuario en sesión tiene acceso (como creador o colaborador activo).',
         operationId: 'listProjects',
         parameters: [
           {
@@ -153,7 +153,7 @@ export const openApiSpec = {
       post: {
         summary: 'Creación de proyecto académico',
         description:
-          'Registra un nuevo proyecto validando título, código de curso, cronograma y creador.',
+          'Registra un nuevo proyecto validando título, código de curso, cronograma y creador. Crea además la membresía owner del creador de forma atómica.',
         operationId: 'createProject',
         parameters: [
           {
@@ -265,6 +265,188 @@ export const openApiSpec = {
         },
       },
     },
+    '/api/projects/{projectId}/members': {
+      post: {
+        summary: 'Agregar colaborador a un proyecto',
+        description:
+          'Agrega un usuario como colaborador activo del proyecto. Solo el creador del proyecto puede realizar esta operación.',
+        operationId: 'addProjectMember',
+        parameters: [
+          {
+            name: 'projectId',
+            in: 'path',
+            required: true,
+            description: 'Identificador único UUID del proyecto.',
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AddMemberRequest' },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Colaborador agregado exitosamente.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MembershipResponse' },
+              },
+            },
+          },
+          '400': {
+            description: 'Datos de solicitud inválidos (p. ej., userId no es UUID, role no es collaborator).',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'No autorizado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '403': {
+            description: 'El solicitante no es el creador del proyecto.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '404': {
+            description: 'Proyecto no encontrado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '409': {
+            description: 'El usuario ya tiene una membresía activa en el proyecto.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+      get: {
+        summary: 'Listar miembros activos de un proyecto',
+        description:
+          'Retorna la lista de membresías activas del proyecto. Solo accesible para miembros activos (owner o collaborator).',
+        operationId: 'listProjectMembers',
+        parameters: [
+          {
+            name: 'projectId',
+            in: 'path',
+            required: true,
+            description: 'Identificador único UUID del proyecto.',
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Lista de miembros activos retornada exitosamente.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MemberListResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'No autorizado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '404': {
+            description: 'Proyecto no encontrado o solicitante sin membresía activa.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/projects/{projectId}/members/{userId}': {
+      delete: {
+        summary: 'Retirar un colaborador de un proyecto',
+        description:
+          'Cambia el estado de la membresía del colaborador a "removed". Solo el creador puede retirar miembros. El propietario (owner) no puede ser retirado.',
+        operationId: 'removeProjectMember',
+        parameters: [
+          {
+            name: 'projectId',
+            in: 'path',
+            required: true,
+            description: 'Identificador único UUID del proyecto.',
+            schema: { type: 'string', format: 'uuid' },
+          },
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            description: 'Identificador del usuario a retirar.',
+            schema: { type: 'string' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Colaborador retirado exitosamente. Retorna la membresía actualizada con status "removed".',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MembershipResponse' },
+              },
+            },
+          },
+          '401': {
+            description: 'No autorizado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '403': {
+            description: 'El solicitante no es el creador del proyecto.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '404': {
+            description: 'Proyecto no encontrado o el usuario no tiene membresía activa.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+          '422': {
+            description: 'No se puede retirar al propietario del proyecto.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   components: {
     schemas: {
@@ -305,6 +487,36 @@ export const openApiSpec = {
           'createdAt',
           'updatedAt',
         ],
+      },
+      AddMemberRequest: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', format: 'uuid', description: 'UUID del usuario a agregar.' },
+          role: {
+            type: 'string',
+            enum: ['collaborator'],
+            description: 'Solo se acepta "collaborator". El rol "owner" es asignado internamente.',
+          },
+        },
+        required: ['userId', 'role'],
+        additionalProperties: false,
+      },
+      MembershipResponse: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          projectId: { type: 'string', format: 'uuid' },
+          userId: { type: 'string', minLength: 1 },
+          role: { type: 'string', enum: ['owner', 'collaborator'] },
+          status: { type: 'string', enum: ['active', 'removed'] },
+          joinedAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+        required: ['id', 'projectId', 'userId', 'role', 'status', 'joinedAt', 'updatedAt'],
+      },
+      MemberListResponse: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/MembershipResponse' },
       },
       ErrorResponse: {
         type: 'object',
