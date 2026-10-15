@@ -181,7 +181,8 @@ describe('OpenAPI 3.1 Contract Specification', () => {
       expect((get200Content as { $ref: string })['$ref']).toContain('MemberListResponse');
 
       const memberPath = openApiSpec.paths['/api/projects/{projectId}/members/{userId}'];
-      const delete200Content = memberPath.delete.responses['200'].content['application/json'].schema;
+      const delete200Content =
+        memberPath.delete.responses['200'].content['application/json'].schema;
       expect(delete200Content).toHaveProperty('$ref');
       expect((delete200Content as { $ref: string })['$ref']).toContain('MembershipResponse');
     });

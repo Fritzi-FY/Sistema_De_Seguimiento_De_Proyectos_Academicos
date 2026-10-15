@@ -38,18 +38,16 @@ export class RemoveMemberUseCase {
     // 1. Verificar que el proyecto existe
     const project = await this.projectRepository.findById(command.projectId);
     if (!project) {
-      throw Object.assign(
-        new Error(`Proyecto '${command.projectId}' no encontrado`),
-        { statusCode: 404 },
-      );
+      throw Object.assign(new Error(`Proyecto '${command.projectId}' no encontrado`), {
+        statusCode: 404,
+      });
     }
 
     // 2. Verificar que el solicitante es el creador
     if (project.creatorId !== command.requesterId) {
-      throw Object.assign(
-        new Error('Solo el creador del proyecto puede retirar integrantes'),
-        { statusCode: 403 },
-      );
+      throw Object.assign(new Error('Solo el creador del proyecto puede retirar integrantes'), {
+        statusCode: 403,
+      });
     }
 
     // 3. Verificar que la membresía activa del target existe
@@ -59,9 +57,7 @@ export class RemoveMemberUseCase {
     );
     if (!targetMembership) {
       throw Object.assign(
-        new Error(
-          `El usuario '${command.targetUserId}' no tiene membresía activa en el proyecto`,
-        ),
+        new Error(`El usuario '${command.targetUserId}' no tiene membresía activa en el proyecto`),
         { statusCode: 404 },
       );
     }

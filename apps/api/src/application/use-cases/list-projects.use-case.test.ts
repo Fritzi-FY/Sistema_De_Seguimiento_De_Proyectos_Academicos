@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Project, ProjectMembership, ProjectRepositoryPort, MembershipRepositoryPort } from '@is488/shared';
+import type {
+  Project,
+  ProjectMembership,
+  ProjectRepositoryPort,
+  MembershipRepositoryPort,
+} from '@is488/shared';
 import { DuplicateMembershipError, MembershipNotFoundError } from '@is488/shared';
 import { ListProjectsUseCase, GetProjectByIdUseCase } from './list-projects.use-case.js';
 
@@ -30,12 +35,14 @@ class FakeMembershipRepository implements MembershipRepositoryPort {
   private memberships: ProjectMembership[];
 
   constructor(initialMemberships: ProjectMembership[] = []) {
-    this.memberships = initialMemberships.map(m => ({ ...m }));
+    this.memberships = initialMemberships.map((m) => ({ ...m }));
   }
 
-  async addMember(data: Omit<ProjectMembership, 'id'> & { id?: string }): Promise<ProjectMembership> {
+  async addMember(
+    data: Omit<ProjectMembership, 'id'> & { id?: string },
+  ): Promise<ProjectMembership> {
     const existing = this.memberships.find(
-      m => m.projectId === data.projectId && m.userId === data.userId && m.status === 'active'
+      (m) => m.projectId === data.projectId && m.userId === data.userId && m.status === 'active',
     );
     if (existing) throw new DuplicateMembershipError(data.projectId, data.userId);
     const membership: ProjectMembership = { id: crypto.randomUUID(), ...data };
@@ -44,23 +51,25 @@ class FakeMembershipRepository implements MembershipRepositoryPort {
   }
 
   async removeMember(id: string): Promise<void> {
-    const m = this.memberships.find(m => m.id === id);
+    const m = this.memberships.find((m) => m.id === id);
     if (!m) throw new MembershipNotFoundError(id);
     m.status = 'removed';
   }
 
   async findByProject(projectId: string): Promise<ProjectMembership[]> {
-    return this.memberships.filter(m => m.projectId === projectId && m.status === 'active');
+    return this.memberships.filter((m) => m.projectId === projectId && m.status === 'active');
   }
 
   async findByUser(userId: string): Promise<ProjectMembership[]> {
-    return this.memberships.filter(m => m.userId === userId && m.status === 'active');
+    return this.memberships.filter((m) => m.userId === userId && m.status === 'active');
   }
 
   async findByProjectAndUser(projectId: string, userId: string): Promise<ProjectMembership | null> {
-    return this.memberships.find(
-      m => m.projectId === projectId && m.userId === userId && m.status === 'active'
-    ) ?? null;
+    return (
+      this.memberships.find(
+        (m) => m.projectId === projectId && m.userId === userId && m.status === 'active',
+      ) ?? null
+    );
   }
 }
 
@@ -69,33 +78,61 @@ const P2_ID = '22222222-2222-4222-8222-222222222222';
 const P3_ID = '33333333-3333-4333-8333-333333333333';
 
 const projectP1: Project = {
-  id: P1_ID, title: 'Proyecto P1', courseCode: 'IS-488', status: 'active',
-  startDate: '2026-10-15T00:00:00.000Z', targetDate: '2026-12-15T23:59:59.000Z',
-  creatorId: 'student-A', createdAt: NOW, updatedAt: NOW,
+  id: P1_ID,
+  title: 'Proyecto P1',
+  courseCode: 'IS-488',
+  status: 'active',
+  startDate: '2026-10-15T00:00:00.000Z',
+  targetDate: '2026-12-15T23:59:59.000Z',
+  creatorId: 'student-A',
+  createdAt: NOW,
+  updatedAt: NOW,
 };
 
 const projectP2: Project = {
-  id: P2_ID, title: 'Proyecto P2', courseCode: 'IS-488', status: 'active',
-  startDate: '2026-10-20T00:00:00.000Z', targetDate: '2026-12-20T23:59:59.000Z',
-  creatorId: 'student-B', createdAt: NOW, updatedAt: NOW,
+  id: P2_ID,
+  title: 'Proyecto P2',
+  courseCode: 'IS-488',
+  status: 'active',
+  startDate: '2026-10-20T00:00:00.000Z',
+  targetDate: '2026-12-20T23:59:59.000Z',
+  creatorId: 'student-B',
+  createdAt: NOW,
+  updatedAt: NOW,
 };
 
 const projectP3: Project = {
-  id: P3_ID, title: 'Proyecto P3', courseCode: 'IS-488', status: 'active',
-  startDate: '2026-10-25T00:00:00.000Z', targetDate: '2026-12-25T23:59:59.000Z',
-  creatorId: 'student-C', createdAt: NOW, updatedAt: NOW,
+  id: P3_ID,
+  title: 'Proyecto P3',
+  courseCode: 'IS-488',
+  status: 'active',
+  startDate: '2026-10-25T00:00:00.000Z',
+  targetDate: '2026-12-25T23:59:59.000Z',
+  creatorId: 'student-C',
+  createdAt: NOW,
+  updatedAt: NOW,
 };
 
 // student-A es collaborator en P2
 const membershipA_in_P2: ProjectMembership = {
-  id: 'mem-a-p2', projectId: P2_ID, userId: 'student-A',
-  role: 'collaborator', status: 'active', joinedAt: NOW, updatedAt: NOW,
+  id: 'mem-a-p2',
+  projectId: P2_ID,
+  userId: 'student-A',
+  role: 'collaborator',
+  status: 'active',
+  joinedAt: NOW,
+  updatedAt: NOW,
 };
 
 // student-A es owner de P1 (membresÃ­a owner)
 const membershipA_owner_P1: ProjectMembership = {
-  id: 'mem-a-p1-owner', projectId: P1_ID, userId: 'student-A',
-  role: 'owner', status: 'active', joinedAt: NOW, updatedAt: NOW,
+  id: 'mem-a-p1-owner',
+  projectId: P1_ID,
+  userId: 'student-A',
+  role: 'owner',
+  status: 'active',
+  joinedAt: NOW,
+  updatedAt: NOW,
 };
 
 describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ³n)', () => {
@@ -133,7 +170,7 @@ describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ
         user: { userId: 'student-A', role: 'student' },
       });
 
-      const ids = results.map(p => p.id);
+      const ids = results.map((p) => p.id);
       expect(ids).toContain(P1_ID); // creado por student-A
       expect(ids).toContain(P2_ID); // collaborator en P2
       expect(ids).not.toContain(P3_ID); // sin acceso a P3
@@ -146,7 +183,7 @@ describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ
         user: { userId: 'student-A', role: 'student' },
       });
 
-      const p1Occurrences = results.filter(p => p.id === P1_ID);
+      const p1Occurrences = results.filter((p) => p.id === P1_ID);
       expect(p1Occurrences).toHaveLength(1);
     });
 

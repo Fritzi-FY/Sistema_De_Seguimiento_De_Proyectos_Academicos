@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  AddMemberRequestSchema,
-  MembershipResponseSchema,
-} from './membership.contract.js';
+import { AddMemberRequestSchema, MembershipResponseSchema } from './membership.contract.js';
 
 describe('AddMemberRequestSchema', () => {
   it('acepta una carga válida con userId UUID y role collaborator', () => {

@@ -298,7 +298,8 @@ export const openApiSpec = {
             },
           },
           '400': {
-            description: 'Datos de solicitud inválidos (p. ej., userId no es UUID, role no es collaborator).',
+            description:
+              'Datos de solicitud inválidos (p. ej., userId no es UUID, role no es collaborator).',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
@@ -405,7 +406,8 @@ export const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: 'Colaborador retirado exitosamente. Retorna la membresía actualizada con status "removed".',
+            description:
+              'Colaborador retirado exitosamente. Retorna la membresía actualizada con status "removed".',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/MembershipResponse' },

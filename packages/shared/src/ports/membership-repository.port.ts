@@ -33,7 +33,9 @@ export interface ProjectMembership {
  */
 export class DuplicateMembershipError extends Error {
   constructor(projectId: string, userId: string) {
-    super(`Ya existe una membresía activa para el usuario '${userId}' en el proyecto '${projectId}'`);
+    super(
+      `Ya existe una membresía activa para el usuario '${userId}' en el proyecto '${projectId}'`,
+    );
     this.name = 'DuplicateMembershipError';
   }
 }
@@ -60,7 +62,9 @@ export interface MembershipRepositoryPort {
    * @throws {DuplicateMembershipError} Si ya existe una membresía activa para el par
    *   (projectId, userId).
    */
-  addMember(membership: Omit<ProjectMembership, 'id'> & { id?: string }): Promise<ProjectMembership>;
+  addMember(
+    membership: Omit<ProjectMembership, 'id'> & { id?: string },
+  ): Promise<ProjectMembership>;
 
   /**
    * Cambia el estado de una membresía a 'removed'.

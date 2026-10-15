@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Project, ProjectMembership, ProjectRepositoryPort, MembershipRepositoryPort, SystemClockPort } from '@is488/shared';
+import type {
+  Project,
+  ProjectMembership,
+  ProjectRepositoryPort,
+  MembershipRepositoryPort,
+  SystemClockPort,
+} from '@is488/shared';
 import { DuplicateMembershipError, MembershipNotFoundError } from '@is488/shared';
 import { RemoveMemberUseCase } from './remove-member.use-case.js';
 
@@ -43,19 +49,27 @@ const fakeOwnerMembership: ProjectMembership = {
 
 class FakeClock implements SystemClockPort {
   constructor(private readonly iso: string = NOW) {}
-  now(): Date { return new Date(this.iso); }
-  isoString(): string { return this.iso; }
+  now(): Date {
+    return new Date(this.iso);
+  }
+  isoString(): string {
+    return this.iso;
+  }
 }
 
 class FakeProjectRepo implements ProjectRepositoryPort {
   constructor(private readonly projects: Project[] = []) {}
-  async save(p: Project): Promise<void> { this.projects.push(p); }
-  async findById(id: string): Promise<Project | null> {
-    return this.projects.find(p => p.id === id) ?? null;
+  async save(p: Project): Promise<void> {
+    this.projects.push(p);
   }
-  async findAll(): Promise<Project[]> { return [...this.projects]; }
+  async findById(id: string): Promise<Project | null> {
+    return this.projects.find((p) => p.id === id) ?? null;
+  }
+  async findAll(): Promise<Project[]> {
+    return [...this.projects];
+  }
   async findByUser(userId: string): Promise<Project[]> {
-    return this.projects.filter(p => p.creatorId === userId);
+    return this.projects.filter((p) => p.creatorId === userId);
   }
 }
 
@@ -63,12 +77,14 @@ class FakeMembershipRepo implements MembershipRepositoryPort {
   private memberships: ProjectMembership[];
 
   constructor(initialMemberships: ProjectMembership[] = []) {
-    this.memberships = initialMemberships.map(m => ({ ...m }));
+    this.memberships = initialMemberships.map((m) => ({ ...m }));
   }
 
-  async addMember(data: Omit<ProjectMembership, 'id'> & { id?: string }): Promise<ProjectMembership> {
+  async addMember(
+    data: Omit<ProjectMembership, 'id'> & { id?: string },
+  ): Promise<ProjectMembership> {
     const existing = this.memberships.find(
-      m => m.projectId === data.projectId && m.userId === data.userId && m.status === 'active'
+      (m) => m.projectId === data.projectId && m.userId === data.userId && m.status === 'active',
     );
     if (existing) throw new DuplicateMembershipError(data.projectId, data.userId);
     const membership: ProjectMembership = { id: crypto.randomUUID(), ...data };
@@ -77,23 +93,25 @@ class FakeMembershipRepo implements MembershipRepositoryPort {
   }
 
   async removeMember(id: string): Promise<void> {
-    const m = this.memberships.find(m => m.id === id);
+    const m = this.memberships.find((m) => m.id === id);
     if (!m) throw new MembershipNotFoundError(id);
     m.status = 'removed';
   }
 
   async findByProject(projectId: string): Promise<ProjectMembership[]> {
-    return this.memberships.filter(m => m.projectId === projectId && m.status === 'active');
+    return this.memberships.filter((m) => m.projectId === projectId && m.status === 'active');
   }
 
   async findByUser(userId: string): Promise<ProjectMembership[]> {
-    return this.memberships.filter(m => m.userId === userId && m.status === 'active');
+    return this.memberships.filter((m) => m.userId === userId && m.status === 'active');
   }
 
   async findByProjectAndUser(projectId: string, userId: string): Promise<ProjectMembership | null> {
-    return this.memberships.find(
-      m => m.projectId === projectId && m.userId === userId && m.status === 'active'
-    ) ?? null;
+    return (
+      this.memberships.find(
+        (m) => m.projectId === projectId && m.userId === userId && m.status === 'active',
+      ) ?? null
+    );
   }
 }
 
@@ -126,7 +144,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: PROJECT_ID,
         requesterId: OTHER_USER,
         targetUserId: COLLABORATOR_ID,
-      })
+      }),
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
@@ -136,7 +154,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: 'proyecto-inexistente',
         requesterId: CREATOR_ID,
         targetUserId: COLLABORATOR_ID,
-      })
+      }),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -146,7 +164,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: PROJECT_ID,
         requesterId: CREATOR_ID,
         targetUserId: 'usuario-sin-membresia',
-      })
+      }),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -156,7 +174,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: PROJECT_ID,
         requesterId: CREATOR_ID,
         targetUserId: CREATOR_ID,
-      })
+      }),
     ).rejects.toMatchObject({ statusCode: 422 });
   });
 });

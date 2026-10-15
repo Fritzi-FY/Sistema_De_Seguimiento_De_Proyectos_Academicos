@@ -7,8 +7,12 @@ import { InMemoryProjectCreationAdapter } from '../../adapters/repositories/in-m
 
 class FakeClock implements SystemClockPort {
   constructor(private readonly iso: string = '2026-10-12T12:00:00.000Z') {}
-  now(): Date { return new Date(this.iso); }
-  isoString(): string { return this.iso; }
+  now(): Date {
+    return new Date(this.iso);
+  }
+  isoString(): string {
+    return this.iso;
+  }
 }
 
 function createTestApp(nodeEnv = 'development') {
@@ -109,11 +113,14 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('404: proyecto inexistente', async () => {
-      const res = await testApp.request('/api/projects/99999999-9999-4999-8999-999999999999/members', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Dev-User-Id': CREATOR_ID },
-        body: JSON.stringify({ userId: COLLABORATOR_ID, role: 'collaborator' }),
-      });
+      const res = await testApp.request(
+        '/api/projects/99999999-9999-4999-8999-999999999999/members',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Dev-User-Id': CREATOR_ID },
+          body: JSON.stringify({ userId: COLLABORATOR_ID, role: 'collaborator' }),
+        },
+      );
 
       expect(res.status).toBe(404);
     });
@@ -139,7 +146,7 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
       const json = (await res.json()) as { error: string; details?: Array<{ path: unknown[] }> };
       expect(json.error).toBe('Bad Request');
       // Verificar que el error apunta al campo role
-      const rolePaths = json.details?.flatMap(d => d.path) ?? [];
+      const rolePaths = json.details?.flatMap((d) => d.path) ?? [];
       expect(rolePaths).toContain('role');
     });
   });
@@ -187,10 +194,13 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('404: proyecto inexistente', async () => {
-      const res = await testApp.request('/api/projects/99999999-9999-4999-8999-999999999999/members/some-user', {
-        method: 'DELETE',
-        headers: { 'X-Dev-User-Id': CREATOR_ID },
-      });
+      const res = await testApp.request(
+        '/api/projects/99999999-9999-4999-8999-999999999999/members/some-user',
+        {
+          method: 'DELETE',
+          headers: { 'X-Dev-User-Id': CREATOR_ID },
+        },
+      );
 
       expect(res.status).toBe(404);
     });
@@ -223,7 +233,7 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
       expect(res.status).toBe(200);
       const json = (await res.json()) as Array<{ userId: string; role: string }>;
       // El owner siempre está en la lista (membresía creada por CreateProjectUseCase)
-      expect(json.some(m => m.userId === CREATOR_ID && m.role === 'owner')).toBe(true);
+      expect(json.some((m) => m.userId === CREATOR_ID && m.role === 'owner')).toBe(true);
     });
 
     it('404: usuario sin membresía activa no puede listar miembros', async () => {
@@ -292,10 +302,13 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
       expect(addRes.status).toBe(201);
 
       // 2. DELETE: retirar collaborador → 200
-      const deleteRes = await testApp.request(`/api/projects/${projectId}/members/${COLLABORATOR_ID}`, {
-        method: 'DELETE',
-        headers: { 'X-Dev-User-Id': CREATOR_ID },
-      });
+      const deleteRes = await testApp.request(
+        `/api/projects/${projectId}/members/${COLLABORATOR_ID}`,
+        {
+          method: 'DELETE',
+          headers: { 'X-Dev-User-Id': CREATOR_ID },
+        },
+      );
       expect(deleteRes.status).toBe(200);
       const deleteJson = (await deleteRes.json()) as { status: string };
       expect(deleteJson.status).toBe('removed');
@@ -315,7 +328,7 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
       });
       expect(listRes.status).toBe(200);
       const members = (await listRes.json()) as Array<{ userId: string; status: string }>;
-      const activeMember = members.find(m => m.userId === COLLABORATOR_ID);
+      const activeMember = members.find((m) => m.userId === COLLABORATOR_ID);
       expect(activeMember).toBeDefined();
       expect(activeMember?.status).toBe('active');
     });

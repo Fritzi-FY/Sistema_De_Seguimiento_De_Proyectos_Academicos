@@ -22,7 +22,10 @@ function makeProject(overrides: Partial<Project> = {}): Project {
   };
 }
 
-function makeOwnerMembership(projectId: string, overrides: Partial<ProjectMembership> = {}): ProjectMembership {
+function makeOwnerMembership(
+  projectId: string,
+  overrides: Partial<ProjectMembership> = {},
+): ProjectMembership {
   return {
     id: '22222222-2222-4222-8222-222222222222',
     projectId,
@@ -83,9 +86,9 @@ describe('InMemoryProjectCreationAdapter', () => {
       const initialProjectMapSize = projectMap.size;
       const initialMembershipMapSize = membershipMap.size;
 
-      await expect(
-        adapter.createProjectWithOwner(project, membership),
-      ).rejects.toThrow(ProjectAlreadyExistsError);
+      await expect(adapter.createProjectWithOwner(project, membership)).rejects.toThrow(
+        ProjectAlreadyExistsError,
+      );
 
       // Ningún Map se modificó (tamaños iguales, sin nueva membresía)
       expect(projectMap.size).toBe(initialProjectMapSize);
@@ -105,9 +108,9 @@ describe('InMemoryProjectCreationAdapter', () => {
 
       const initialProjectMapSize = projectMap.size;
 
-      await expect(
-        adapter.createProjectWithOwner(project, membership),
-      ).rejects.toThrow(DuplicateMembershipError);
+      await expect(adapter.createProjectWithOwner(project, membership)).rejects.toThrow(
+        DuplicateMembershipError,
+      );
 
       // projectMap no fue modificado
       expect(projectMap.size).toBe(initialProjectMapSize);

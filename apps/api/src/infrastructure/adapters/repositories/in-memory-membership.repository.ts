@@ -105,10 +105,7 @@ export class InMemoryMembershipRepository implements MembershipRepositoryPort {
   /**
    * Retorna la membresía activa para el par (projectId, userId), o null si no existe.
    */
-  async findByProjectAndUser(
-    projectId: string,
-    userId: string,
-  ): Promise<ProjectMembership | null> {
+  async findByProjectAndUser(projectId: string, userId: string): Promise<ProjectMembership | null> {
     const found = Array.from(this.storage.values()).find(
       (m) => m.projectId === projectId && m.userId === userId && m.status === 'active',
     );

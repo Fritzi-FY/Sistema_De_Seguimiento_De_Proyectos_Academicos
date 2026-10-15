@@ -64,9 +64,9 @@ describe('InMemoryMembershipRepository', () => {
     });
 
     it('lanza MembershipNotFoundError si la membresía no existe', async () => {
-      await expect(
-        repo.removeMember('99999999-9999-4999-8999-999999999999'),
-      ).rejects.toThrow(MembershipNotFoundError);
+      await expect(repo.removeMember('99999999-9999-4999-8999-999999999999')).rejects.toThrow(
+        MembershipNotFoundError,
+      );
     });
   });
 
@@ -90,10 +90,10 @@ describe('InMemoryMembershipRepository', () => {
   describe('findByUser', () => {
     it('retorna solo membresías activas del usuario', async () => {
       const OTHER_PROJECT = '00000000-0000-4000-8000-000000000002';
-      const m1 = await repo.addMember(makeMembershipData({ projectId: PROJECT_ID, userId: USER_A }));
-      await repo.addMember(
-        makeMembershipData({ projectId: OTHER_PROJECT, userId: USER_A }),
+      const m1 = await repo.addMember(
+        makeMembershipData({ projectId: PROJECT_ID, userId: USER_A }),
       );
+      await repo.addMember(makeMembershipData({ projectId: OTHER_PROJECT, userId: USER_A }));
       await repo.removeMember(m1.id);
 
       const memberships = await repo.findByUser(USER_A);

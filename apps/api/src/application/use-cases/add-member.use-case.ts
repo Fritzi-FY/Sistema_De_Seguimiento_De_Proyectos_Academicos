@@ -40,9 +40,7 @@ export class AddMemberUseCase {
 
     // 2. Verificar que el solicitante es el creador del proyecto
     if (project.creatorId !== command.requesterId) {
-      const error = new Error(
-        'Solo el creador del proyecto puede agregar integrantes',
-      );
+      const error = new Error('Solo el creador del proyecto puede agregar integrantes');
       throw Object.assign(error, { statusCode: 403 });
     }
 

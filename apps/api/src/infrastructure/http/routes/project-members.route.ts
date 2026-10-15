@@ -1,6 +1,10 @@
 import { Hono, type Context } from 'hono';
 import { ZodError } from 'zod';
-import type { ProjectRepositoryPort, MembershipRepositoryPort, SystemClockPort } from '@is488/shared';
+import type {
+  ProjectRepositoryPort,
+  MembershipRepositoryPort,
+  SystemClockPort,
+} from '@is488/shared';
 import { AddMemberRequestSchema } from '@is488/shared';
 import { AddMemberUseCase } from '../../../application/use-cases/add-member.use-case.js';
 import { RemoveMemberUseCase } from '../../../application/use-cases/remove-member.use-case.js';
@@ -27,7 +31,11 @@ export function createProjectMembersRouter(
   const router = new Hono();
 
   const addMemberUseCase = new AddMemberUseCase(projectRepository, membershipRepository, clock);
-  const removeMemberUseCase = new RemoveMemberUseCase(projectRepository, membershipRepository, clock);
+  const removeMemberUseCase = new RemoveMemberUseCase(
+    projectRepository,
+    membershipRepository,
+    clock,
+  );
   const listMembersUseCase = new ListMembersUseCase(projectRepository, membershipRepository);
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas

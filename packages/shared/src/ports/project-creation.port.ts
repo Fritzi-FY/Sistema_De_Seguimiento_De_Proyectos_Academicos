@@ -37,10 +37,7 @@ export interface ProjectCreationPort {
    *                                       en memoria, sin interleaving + compensación best-effort;
    *                                       en PostgreSQL, transacción SQL con BEGIN/COMMIT/ROLLBACK.
    */
-  createProjectWithOwner(
-    project: Project,
-    ownerMembership: ProjectMembership,
-  ): Promise<void>;
+  createProjectWithOwner(project: Project, ownerMembership: ProjectMembership): Promise<void>;
 }
 
 /**

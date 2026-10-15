@@ -33,10 +33,9 @@ export class ListMembersUseCase {
     // 1. Verificar que el proyecto existe
     const project = await this.projectRepository.findById(query.projectId);
     if (!project) {
-      throw Object.assign(
-        new Error(`Proyecto '${query.projectId}' no encontrado`),
-        { statusCode: 404 },
-      );
+      throw Object.assign(new Error(`Proyecto '${query.projectId}' no encontrado`), {
+        statusCode: 404,
+      });
     }
 
     // 2. Verificar que el solicitante tiene membresía activa (owner o collaborator)
@@ -48,10 +47,9 @@ export class ListMembersUseCase {
     );
     if (!requesterMembership) {
       // 404 para no revelar existencia del proyecto a usuarios sin membresía
-      throw Object.assign(
-        new Error(`Proyecto '${query.projectId}' no encontrado`),
-        { statusCode: 404 },
-      );
+      throw Object.assign(new Error(`Proyecto '${query.projectId}' no encontrado`), {
+        statusCode: 404,
+      });
     }
 
     // 3. Obtener y retornar los miembros activos del proyecto

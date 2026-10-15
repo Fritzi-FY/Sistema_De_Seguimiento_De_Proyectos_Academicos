@@ -1,5 +1,10 @@
 import { Hono } from 'hono';
-import type { SystemClockPort, ProjectRepositoryPort, MembershipRepositoryPort, ProjectCreationPort } from '@is488/shared';
+import type {
+  SystemClockPort,
+  ProjectRepositoryPort,
+  MembershipRepositoryPort,
+  ProjectCreationPort,
+} from '@is488/shared';
 import type { Project, ProjectMembership } from '@is488/shared';
 import { SystemClock } from '../adapters/clock/system-clock.adapter.js';
 import { InMemoryProjectRepository } from '../adapters/repositories/in-memory-project.repository.js';
@@ -39,16 +44,14 @@ export function createApp(options: AppOptions = {}) {
   const membershipMap = new Map<string, ProjectMembership>();
 
   // ── Repositorios individuales: reciben la misma referencia de Map ─────────────────────
-  const projectRepository =
-    options.projectRepository ?? new InMemoryProjectRepository(projectMap);
+  const projectRepository = options.projectRepository ?? new InMemoryProjectRepository(projectMap);
 
   const membershipRepository =
     options.membershipRepository ?? new InMemoryMembershipRepository(membershipMap);
 
   // ── Adaptador de creación coordinada: recibe las mismas referencias de Map ────────────
   const projectCreationPort =
-    options.projectCreationPort ??
-    new InMemoryProjectCreationAdapter(projectMap, membershipMap);
+    options.projectCreationPort ?? new InMemoryProjectCreationAdapter(projectMap, membershipMap);
 
   const app = new Hono();
 
@@ -63,7 +66,9 @@ export function createApp(options: AppOptions = {}) {
   // Montar endpoint de proyectos en /api/projects
   app.route(
     '/api/projects',
-    createProjectsRouter(projectRepository, projectCreationPort, membershipRepository, clock, { nodeEnv }),
+    createProjectsRouter(projectRepository, projectCreationPort, membershipRepository, clock, {
+      nodeEnv,
+    }),
   );
 
   // Montar enrutador de miembros bajo /api/projects

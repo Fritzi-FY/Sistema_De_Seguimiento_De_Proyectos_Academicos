@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Project, ProjectMembership, ProjectCreationPort, SystemClockPort } from '@is488/shared';
+import type {
+  Project,
+  ProjectMembership,
+  ProjectCreationPort,
+  SystemClockPort,
+} from '@is488/shared';
 import { CreateProjectUseCase } from './create-project.use-case.js';
 
 class FakeClock implements SystemClockPort {
@@ -22,7 +27,10 @@ class FakeProjectCreationPort implements ProjectCreationPort {
   public capturedMembership: ProjectMembership | undefined;
   public shouldThrow: boolean = false;
 
-  async createProjectWithOwner(project: Project, ownerMembership: ProjectMembership): Promise<void> {
+  async createProjectWithOwner(
+    project: Project,
+    ownerMembership: ProjectMembership,
+  ): Promise<void> {
     if (this.shouldThrow) {
       throw new Error('Error simulado en ProjectCreationPort');
     }
