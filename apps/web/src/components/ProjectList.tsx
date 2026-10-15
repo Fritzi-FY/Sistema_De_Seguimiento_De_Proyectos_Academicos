@@ -17,6 +17,7 @@ export interface ProjectListProps {
   error: string | null;
   onRetry: () => void;
   onOpenCreateModal: () => void;
+  onSelectProject?: (project: ProjectResponse) => void;
 }
 
 function formatUtcDate(isoString: string): string {
@@ -33,6 +34,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   error,
   onRetry,
   onOpenCreateModal,
+  onSelectProject,
 }) => {
   if (loading) {
     return (
@@ -184,6 +186,19 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 </span>
               </div>
             </div>
+
+            {onSelectProject && (
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => onSelectProject(project)}
+                  data-testid={`view-project-btn-${project.id}`}
+                  className="w-full rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-unsch-garnet focus:outline-none focus:ring-2 focus:ring-unsch-garnet"
+                >
+                  Ver detalle e integrantes &rarr;
+                </button>
+              </div>
+            )}
           </article>
         ))}
       </div>

@@ -1,6 +1,11 @@
 import { Hono } from 'hono';
 import { ZodError } from 'zod';
-import type { ProjectRepositoryPort, SystemClockPort } from '@is488/shared';
+import type {
+  ProjectRepositoryPort,
+  MembershipRepositoryPort,
+  SystemClockPort,
+  ProjectCreationPort,
+} from '@is488/shared';
 import { CreateProjectUseCase } from '../../../application/use-cases/create-project.use-case.js';
 import {
   ListProjectsUseCase,
@@ -13,18 +18,21 @@ export interface ProjectsRouterOptions {
 }
 
 /**
- * Crea el enrutador de proyectos (/api/projects) con inyección de repositorio y reloj.
+ * Crea el enrutador de proyectos (/api/projects) con inyección de repositorio,
+ * puerto de creación, repositorio de membresías y reloj.
  */
 export function createProjectsRouter(
   projectRepository: ProjectRepositoryPort,
+  projectCreationPort: ProjectCreationPort,
+  membershipRepository: MembershipRepositoryPort,
   clock: SystemClockPort,
   options: ProjectsRouterOptions = {},
 ) {
   const router = new Hono();
 
-  const createUseCase = new CreateProjectUseCase(projectRepository, clock);
-  const listUseCase = new ListProjectsUseCase(projectRepository);
-  const getByIdUseCase = new GetProjectByIdUseCase(projectRepository);
+  const createUseCase = new CreateProjectUseCase(projectCreationPort, clock);
+  const listUseCase = new ListProjectsUseCase(projectRepository, membershipRepository);
+  const getByIdUseCase = new GetProjectByIdUseCase(projectRepository, membershipRepository);
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas de proyectos
   router.use('*', createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));

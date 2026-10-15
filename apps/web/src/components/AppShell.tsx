@@ -4,6 +4,7 @@ import { fetchSystemHealth } from '../services/health.service.js';
 import { fetchProjects, createProject } from '../services/project.service.js';
 import { ProjectList } from './ProjectList.js';
 import { CreateProjectModal } from './CreateProjectModal.js';
+import { ProjectDetail } from './ProjectDetail.js';
 import {
   GraduationCap,
   Activity,
@@ -45,6 +46,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   // Estado de proyectos
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectResponse | null>(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -122,36 +124,48 @@ export const AppShell: React.FC<AppShellProps> = ({
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8 space-y-8">
         {/* Sección de Gestión de Proyectos Académicos */}
         <section aria-labelledby="projects-section-title">
-          <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-            <div>
-              <div className="flex items-center space-x-2">
-                <FolderKanban className="h-6 w-6 text-unsch-garnet" aria-hidden="true" />
-                <h2
-                  id="projects-section-title"
-                  className="text-xl font-bold tracking-tight text-slate-900"
-                >
-                  Gestión de Proyectos Académicos
-                </h2>
+          {selectedProject ? (
+            <ProjectDetail
+              project={selectedProject}
+              currentUserId="dev-student-01"
+              onBack={() => setSelectedProject(null)}
+            />
+          ) : (
+            <>
+              <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <FolderKanban className="h-6 w-6 text-unsch-garnet" aria-hidden="true" />
+                    <h2
+                      id="projects-section-title"
+                      className="text-xl font-bold tracking-tight text-slate-900"
+                    >
+                      Gestión de Proyectos Académicos
+                    </h2>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Crea y monitorea tus proyectos asignados con cronogramas y trazabilidad
+                    académica.
+                  </p>
+                </div>
+
+                {/* Aviso de persistencia volátil en memoria */}
+                <div className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1.5 text-xs text-blue-800 border border-blue-200">
+                  <Info className="mr-1.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  <span>Modo desarrollo: almacenamiento volátil en memoria RAM (ADR-003).</span>
+                </div>
               </div>
-              <p className="mt-1 text-xs text-slate-600">
-                Crea y monitorea tus proyectos asignados con cronogramas y trazabilidad académica.
-              </p>
-            </div>
 
-            {/* Aviso de persistencia volátil en memoria */}
-            <div className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1.5 text-xs text-blue-800 border border-blue-200">
-              <Info className="mr-1.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
-              <span>Modo desarrollo: almacenamiento volátil en memoria RAM (ADR-003).</span>
-            </div>
-          </div>
-
-          <ProjectList
-            projects={projects}
-            loading={loadingProjects}
-            error={projectsError}
-            onRetry={loadProjects}
-            onOpenCreateModal={() => setIsModalOpen(true)}
-          />
+              <ProjectList
+                projects={projects}
+                loading={loadingProjects}
+                error={projectsError}
+                onRetry={loadProjects}
+                onOpenCreateModal={() => setIsModalOpen(true)}
+                onSelectProject={(p) => setSelectedProject(p)}
+              />
+            </>
+          )}
         </section>
 
         {/* Tarjeta de estado de salud del sistema */}

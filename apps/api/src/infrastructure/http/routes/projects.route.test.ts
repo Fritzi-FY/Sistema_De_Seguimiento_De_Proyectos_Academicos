@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { SystemClockPort } from '@is488/shared';
+import type { SystemClockPort, Project, ProjectMembership } from '@is488/shared';
 import { ProjectResponseSchema } from '@is488/shared';
 import { createApp } from '../app.js';
 import { InMemoryProjectRepository } from '../../adapters/repositories/in-memory-project.repository.js';
+import { InMemoryMembershipRepository } from '../../adapters/repositories/in-memory-membership.repository.js';
+import { InMemoryProjectCreationAdapter } from '../../adapters/repositories/in-memory-project-creation.adapter.js';
 
 class FakeClock implements SystemClockPort {
   constructor(private readonly iso: string) {}
@@ -14,18 +16,37 @@ class FakeClock implements SystemClockPort {
   }
 }
 
+/**
+ * Crea una instancia de la app de pruebas con Maps compartidos correctamente compuestos
+ * siguiendo el Patrón B.1 (mismas referencias de Map en todos los adaptadores).
+ */
+function createTestApp(clock: SystemClockPort, nodeEnv = 'development') {
+  const projectMap = new Map<string, Project>();
+  const membershipMap = new Map<string, ProjectMembership>();
+  const projectRepository = new InMemoryProjectRepository(projectMap);
+  const membershipRepository = new InMemoryMembershipRepository(membershipMap);
+  const projectCreationPort = new InMemoryProjectCreationAdapter(projectMap, membershipMap);
+
+  return {
+    app: createApp({
+      clock,
+      projectRepository,
+      membershipRepository,
+      projectCreationPort,
+      nodeEnv,
+    }),
+    projectRepository,
+    membershipRepository,
+  };
+}
+
 describe('Pruebas de integración HTTP de Proyectos (/api/projects)', () => {
   const FIXED_ISO = '2026-10-11T15:00:00.000Z';
-  let repository: InMemoryProjectRepository;
   let testApp: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    repository = new InMemoryProjectRepository();
-    testApp = createApp({
-      clock: new FakeClock(FIXED_ISO),
-      projectRepository: repository,
-      nodeEnv: 'development',
-    });
+    const { app } = createTestApp(new FakeClock(FIXED_ISO));
+    testApp = app;
   });
 
   describe('Creación de proyectos (POST /api/projects)', () => {
@@ -250,6 +271,44 @@ describe('Pruebas de integración HTTP de Proyectos (/api/projects)', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it('[collaborator] student-B puede consultar el proyecto de student-A si es colaborador', async () => {
+      // student-B debe ser un UUID válido para pasar AddMemberRequestSchema
+      const studentBUuid = 'bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb';
+
+      // Agregar student-B como collaborator del proyecto de student-A
+      const addRes = await testApp.request(`/api/projects/${projectAId}/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dev-User-Id': 'student-A',
+        },
+        body: JSON.stringify({ userId: studentBUuid, role: 'collaborator' }),
+      });
+      expect(addRes.status).toBe(201);
+
+      const res = await testApp.request(`/api/projects/${projectAId}`, {
+        method: 'GET',
+        headers: {
+          'X-Dev-User-Id': studentBUuid,
+        },
+      });
+
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { id: string };
+      expect(json.id).toBe(projectAId);
+    });
+
+    it('[aislamiento] student-C sin membresía recibe 404 en el mismo proyecto', async () => {
+      const res = await testApp.request(`/api/projects/${projectAId}`, {
+        method: 'GET',
+        headers: {
+          'X-Dev-User-Id': 'student-C',
+        },
+      });
+
+      expect(res.status).toBe(404);
+    });
   });
 
   describe('Salvaguardas de seguridad del contexto de desarrollo', () => {
@@ -265,10 +324,7 @@ describe('Pruebas de integración HTTP de Proyectos (/api/projects)', () => {
     });
 
     it('debe rechazar estrictamente con HTTP 401 en producción incluso si se envían cabeceras X-Dev-User-Id', async () => {
-      const prodApp = createApp({
-        nodeEnv: 'production',
-        projectRepository: repository,
-      });
+      const prodApp = createTestApp(new FakeClock(FIXED_ISO), 'production').app;
 
       const res = await prodApp.request('/api/projects', {
         method: 'GET',
