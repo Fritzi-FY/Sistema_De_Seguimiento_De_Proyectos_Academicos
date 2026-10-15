@@ -152,4 +152,39 @@ describe('AppShell Component (Frontend SPA Baseline)', () => {
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  it('debe navegar hacia la vista de detalle de un proyecto y regresar a la lista de proyectos', async () => {
+    const mockHealth: HealthResponse = {
+      status: 'ok',
+      timestamp: '2026-10-10T12:00:00.000Z',
+      version: '0.1.0',
+    };
+    const mockFetcher = vi.fn().mockResolvedValue(mockHealth);
+
+    render(
+      <AppShell
+        healthFetcher={mockFetcher}
+        projectsFetcher={defaultMockProjectsFetcher}
+        projectCreator={defaultMockProjectCreator}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Proyecto de Prueba AppShell')).toBeInTheDocument();
+    });
+
+    const viewDetailBtn = screen.getByTestId(`view-project-btn-${dummyProject.id}`);
+    fireEvent.click(viewDetailBtn);
+
+    // Debe mostrar la vista de detalle
+    expect(screen.getByTestId('project-detail-view')).toBeInTheDocument();
+
+    // Regresar a la lista
+    const backBtn = screen.getByTestId('back-to-list-btn');
+    fireEvent.click(backBtn);
+
+    // Debe volver a la lista
+    expect(screen.queryByTestId('project-detail-view')).not.toBeInTheDocument();
+    expect(screen.getByText('Proyecto de Prueba AppShell')).toBeInTheDocument();
+  });
 });

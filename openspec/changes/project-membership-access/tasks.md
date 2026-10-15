@@ -1,6 +1,6 @@
 ## 1. Shared Package — Dominio, Puertos y Contratos (`packages/shared`)
 
-- [ ] 1.1 Definir la entidad de dominio `ProjectMembership` y la interfaz del puerto driven
+- [x] 1.1 Definir la entidad de dominio `ProjectMembership` y la interfaz del puerto driven
       `MembershipRepositoryPort` en `packages/shared/src/ports/membership-repository.port.ts`.
       Campos de entidad: `id` (UUID v4), `projectId`, `userId`,
       `role` (`'owner' | 'collaborator'`), `status` (`'active' | 'removed'`),
@@ -8,7 +8,7 @@
       Operaciones del puerto: `addMember`, `removeMember`, `findByProject`,
       `findByUser`, `findByProjectAndUser`.
 
-- [ ] 1.2 Definir la interfaz del puerto driven `ProjectCreationPort` en
+- [x] 1.2 Definir la interfaz del puerto driven `ProjectCreationPort` en
       `packages/shared/src/ports/project-creation.port.ts`.
       - Operación única: `createProjectWithOwner(project: Project, ownerMembership: ProjectMembership): Promise<void>`.
       - Semántica: al retornar sin error, tanto el proyecto como la membresía están
@@ -16,22 +16,22 @@
       - JSDoc del puerto debe documentar la garantía todo-o-nada y la responsabilidad
         del adaptador de implementar el mecanismo de consistencia apropiado.
 
-- [ ] 1.3 Definir los esquemas Zod en `packages/shared/src/contracts/membership.contract.ts`:
+- [x] 1.3 Definir los esquemas Zod en `packages/shared/src/contracts/membership.contract.ts`:
       - `AddMemberRequestSchema`: `userId` (UUID válido), `role` (literal `'collaborator'`
         únicamente; el rol `owner` se asigna solo internamente).
       - `MembershipResponseSchema`: todos los campos de `ProjectMembership`.
       - `MemberListResponseSchema`: array de `MembershipResponseSchema`.
 
-- [ ] 1.4 Exportar los nuevos contratos, tipos y puertos en `packages/shared/src/index.ts`:
+- [x] 1.4 Exportar los nuevos contratos, tipos y puertos en `packages/shared/src/index.ts`:
       - `MembershipRepositoryPort`, `ProjectMembership` y tipos relacionados.
       - `ProjectCreationPort`.
       - `AddMemberRequestSchema`, `MembershipResponseSchema`, `MemberListResponseSchema`.
 
-- [ ] 1.5 Actualizar el comentario JSDoc de `ProjectRepositoryPort.findByUser` para reflejar
+- [x] 1.5 Actualizar el comentario JSDoc de `ProjectRepositoryPort.findByUser` para reflejar
       que la semántica de "proyectos del usuario" se amplía mediante coordinación en el
       caso de uso (la firma del método no cambia).
 
-- [ ] 1.6 Escribir pruebas unitarias en
+- [x] 1.6 Escribir pruebas unitarias en
       `packages/shared/src/contracts/membership.contract.test.ts`:
       - Aceptación de carga válida con `userId` UUID y `role: 'collaborator'`.
       - Rechazo de `userId` con formato no UUID.
@@ -40,7 +40,7 @@
 
 ## 2. Adaptadores en Memoria (`apps/api` — infraestructura)
 
-- [ ] 2.1 Actualizar `InMemoryProjectRepository` en
+- [x] 2.1 Actualizar `InMemoryProjectRepository` en
       `apps/api/src/infrastructure/adapters/repositories/in-memory-project.repository.ts`:
       - El constructor debe aceptar una instancia opcional de `Map<string, Project>` como
         parámetro. Si se proporciona, el repositorio opera sobre ese `Map` compartido;
@@ -50,7 +50,7 @@
       - **No modificar la lógica de negocio** de los métodos existentes (`save`, `findById`,
         `findAll`, `findByUser`, `clear`); solo se modifica la fuente del `Map`.
 
-- [ ] 2.2 Implementar `InMemoryMembershipRepository` en
+- [x] 2.2 Implementar `InMemoryMembershipRepository` en
       `apps/api/src/infrastructure/adapters/repositories/in-memory-membership.repository.ts`.
       - El constructor acepta una instancia opcional de `Map<string, ProjectMembership>`.
         Si se proporciona, opera sobre ese `Map` compartido; si no, crea uno propio.
@@ -62,7 +62,7 @@
       - `findByProjectAndUser`: retornar la membresía activa para el par, o `null`.
       - Método `clear()` para pruebas.
 
-- [ ] 2.3 Implementar `InMemoryProjectCreationAdapter` en
+- [x] 2.3 Implementar `InMemoryProjectCreationAdapter` en
       `apps/api/src/infrastructure/adapters/repositories/in-memory-project-creation.adapter.ts`.
       - Constructor: recibe `projectMap: Map<string, Project>` y
         `membershipMap: Map<string, ProjectMembership>` — **las mismas instancias** que
@@ -85,7 +85,7 @@
         3. **Nota:** No se introduce `await`, `setTimeout` ni ninguna operación asíncrona
            entre las dos mutaciones de `Map`. Esto es intencional y obligatorio.
 
-- [ ] 2.4 Escribir pruebas unitarias en
+- [x] 2.4 Escribir pruebas unitarias en
       `apps/api/src/infrastructure/adapters/repositories/in-memory-membership.repository.test.ts`:
       - `addMember` exitoso retorna membresía con `id` UUID y `status: 'active'`.
       - `addMember` con par duplicado activo lanza `DuplicateMembershipError`.
@@ -100,7 +100,7 @@
         `status: 'active'`). `findByProjectAndUser` retorna únicamente el registro `active`.
         `findByProject` excluye el registro `removed` y solo incluye el nuevo `active`.
 
-- [ ] 2.5 Escribir pruebas unitarias en
+- [x] 2.5 Escribir pruebas unitarias en
       `apps/api/src/infrastructure/adapters/repositories/in-memory-project-creation.adapter.test.ts`:
       - **Caso exitoso:** tras `createProjectWithOwner`, tanto `projectMap` como `membershipMap`
         contienen los registros esperados. Una lectura a través de `InMemoryProjectRepository`
@@ -138,7 +138,7 @@
 
 ## 3. Casos de Uso — Aplicación (`apps/api` — application)
 
-- [ ] 3.1 Actualizar `CreateProjectUseCase` en
+- [x] 3.1 Actualizar `CreateProjectUseCase` en
       `apps/api/src/application/use-cases/create-project.use-case.ts`:
       - **Contrato de dependencias del constructor:**
         - Depende de `ProjectCreationPort` como mecanismo de persistencia coordinada.
@@ -164,7 +164,7 @@
         inyectado (en memoria: sin interleaving + compensación best-effort; en PostgreSQL:
         transacción SQL con BEGIN/COMMIT/ROLLBACK).`
 
-- [ ] 3.2 Actualizar las pruebas unitarias de `CreateProjectUseCase`
+- [x] 3.2 Actualizar las pruebas unitarias de `CreateProjectUseCase`
       (`create-project.use-case.test.ts`):
       - Verificar que tras la creación exitosa del proyecto, el `ProjectCreationPort` fake
         recibió tanto el proyecto como la membresía `owner` con los campos correctos
@@ -179,7 +179,7 @@
         de entrada, generación de UUID, timestamps, etc. se mantienen sin cambios,
         adaptando solo la inyección de dependencias al nuevo constructor.
 
-- [ ] 3.3 Implementar `AddMemberUseCase` en
+- [x] 3.3 Implementar `AddMemberUseCase` en
       `apps/api/src/application/use-cases/add-member.use-case.ts`:
       - Dependencias: `ProjectRepositoryPort`, `MembershipRepositoryPort`, `SystemClockPort`.
       - Validar que `command.requesterId` es el `creatorId` del proyecto (403 si no).
@@ -188,7 +188,7 @@
       - Persistir membresía con `role: 'collaborator'` y `status: 'active'`.
       - Retornar `MembershipResponseSchema.parse(membership)`.
 
-- [ ] 3.4 Escribir pruebas unitarias para `AddMemberUseCase`
+- [x] 3.4 Escribir pruebas unitarias para `AddMemberUseCase`
       (`add-member.use-case.test.ts`):
       - Éxito: membresía creada y retornada correctamente.
       - 403: solicitante no es el creador del proyecto.
@@ -196,7 +196,7 @@
       - 409: membresía duplicada activa.
       - Fallo si `userId` es cadena vacía o inválida.
 
-- [ ] 3.5 Implementar `RemoveMemberUseCase` en
+- [x] 3.5 Implementar `RemoveMemberUseCase` en
       `apps/api/src/application/use-cases/remove-member.use-case.ts`:
       - Dependencias: `ProjectRepositoryPort`, `MembershipRepositoryPort`, `SystemClockPort`.
       - Verificar que el proyecto existe (404 si no).
@@ -205,7 +205,7 @@
       - Rechazar si `targetUserId === project.creatorId` con error semántico (422).
       - Invocar `membershipRepository.removeMember(membershipId)`.
 
-- [ ] 3.6 Escribir pruebas unitarias para `RemoveMemberUseCase`
+- [x] 3.6 Escribir pruebas unitarias para `RemoveMemberUseCase`
       (`remove-member.use-case.test.ts`):
       - Éxito: membresía cambia a `status: 'removed'`.
       - 403: solicitante no es el creador.
@@ -213,7 +213,7 @@
       - 404: membresía del target no encontrada.
       - 422: intento de retirar al propietario.
 
-- [ ] 3.7 Implementar `ListMembersUseCase` en
+- [x] 3.7 Implementar `ListMembersUseCase` en
       `apps/api/src/application/use-cases/list-members.use-case.ts`:
       - Dependencias: `ProjectRepositoryPort`, `MembershipRepositoryPort`.
       - Verificar que el proyecto existe (404 si no).
@@ -221,14 +221,14 @@
         siguiendo política de no revelar existencia).
       - Retornar `MemberListResponseSchema.parse(members)`.
 
-- [ ] 3.8 Escribir pruebas unitarias para `ListMembersUseCase`
+- [x] 3.8 Escribir pruebas unitarias para `ListMembersUseCase`
       (`list-members.use-case.test.ts`):
       - Éxito: lista de miembros activos retornada correctamente.
       - 404: proyecto no encontrado.
       - 404: solicitante sin membresía activa.
       - Lista vacía si el único miembro es el owner que fue consultado.
 
-- [ ] 3.9 Actualizar `GetProjectByIdUseCase` en
+- [x] 3.9 Actualizar `GetProjectByIdUseCase` en
       `apps/api/src/application/use-cases/list-projects.use-case.ts`:
       - Añadir `MembershipRepositoryPort` como segunda dependencia inyectada.
       - La verificación de acceso pasa de solo `creatorId` a:
@@ -237,28 +237,28 @@
         `isElevated = role === 'admin' || role === 'teacher'`
         Acceso concedido si `isOwner || isMember || isElevated`.
 
-- [ ] 3.10 Actualizar `ListProjectsUseCase` en
+- [x] 3.10 Actualizar `ListProjectsUseCase` en
        `apps/api/src/application/use-cases/list-projects.use-case.ts`:
        - Añadir `MembershipRepositoryPort` como segunda dependencia.
        - Flujo estudiante: obtener `projectIds` de `membershipRepo.findByUser(userId)`,
          obtener proyectos creados con `projectRepo.findByUser(userId)`,
          unir y deduplicar por `id`.
 
-- [ ] 3.11 Actualizar pruebas de `GetProjectByIdUseCase`
+- [x] 3.11 Actualizar pruebas de `GetProjectByIdUseCase`
        (`list-projects.use-case.test.ts`):
        - Acceso concedido al miembro no creador (`collaborator`).
        - Acceso denegado (null → 404) al usuario sin membresía.
        - Acceso concedido al creador aunque no tenga entrada explícita de membresía
          en el repositorio fake (compatibilidad retroactiva).
 
-- [ ] 3.12 Actualizar pruebas de `ListProjectsUseCase`:
+- [x] 3.12 Actualizar pruebas de `ListProjectsUseCase`:
        - Escenario P1-P2-P3: estudiante-A es creador de P1, collaborator en P2 (creado
          por estudiante-B), sin membresía en P3 → lista retorna solo P1 y P2.
        - Deduplicación: si estudiante-A es creador Y tiene membresía, aparece una sola vez.
 
 ## 4. Infraestructura HTTP y OpenAPI (`apps/api` — infraestructura)
 
-- [ ] 4.1 Implementar `project-members.route.ts` en
+- [x] 4.1 Implementar `project-members.route.ts` en
       `apps/api/src/infrastructure/http/routes/project-members.route.ts` con:
       - `POST /:projectId/members` → `AddMemberUseCase` (201, 400, 401, 403, 404, 409).
       - `DELETE /:projectId/members/:userId` → `RemoveMemberUseCase` (200, 401, 403, 404, 422).
@@ -266,7 +266,7 @@
       - Manejador de métodos no soportados (405 con cabecera `Allow`).
       - Aplicar `devAuthMiddleware` a todas las rutas.
 
-- [ ] 4.2 Actualizar `apps/api/src/infrastructure/http/app.ts` (Patrón B.1):
+- [x] 4.2 Actualizar `apps/api/src/infrastructure/http/app.ts` (Patrón B.1):
       - Ampliar `AppOptions` con:
         - `membershipRepository?: MembershipRepositoryPort`
         - `projectCreationPort?: ProjectCreationPort`
@@ -297,7 +297,7 @@
         deberá llamarse `createProjectMembersRouter(membershipRepository, projectRepository, clock, { nodeEnv })`
         o equivalente, recibiendo las dependencias como parámetros.
 
-- [ ] 4.3 Actualizar `apps/api/src/infrastructure/openapi/openapi.contract.ts`
+- [x] 4.3 Actualizar `apps/api/src/infrastructure/openapi/openapi.contract.ts`
       con los tres nuevos endpoints y sus esquemas de request/response/error.
       - **[H12]** Registrar los schemas `AddMemberRequest`, `MembershipResponse` y
         `MemberListResponse` en la sección `components/schemas` del objeto `openApiSpec`,
@@ -308,7 +308,7 @@
         `id`, `projectId`, `userId`, `role`, `status`, `joinedAt`, `updatedAt`.
       - El body de la respuesta 200 del `DELETE` debe referenciar `MembershipResponse`.
 
-- [ ] 4.4 Escribir pruebas de integración HTTP en
+- [x] 4.4 Escribir pruebas de integración HTTP en
       `apps/api/src/infrastructure/http/routes/project-members.route.test.ts`:
       - `POST /api/projects/:id/members`: éxito 201, duplicado 409,
         solicitante sin ser creador 403, proyecto inexistente 404, sin auth 401.
@@ -328,42 +328,42 @@
           volver a ser agregado. Verificar que `GET /api/projects/:id/members` retorna U
           como activo.
 
-- [ ] 4.5 Actualizar `apps/api/src/infrastructure/http/routes/projects.route.test.ts`:
+- [x] 4.5 Actualizar `apps/api/src/infrastructure/http/routes/projects.route.test.ts`:
       - Nuevo escenario de aislamiento P1-P2-P3 a nivel HTTP.
       - Verificar que `GET /api/projects/:id` retorna 200 para un `collaborator`.
       - Verificar que `GET /api/projects/:id` retorna 404 para un usuario sin membresía.
 
-- [ ] 4.6 Actualizar `apps/api/src/infrastructure/openapi/openapi.contract.test.ts`
+- [x] 4.6 Actualizar `apps/api/src/infrastructure/openapi/openapi.contract.test.ts`
       para verificar presencia de las tres nuevas rutas de miembros.
 
 ## 5. Frontend (`apps/web`)
 
-- [ ] 5.1 Implementar `MembershipService` en
+- [x] 5.1 Implementar `MembershipService` en
       `apps/web/src/services/membership.service.ts`:
       - `getMembers(projectId)`: `GET /api/projects/:id/members`.
       - `addMember(projectId, body)`: `POST /api/projects/:id/members`.
       - `removeMember(projectId, userId)`: `DELETE /api/projects/:id/members/:userId`.
       - Tipado con schemas de `@is488/shared`; manejo de errores 403, 404, 409, 422.
 
-- [ ] 5.2 Escribir pruebas unitarias en
+- [x] 5.2 Escribir pruebas unitarias en
       `apps/web/src/services/membership.service.test.ts`:
       - Respuestas exitosas simuladas para los tres métodos.
       - Manejo correcto de errores HTTP (403, 404, 409, 422).
 
-- [ ] 5.3 Implementar `ProjectMembersList` en
+- [x] 5.3 Implementar `ProjectMembersList` en
       `apps/web/src/components/ProjectMembersList.tsx`:
       - Lista de miembros activos con userId, rol y fecha de incorporación.
       - Estado de carga (skeleton) y estado vacío.
       - Botón de retirar integrante visible solo para el creador del proyecto.
 
-- [ ] 5.4 Implementar `AddMemberModal` en
+- [x] 5.4 Implementar `AddMemberModal` en
       `apps/web/src/components/AddMemberModal.tsx`:
       - Campo de `userId`, selector de rol (solo `'collaborator'` disponible).
       - Validación reactiva del formato UUID del `userId`.
       - Bloqueo de envío doble y mensaje de error accesible.
       - Visible y operable solo para el creador del proyecto.
 
-- [ ] 5.5 Crear un nuevo componente `ProjectDetail.tsx` en
+- [x] 5.5 Crear un nuevo componente `ProjectDetail.tsx` en
       `apps/web/src/components/ProjectDetail.tsx` que actuará como vista de detalle
       de proyecto e integrará `ProjectMembersList` y `AddMemberModal`:
       - Recibir el proyecto seleccionado como prop (`project: ProjectResponse`).
@@ -378,20 +378,20 @@
       - Añadir botón de volver ("Volver a la lista") en `ProjectDetail` para restablecer
         `selectedProject` a `null`.
 
-- [ ] 5.6 Escribir pruebas de componentes con Vitest y React Testing Library:
+- [x] 5.6 Escribir pruebas de componentes con Vitest y React Testing Library:
       - `ProjectMembersList.test.tsx`: renderizado de lista, estado vacío, botón de retirar.
       - `AddMemberModal.test.tsx`: renderizado del modal, validación de campo, envío exitoso,
         presentación de error 409.
 
 ## 6. Verificación de Calidad y OpenSpec
 
-- [ ] 6.1 Ejecutar la suite completa de pruebas del monorepo (`npm test`) y verificar
+- [x] 6.1 Ejecutar la suite completa de pruebas del monorepo (`npm test`) y verificar
       que todas las pruebas pasan con código de salida 0.
-- [ ] 6.2 Ejecutar las compuertas de análisis estático: `npm run lint`,
+- [x] 6.2 Ejecutar las compuertas de análisis estático: `npm run lint`,
       `npm run typecheck` y `npm run format:check`, garantizando 0 errores y 0 advertencias.
-- [ ] 6.3 Ejecutar la compilación de producción (`npm run build`) y verificar la generación
+- [x] 6.3 Ejecutar la compilación de producción (`npm run build`) y verificar la generación
       limpia de artefactos en los tres workspaces.
-- [ ] 6.4 Validar formalmente las especificaciones con
+- [x] 6.4 Validar formalmente las especificaciones con
       `npx openspec validate --specs --strict` y `npx openspec validate --all --strict`.
-- [ ] 6.5 Ejecutar `git diff --check` y verificar que el árbol de trabajo se encuentra
+- [x] 6.5 Ejecutar `git diff --check` y verificar que el árbol de trabajo se encuentra
       en estado limpio y listo para revisión humana.
