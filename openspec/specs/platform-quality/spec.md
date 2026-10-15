@@ -5,12 +5,30 @@ Define testability, performance, security, deployment, and operational quality r
 
 ## Requirements
 
-### Requirement: Automated tests
-The repository SHALL run unit and integration tests in CI before merge to `main`.
+### Requirement: Service diagnostic health check
+The system SHALL provide an unauthenticated health check endpoint at `GET /api/health` that reports operational availability, current server timestamp in ISO-8601 format, and the active system version.
 
-#### Scenario: Test failure
-- **WHEN** a required test or typecheck fails in a pull request
-- **THEN** the pipeline SHALL fail and block the merge according to repository rules
+#### Scenario: Successful health inquiry
+- **WHEN** any client performs an HTTP `GET` request to `/api/health`
+- **THEN** the system SHALL respond with HTTP status 200
+- **AND** the response body SHALL contain a JSON payload conforming to `{ "status": "ok", "timestamp": string, "version": string }`
+- **AND** the response SHALL include headers preventing unauthenticated responses from being cached incorrectly (`Cache-Control: no-cache, no-store, must-revalidate`)
+
+#### Scenario: Unsupported HTTP method on health endpoint
+- **WHEN** a client issues a `POST`, `PUT`, `PATCH`, or `DELETE` request to `/api/health`
+- **THEN** the system SHALL reject the request with HTTP status 405 Method Not Allowed
+- **AND** the system SHALL NOT disclose internal stack traces or environment variables
+
+### Requirement: Automated tests and quality gates
+The repository CI pipeline SHALL enforce strict OpenSpec validation, automated linting, strict TypeScript typechecking, unit/integration test execution, and production build verification on all pull requests targeting `main`.
+
+#### Scenario: Quality or compilation defects in pull request
+- **WHEN** a pull request contains linting errors, TypeScript typecheck failures, failing tests, or build errors
+- **THEN** the CI pipeline SHALL fail and block integration into `main`
+
+#### Scenario: Pull request passing all quality gates
+- **WHEN** a pull request satisfies strict OpenSpec validation, passes linter checks, compiles without TypeScript errors, passes all automated tests, and successfully executes the build command
+- **THEN** the CI pipeline SHALL mark the check suite as successful and allow progression to review
 
 ### Requirement: API contract
 The API SHALL publish an OpenAPI contract and keep it aligned with implemented routes and schemas.

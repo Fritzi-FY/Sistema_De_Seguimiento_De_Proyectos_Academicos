@@ -32,6 +32,54 @@ Este paquete fija las decisiones de producto, arquitectura, seguridad, calidad, 
 5. Hacer un spike técnico pequeño para validar Workers + PostgreSQL/Hyperdrive + autenticación.
 6. Implementar por EPIC con pruebas, PR y despliegues progresivos.
 
+## Inicio rápido y desarrollo local
+
+### Requisitos previos
+
+- **Node.js:** `>=20.19.0` (LTS recomendado).
+- **npm:** `>=10.0.0`.
+- **Git** y **OpenSpec CLI** (`@fission-ai/openspec@1.7.0`).
+
+### Instalación de dependencias
+
+Instalación limpia y determinista basada en el `package-lock.json` versionado:
+
+```bash
+npm ci
+```
+
+### Ejecución en desarrollo
+
+Inicia de manera coordinada el Worker de API (`apps/api` en `http://localhost:8787`) y la aplicación web SPA (`apps/web` en `http://localhost:5173` con proxy hacia `/api/*`):
+
+```bash
+npm run dev
+```
+
+### Compuertas de calidad y verificación
+
+Ejecución de las verificaciones automatizadas locales del monorepo:
+
+```bash
+# Pruebas automatizadas en todos los workspaces (Vitest)
+npm test
+
+# Comprobación estricta de tipos TypeScript
+npm run typecheck
+
+# Análisis estático de código (ESLint)
+npm run lint
+
+# Verificación de estilo y formato de código (Prettier)
+npm run format:check
+
+# Compilación de producción (shared, Worker y frontend)
+npm run build
+
+# Validación estricta de especificaciones OpenSpec
+npx openspec validate --specs --strict
+```
+
 ## Índice
 
 - `docs/01-product-vision-and-scope.md`: visión, actores, alcance y reglas.
