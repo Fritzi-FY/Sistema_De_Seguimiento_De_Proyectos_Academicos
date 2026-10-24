@@ -33,15 +33,36 @@ Each academic project SHALL have an associated Kanban board containing ordered c
 - **AND** SHALL NOT disclose project or board metadata
 
 ### Requirement: Task lifecycle
-A task SHALL belong to exactly one project and one valid column within that project's board. The server SHALL be the sole authority for validating and executing task transitions and ordering. Moving a task SHALL be atomic within a single transactional boundary, SHALL sequentially adjust order indices within columns, and SHALL record an immutable task activity event with the actor, source column, destination column, and timestamp. If any step fails, the entire operation SHALL roll back.
+A task SHALL belong to exactly one project and one valid column within that project's board. The server SHALL be the sole authority for validating and executing task transitions and ordering. Moving a task SHALL be atomic within a single transactional boundary, SHALL sequentially adjust order indices within columns to maintain contiguous 0-indexed positions without gaps or duplicates, and SHALL record an immutable task activity event with the actor, source column, destination column, timestamp, and index transition details (`fromIndex`, `toIndex`). Any real change of position (inter-column move or intra-column reordering) SHALL update the task's `updatedAt` timestamp and generate exactly one `MOVED` activity event. If the destination column and effective destination index resolve to the task's current position, the operation SHALL be treated as an idempotent no-op without updating `updatedAt`, without recording an activity event, and without publishing state changes. If any step of an effective move fails, the entire operation SHALL roll back without partial state.
 
-#### Scenario: Move task
-- **GIVEN** an authorized member and an existing task in column A of the project
-- **WHEN** the member sends a move request specifying a valid destination column B within the same project board and a destination order index
-- **THEN** the system SHALL update the task's column and order index atomically
-- **AND** SHALL adjust sibling task order indices to preserve sequential contiguous ordering
-- **AND** SHALL record an immutable activity event capturing the transition
+#### Scenario: Move task between columns
+- **GIVEN** an authorized member and an existing task at position `fromIndex` in column A of the project
+- **WHEN** the member sends a move request specifying a valid destination column B (different from column A) within the same project board and a destination order index
+- **THEN** the system SHALL update the task's column, order index, and `updatedAt` timestamp atomically
+- **AND** SHALL adjust sibling task order indices in both column A and column B to preserve sequential contiguous 0-indexed ordering without gaps or duplicates
+- **AND** SHALL record exactly one immutable activity event with action `MOVED`, actor, source column, destination column, timestamp, and details capturing `fromIndex` and `toIndex`
 - **AND** SHALL return HTTP status 200 OK with the updated task representation
+
+#### Scenario: Move task within the same column (intra-column reordering)
+- **GIVEN** an authorized member and an existing task at position `fromIndex` in column A
+- **WHEN** the member sends a move request specifying the same column A and a destination index resulting in a different effective position `toIndex`
+- **THEN** the system SHALL update the task's order index and `updatedAt` timestamp atomically
+- **AND** SHALL adjust sibling task order indices in column A to preserve sequential contiguous 0-indexed ordering without gaps or duplicates
+- **AND** SHALL record exactly one immutable activity event with action `MOVED`, actor, source column, destination column (equal to source column), timestamp, and details capturing `fromIndex` and `toIndex`
+- **AND** SHALL return HTTP status 200 OK with the updated task representation
+
+#### Scenario: Move task to the same effective position (no-op)
+- **GIVEN** an authorized member and an existing task in column A
+- **WHEN** the member sends a move request specifying the same column A and a destination index that resolves to the task's current effective position
+- **THEN** the system SHALL treat the operation as an idempotent no-op without modifying task data, without updating `updatedAt`, and without publishing state changes
+- **AND** NO activity event SHALL be recorded
+- **AND** the system SHALL return HTTP status 200 OK with the current task representation
+
+#### Scenario: Destination order index clamping
+- **GIVEN** an authorized member and an existing task in the project board
+- **WHEN** the member sends a move request with a non-negative destination order index greater than the maximum index of the destination column (calculated over the destination list excluding the task being moved)
+- **THEN** the system SHALL clamp the destination order index to the end of the destination column (effective index equal to the count of remaining destination tasks)
+- **AND** SHALL execute the move and contiguous reordering preserving sequential 0-indexed ordering
 
 #### Scenario: Invalid destination
 - **GIVEN** an authorized member and an existing task in project X
@@ -73,6 +94,44 @@ Tasks SHALL support title (3 to 140 characters), description (optional, up to 20
 - **THEN** the system SHALL reject the request with HTTP status 400 Bad Request
 - **AND** SHALL return structured validation error messages
 
+#### Scenario: Successful partial task update
+- **GIVEN** an authorized project member and an existing task in project X
+- **WHEN** the member submits an update request providing a subset of editable fields (`title`, `description`, `priority`, `dueDate`, `labels`, `assigneeIds`)
+- **THEN** the system SHALL update the specified fields and recompute `updatedAt` using the system clock atomically under the shared project mutex
+- **AND** SHALL preserve the values of all omitted fields without modification
+- **AND** SHALL record exactly one immutable activity event with action `UPDATED` containing the modified field details
+- **AND** SHALL return HTTP status 200 OK with the updated task representation
+
+#### Scenario: Clearing task fields (empty semantics)
+- **GIVEN** an authorized project member and an existing task with populated description, dueDate, labels, and assignees
+- **WHEN** the member submits an update with `description: ""` (empty string), `dueDate: null`, `labels: []`, or `assigneeIds: []`
+- **THEN** the system SHALL clear the corresponding fields (setting description and dueDate to undefined/null, and labels/assigneeIds to empty arrays)
+- **AND** SHALL update `updatedAt` and record an `UPDATED` activity event atomically
+
+#### Scenario: Idempotent task update with identical values (no-op)
+- **GIVEN** an authorized project member and an existing task
+- **WHEN** the member submits an update request whose values match the current task state exactly
+- **THEN** the system SHALL treat the operation as an idempotent no-op without modifying task data, without changing `updatedAt`, without recording an activity event, and without publishing state changes
+- **AND** SHALL return HTTP status 200 OK with the current task representation
+
+#### Scenario: Protected fields modification rejected on update
+- **GIVEN** an authorized project member and an existing task
+- **WHEN** the member attempts to modify identity (`id`), project (`projectId`), creator (`creatorId`), or movement fields (`columnId`, `orderIndex`) via the task update endpoint
+- **THEN** the system SHALL reject the request with HTTP status 400 Bad Request, indicating that structural and movement fields cannot be modified via task update
+- **AND** SHALL leave the task unchanged without recording an activity event
+
+#### Scenario: Task update rejected for ineligible assignees
+- **GIVEN** an authorized project member and an existing task in project X
+- **WHEN** the member submits an update with an `assigneeIds` list containing any user who is not an active member of project X (e.g. non-member, removed member, or user from another project)
+- **THEN** the system SHALL reject the update with HTTP status 400 Bad Request (`IneligibleAssigneeError`)
+- **AND** NO changes SHALL be persisted
+
+#### Scenario: Horizontal isolation on task update
+- **GIVEN** an authenticated user who is neither an active member of project X nor a teacher formally assigned to project X, or a request targeting a task that belongs to another project Y
+- **WHEN** the user attempts to update a task in project X
+- **THEN** the system SHALL reject the request with HTTP status 404 Not Found
+- **AND** SHALL NOT modify the task state
+
 ### Requirement: List and board views
 The system SHALL provide both a full Kanban board view and a tabular list view. The list view SHALL support server-side filtering (by `columnId`, `priority`, `assigneeId`, `label`, and date range), sorting, and server-side pagination with default page size of 20 items (maximum 100 items). Access SHALL be strictly restricted to project members and formally assigned teachers.
 
@@ -96,6 +155,41 @@ The system SHALL provide both a full Kanban board view and a tabular list view. 
 - **THEN** the system SHALL reject the inquiry with HTTP status 404 Not Found
 - **AND** SHALL preserve horizontal isolation between academic project scopes
 
+### Resolved ambiguities for list view (3.7)
+
+The following decisions were resolved before implementation:
+
+1. **Default sort order**: Tasks SHALL be sorted by (columnId ascending lexicographic, orderIndex ascending, createdAt ascending). Stable across calls.
+2. **Search semantics**: Case-insensitive substring match on title AND description. A task matches if either field contains the search string.
+3. **Date range filter**: NOT in v1. ListTasksQuerySchema does not define startDate/endDate.
+4. **totalPages when empty**: totalPages = ceil(totalItems / limit); 0 if totalItems is 0.
+5. **Filter AND semantics**: All active filters combine with AND logic. Filtering before pagination; totalItems reflects filtered count.
+6. **No mutations**: Listing SHALL NOT modify task state or record activity events.
+
+#### Scenario: Deterministic ordered list with pagination
+- **GIVEN** an authorized project member and multiple tasks across multiple columns
+- **WHEN** the member requests GET /api/projects/:projectId/tasks?page=1&limit=N
+- **THEN** the system SHALL return tasks ordered by (columnId lexicographic, orderIndex, createdAt)
+- **AND** the order SHALL be stable and reproducible across identical requests
+- **AND** totalItems SHALL reflect the count of all matching tasks
+- **AND** totalPages SHALL equal ceil(totalItems / limit) or 0 if no tasks match
+
+#### Scenario: Search filter on title and description
+- **GIVEN** an authorized project member
+- **WHEN** the member requests with search=<term>
+- **THEN** the system SHALL return tasks whose title OR description contains <term> as a case-insensitive substring
+
+#### Scenario: Combined filters
+- **GIVEN** an authorized project member
+- **WHEN** the member provides multiple filter parameters simultaneously
+- **THEN** ALL active filters SHALL be applied together (AND logic)
+- **AND** totalItems SHALL reflect only tasks satisfying all active filters
+
+#### Scenario: No mutations on list
+- **GIVEN** any authorized member
+- **WHEN** the member lists tasks
+- **THEN** the system SHALL NOT modify any task, board, or membership data
+- **AND** SHALL NOT record any activity event
 ## ADDED Requirements
 
 ### Requirement: Task assignment eligibility

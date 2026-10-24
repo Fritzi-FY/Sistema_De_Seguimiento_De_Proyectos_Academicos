@@ -1,4 +1,4 @@
-# Design: Kanban Boards & Task Management (`kanban-boards-tasks`)
+﻿# Design: Kanban Boards & Task Management (`kanban-boards-tasks`)
 
 ## 1. Visión General y Objetivos Arquitectónicos
 
@@ -106,20 +106,35 @@ El diseño se fundamenta rigurosamente en:
    - Determina el siguiente `orderIndex` en la columna.
    - Persiste la tarea y registra automáticamente el evento `CREATED` en `TaskActivityRepositoryPort`.
 
-6. **`UpdateTaskUseCase`:**
-   - Valida pertenencia contextual y elegibilidad de nuevos asignados.
-   - Actualiza campos y marca `updatedAt` con el reloj del sistema.
-   - Registra evento de auditoría `UPDATED`.
+6. **`UpdateTaskUseCase` y `TaskUpdatePort`:**
+   - Entrada: `{ projectId: string, taskId: string, requesterId: string, title?: string, description?: string, columnId?: string, priority?: TaskPriority, dueDate?: string | null, labels?: string[], assigneeIds?: string[] }`.
+   - Valida pertenencia contextual en el proyecto (404 a no miembros y docentes no asignados; 404 si la tarea pertenece a otro proyecto o no existe).
+   - Valida esquema Zod (`UpdateTaskSchema`). Impide modificar campos protegidos de identidad (`id`), proyecto (`projectId`), creador (`creatorId`) y movimiento (`columnId`, `orderIndex`), arrojando 400 Bad Request si se intenta cambiar la columna o identificadores.
+   - Valida elegibilidad de asignados: si `assigneeIds` está presente, comprueba que cada uno sea miembro activo en el proyecto (`MembershipRepositoryPort.findByProjectAndUser(projectId, id)` con `status === 'active'`), arrojando `IneligibleAssigneeError` (400 Bad Request) ante asignados inactivos o ajenos.
+   - Delegación atómica única a `TaskUpdatePort` (`executeAtomicTaskUpdate`) bajo mutex compartido (`ProjectLockManager`):
+     1. Re-lee la tarea desde el snapshot Copy-On-Write dentro de la sección crítica para evitar condiciones de carrera (TOCTOU) con movimientos o ediciones concurrentes.
+     2. Semántica de actualización parcial y vaciado:
+        - Campos omitidos (`undefined`) conservan su valor actual del snapshot.
+        - `description: ""` (cadena vacía/espacios) vacía el campo (`undefined`).
+        - `dueDate: null` vacía la fecha límite (`undefined`).
+        - `labels: []` vacía las etiquetas; `assigneeIds: []` desasigna a todos los responsables.
+        - `title` y `priority` se actualizan a los nuevos valores validados.
+     3. Detección de no-op (sin cambios reales): si todos los campos resultantes son idénticos a los actuales en el snapshot, la operación es idempotente: no actualiza `updatedAt`, no genera evento `UPDATED` y no publica el snapshot.
+     4. Si hay cambio real: actualiza `updatedAt` con el timestamp del reloj (`SystemClockPort`), genera evento inmutable `UPDATED` con `{ actorId, timestamp, details }`, y publica snapshot de forma atómica única (`commitSnapshot`).
+     5. Soporta inyección de fallos (`before_publish`) tras preparar tarea y auditoría para verificar reversión completa de estado y preservación de auditoría previa.
 
-7. **`MoveTaskUseCase`:**
+7. **`MoveTaskUseCase` y `TaskMovePort`:**
    - Entrada: `{ projectId: string, taskId: string, destinationColumnId: string, destinationIndex: number, requestingUserId: string }`.
    - Valida autorización contextual (404 a no miembros y docentes no asignados) y que `destinationColumnId` pertenezca al mismo tablero (400 si pertenece a otro proyecto o no existe).
-   - Ejecuta dentro de una **transacción atómica única**:
-     1. Reordenamiento y compactación de índices en columna origen.
-     2. Desplazamiento de índices en columna destino para hacer espacio en `destinationIndex`.
-     3. Actualización de `columnId` y `orderIndex` de la tarea trasladada.
-     4. Registro inmutable del evento de actividad `MOVED` con `{ fromColumnId, toColumnId, actorId, timestamp }`.
-     5. Si el guardado del evento o la actualización de índices falla, se aborta la transacción completa.
+   - Delegación atómica única a `TaskMovePort` (`executeAtomicTaskMove`) bajo mutex compartido (`ProjectLockManager`):
+     1. Captura de `sourceColumnId` y `sourceIndex` antes de cualquier modificación.
+     2. Cálculo de posición destino efectiva con clamp al final si `destinationIndex` supera la longitud de la lista destino excluyendo la tarea movida.
+     3. Detección de idempotencia: si `sourceColumnId === destinationColumnId` y el índice efectivo es igual al índice original, operación no-op sin modificar `updatedAt`, sin evento `MOVED` y sin publicación.
+     4. Si hay cambio real de posición (intra-columna o inter-columna):
+        - Actualiza `orderIndex` y `updatedAt` (con timestamp del reloj).
+        - Reordena de forma contigua las columnas origen y destino (0..N-1 sin duplicados ni huecos).
+        - Prepara evento inmutable `MOVED` con `{ fromColumnId, toColumnId, actorId, timestamp, details: { fromIndex, toIndex } }`.
+     5. Publicación atómica única (`commitSnapshot`) de tareas y evento juntos tras verificar que no existan fallos. Si ocurre un fallo antes de publicar, el estado previo completo (incluyendo auditoría previa) se preserva intacto sin modificaciones.
 
 8. **`ListTasksUseCase`:**
    - Valida autorización contextual en el proyecto (404 a no miembros y docentes no asignados).
@@ -164,14 +179,31 @@ Ubicados en `packages/shared/src/contracts/`:
     assigneeIds: z.array(z.string().uuid()).default([]),
   })
   ```
-- `UpdateTaskSchema`: `CreateTaskSchema.partial()`
+- `UpdateTaskSchema`:
+  ```typescript
+  z.object({
+    title: z.string().trim().min(3).max(140).optional(),
+    description: z.string().trim().max(2000).optional(),
+    priority: TaskPrioritySchema.optional(),
+    dueDate: z.string().datetime().nullable().optional(),
+    labels: z.array(z.string().trim().min(1).max(30)).max(5).optional(),
+    assigneeIds: z.array(z.string().uuid()).optional(),
+  }).refine((data) => Object.keys(data).length > 0, {
+    message: 'Debe especificar al menos un campo para actualizar',
+  })
+  ```
+  > [!IMPORTANT]
+  > `columnId` y `orderIndex` están excluidos deliberadamente de este esquema. Mover tareas entre columnas o alterar su posición dentro de una columna es una operación estructural exclusiva gestionada atómicamente por `MoveTaskUseCase` (`MoveTaskSchema`).
+  > **Detección y rechazo de campos protegidos:** Para evitar que el motor de Zod descarte silenciosamente campos no permitidos, el manejador HTTP verifica explícitamente si el cuerpo crudo de la petición contiene campos de identidad o movimiento (`id`, `projectId`, `creatorId`, `columnId`, `orderIndex`, `createdAt`, `updatedAt`). Si alguno está presente, rechaza la solicitud de inmediato con **HTTP 400 Bad Request**, indicando que dichos campos no pueden modificarse mediante actualización de tarea.
+
 - `MoveTaskSchema`:
   ```typescript
   z.object({
-    destinationColumnId: z.string().uuid(),
+    destinationColumnId: z.string().uuid({ message: 'El identificador de columna destino debe ser un UUID válido' }),
     destinationIndex: z.number().int().min(0),
   })
   ```
+
 - `ListTasksQuerySchema`:
   ```typescript
   z.object({
@@ -180,10 +212,85 @@ Ubicados en `packages/shared/src/contracts/`:
     columnId: z.string().uuid().optional(),
     priority: TaskPrioritySchema.optional(),
     assigneeId: z.string().uuid().optional(),
-    label: z.string().optional(),
-    search: z.string().max(100).optional(),
+    label: z.string().trim().min(1).max(30).optional(),
+    search: z.string().trim().max(100).optional(),
   })
   ```
+
+### 4.3 Arquitectura HTTP, Enrutamiento e Inyección de Dependencias (Bloque 4)
+
+#### 4.3.1 Rutas y Endpoints
+Se estructuran en dos enrutadores desacoplados montados bajo `/api/projects`:
+
+1. **`board.route.ts` (`/api/projects/:projectId/board`):**
+   - `GET /api/projects/:projectId/board`: Obtiene el tablero del proyecto con sus columnas contiguas ordenadas por `orderIndex`. Si no existe, lo inicializa de forma at?mica y segura ante concurrencia con las columnas predeterminadas (`TODO`, `IN_PROGRESS`, `IN_REVIEW`, `DONE`). Cabecera: `Cache-Control: no-store`. Respuestas: `200`, `400`, `401`, `404`, `405`, `500`.
+   - `POST /api/projects/:projectId/board/columns`: Crea una nueva columna en el tablero validando l?mite m?ximo (`maxColumns = 10`), nombre v?lido y categor?a v?lida (`CreateBoardColumnSchema`). Cabecera: `Cache-Control: no-store`. Respuestas: `201`, `400`, `401`, `404`, `405`, `500`.
+   - `PATCH /api/projects/:projectId/board/columns/:columnId`: Actualiza metadatos (`name`, `category`, `color`) y/o reordena contiguamente (`orderIndex`) una columna existente (`UpdateBoardColumnUseCase`, al menos un campo requerido). Cabecera: `Cache-Control: no-store`. Respuestas: `200`, `400`, `401`, `404`, `405`, `500`.
+   - `DELETE /api/projects/:projectId/board/columns/:columnId`: Elimina una columna de forma at?mica. Si contiene tareas, exige el query param `targetColumnId` perteneciente al mismo tablero para reasignaci?n at?mica (`409 Conflict` si contiene tareas y no se especifica destino); rechaza eliminaci?n si es la ?ltima columna restante (`400 Bad Request`) o si el destino es inv?lido/igual al origen (`400 Bad Request`). Cabecera: `Cache-Control: no-store`. Respuestas: `200`, `400`, `401`, `404`, `409`, `405`, `500`.
+   - Métodos no soportados devuelven `405 Method Not Allowed` con cabecera `Allow`.
+
+2. **`tasks.route.ts` (`/api/projects/:projectId/tasks`):**
+   - `GET /api/projects/:projectId/tasks`: Listado paginado y filtrado de tareas del proyecto (`ListTasksUseCase`). Parámetros de consulta validados con `ListTasksQuerySchema`. Respuestas: `200`, `400`, `401`, `404`.
+   - `POST /api/projects/:projectId/tasks`: Crea una nueva tarea en una columna (`CreateTaskUseCase`). Valida cuerpo con `CreateTaskSchema` y elegibilidad activa de `assigneeIds`. Emite auditoría `CREATED`. Respuestas: `201`, `400`, `401`, `404`.
+   - `PATCH /api/projects/:projectId/tasks/:taskId`: Actualización parcial de metadatos (`UpdateTaskUseCase`). Verifica que no contenga campos protegidos (rechazo `400`), valida con `UpdateTaskSchema`, detecta no-op idempotente y emite auditoría `UPDATED`. Respuestas: `200`, `400`, `401`, `404`.
+   - `POST /api/projects/:projectId/tasks/:taskId/move`: Traslado de posición o columna (`MoveTaskUseCase`). Valida cuerpo con `MoveTaskSchema`, aplica clamp en destino, detecta no-op idempotente y emite auditoría `MOVED`. Respuestas: `200`, `400`, `401`, `404`.
+   - Métodos no soportados devuelven `405 Method Not Allowed` con cabecera `Allow`.
+
+#### 4.3.2 Composición e Inyección de Dependencias: Patrón B.2 (Storage Kanban Único)
+Siguiendo el **Patrón B.1** establecido en `createApp()` para `projectMap` y `membershipMap`, se define el **Patrón B.2** para el dominio Kanban:
+- En `createApp(options: AppOptions)`:
+  ```typescript
+  const kanbanStorage = options.kanbanStorage ?? new InMemoryKanbanProjectStorage();
+  const boardRepository = options.boardRepository ?? new InMemoryBoardRepository(kanbanStorage);
+  const boardColumnDeletionPort = options.boardColumnDeletionPort ?? new InMemoryBoardColumnDeletionAdapter(kanbanStorage);
+  const taskCreationPort = options.taskCreationPort ?? new InMemoryTaskCreationAdapter(kanbanStorage, clock);
+  const taskMovePort = options.taskMovePort ?? new InMemoryTaskMoveAdapter(kanbanStorage, clock);
+  const taskUpdatePort = options.taskUpdatePort ?? new InMemoryTaskUpdateAdapter(kanbanStorage, clock);
+  const taskListPort = options.taskListPort ?? new InMemoryTaskListAdapter(kanbanStorage);
+  const taskActivityRepository = options.taskActivityRepository ?? new InMemoryTaskActivityRepository(kanbanStorage);
+  ```
+- **Garantía arquitectónica:** La compartición de la misma referencia de `InMemoryKanbanProjectStorage` asegura que los snapshots Copy-On-Write y los bloqueos por mutex en memoria (`ProjectLockManager`) coordinen atómicamente tableros, columnas, tareas y auditoría sin estados disjuntos ni carreras de concurrencia.
+
+#### 4.3.3 Procedencia Estricta de la Identidad y Aislamiento de Contexto
+- **Procedencia:** La identidad del solicitante proviene única y exclusivamente del contexto Hono:
+  `const requesterId = c.get('user').userId;`
+  establecido por el middleware `createDevAuthMiddleware` mediante la cabecera `X-Dev-User-Id`.
+- **Límites de la autenticación actual:**
+  - Es un andamiaje provisional para desarrollo local y pruebas (ADR-004).
+  - Rechaza con `401 Unauthorized` si falta la cabecera.
+  - Rechaza con `401 Unauthorized` incondicionalmente si `NODE_ENV === 'production'`.
+  - No valida firmas criptográficas ni sesiones reales (pendientes de spike de Better Auth/Google OAuth).
+- **Prohibición de Parameter Pollution:** Jamás se utiliza object spread que permita al cliente inyectar o sobrescribir variables de contexto:
+  ```typescript
+  // PROHIBIDO:
+  // await useCase.execute({ ...body, projectId, requesterId });
+  // await useCase.execute({ projectId, requesterId, ...body });
+
+  // CORRECTO Y OBLIGATORIO: Construcción explícita campo a campo
+  const command: CreateTaskCommand = {
+    projectId,
+    requesterId,
+    title: parsed.title,
+    description: parsed.description,
+    columnId: parsed.columnId,
+    priority: parsed.priority,
+    dueDate: parsed.dueDate,
+    labels: parsed.labels,
+    assigneeIds: parsed.assigneeIds,
+  };
+  ```
+
+#### 4.3.4 Manejo Uniforme de Errores y Códigos HTTP
+Se adopta el patrón centralizado de mapeo de errores de casos de uso (`handleUseCaseError`):
+- `ZodError` o errores de validación de campos protegidos $\rightarrow$ `400 Bad Request` con `{ error: 'Bad Request', message, details }`.
+- `IneligibleAssigneeError` $\rightarrow$ `400 Bad Request`.
+- Falta de autenticación en middleware $\rightarrow$ `401 Unauthorized`.
+- `ProjectNotFoundError` o no-miembro $\rightarrow$ `404 Not Found` (`{ error: 'Not Found', message: 'Proyecto no encontrado' }` para preservar aislamiento horizontal sin revelar existencia).
+- `TaskNotFoundError` $\rightarrow$ `404 Not Found`.
+- Métodos no implementados $\rightarrow$ `405 Method Not Allowed` con cabecera `Allow`.
+- `MaxColumnsReachedError` / conflicto de revisión $\rightarrow$ `409 Conflict`.
+- `LastColumnDeletionError` $\rightarrow$ `422 Unprocessable Entity`.
+- Errores no controlados $\rightarrow$ capturados por `app.onError` devolviendo `500 Internal Server Error` sin stack traces ni variables de entorno.
 
 ---
 

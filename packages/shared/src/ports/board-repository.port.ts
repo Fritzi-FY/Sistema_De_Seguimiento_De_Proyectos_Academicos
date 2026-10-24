@@ -93,7 +93,7 @@ export class LastColumnDeletionError extends Error {
 export class ColumnNotEmptyError extends Error {
   constructor(columnId: string, taskCount: number) {
     super(
-      `La columna '${columnId}' contiene ${taskCount} tarea(s) activa(s) y no puede eliminarse sin reasignarlas a una columna destino`,
+      `La columna '${columnId}' contiene ${taskCount} tareas activas y no puede eliminarse sin reasignarlas a una columna destino`,
     );
     this.name = 'ColumnNotEmptyError';
   }

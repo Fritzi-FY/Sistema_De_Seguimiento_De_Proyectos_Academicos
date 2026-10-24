@@ -29,12 +29,13 @@ export class UpdateBoardColumnUseCase {
   ) {}
 
   async execute(command: UpdateBoardColumnCommand): Promise<BoardColumnResponse> {
-    const validated = UpdateBoardColumnSchema.parse({
-      name: command.name,
-      category: command.category,
-      color: command.color,
-      orderIndex: command.orderIndex,
-    });
+    const rawPayload: Record<string, unknown> = {};
+    if (command.name !== undefined) rawPayload.name = command.name;
+    if (command.category !== undefined) rawPayload.category = command.category;
+    if (command.color !== undefined) rawPayload.color = command.color;
+    if (command.orderIndex !== undefined) rawPayload.orderIndex = command.orderIndex;
+
+    const validated = UpdateBoardColumnSchema.parse(rawPayload);
 
     const project = await this.projectRepository.findById(command.projectId);
     if (!project) {

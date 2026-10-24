@@ -12,21 +12,23 @@ export type ColumnCategoryDto = z.infer<typeof ColumnCategorySchema>;
 /**
  * Esquema de validación para la creación de una nueva columna en el tablero.
  */
-export const CreateBoardColumnSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, { message: 'El nombre de la columna debe tener al menos 1 caracter' })
-    .max(50, { message: 'El nombre de la columna no puede exceder 50 caracteres' }),
-  color: z
-    .string()
-    .trim()
-    .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, {
-      message: 'El color debe ser un valor hexadecimal válido (ej. #3b82f6)',
-    })
-    .optional(),
-  category: ColumnCategorySchema.default('TODO'),
-});
+export const CreateBoardColumnSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, { message: 'El nombre de la columna debe tener al menos 1 caracter' })
+      .max(50, { message: 'El nombre de la columna no puede exceder 50 caracteres' }),
+    color: z
+      .string()
+      .trim()
+      .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, {
+        message: 'El color debe ser un valor hexadecimal válido (ej. #3b82f6)',
+      })
+      .optional(),
+    category: ColumnCategorySchema.default('TODO'),
+  })
+  .strict();
 
 export type CreateBoardColumnRequest = z.infer<typeof CreateBoardColumnSchema>;
 
@@ -55,7 +57,8 @@ export const UpdateBoardColumnSchema = z
       .min(0, { message: 'El orden no puede ser negativo' })
       .optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, {
+  .strict()
+  .refine((data) => Object.values(data).some((val) => val !== undefined), {
     message: 'Debe especificar al menos un campo para actualizar',
   });
 

@@ -74,6 +74,15 @@ describe('CreateBoardColumnSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('debe rechazar campos adicionales desconocidos (additionalProperties: false)', () => {
+    const result = CreateBoardColumnSchema.safeParse({
+      name: 'Columna Valida',
+      extraField: 'no permitido',
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('UpdateBoardColumnSchema', () => {
@@ -104,6 +113,26 @@ describe('UpdateBoardColumnSchema', () => {
 
     expect(resultNegative.success).toBe(false);
     expect(resultDecimal.success).toBe(false);
+  });
+
+  it('debe rechazar campos adicionales desconocidos (additionalProperties: false)', () => {
+    const result = UpdateBoardColumnSchema.safeParse({
+      name: 'Nombre Valido',
+      unexpectedProp: 12345,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('debe rechazar un payload donde todos los campos son undefined', () => {
+    const result = UpdateBoardColumnSchema.safeParse({
+      name: undefined,
+      color: undefined,
+      category: undefined,
+      orderIndex: undefined,
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

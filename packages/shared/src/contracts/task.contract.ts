@@ -47,7 +47,9 @@ export const CreateTaskSchema = z.object({
 export type CreateTaskRequest = z.infer<typeof CreateTaskSchema>;
 
 /**
- * Esquema de validación para la edición de una tarea existente.
+ * Esquema de validación para la edición parcial de campos de una tarea existente.
+ * NOTA: columnId y orderIndex están excluidos deliberadamente; el movimiento de tareas
+ * entre columnas o posiciones es operación separada gestionada por MoveTaskUseCase.
  */
 export const UpdateTaskSchema = z
   .object({
@@ -61,10 +63,6 @@ export const UpdateTaskSchema = z
       .string()
       .trim()
       .max(2000, { message: 'La descripción no puede exceder 2000 caracteres' })
-      .optional(),
-    columnId: z
-      .string()
-      .uuid({ message: 'El identificador de columna debe ser un UUID válido' })
       .optional(),
     priority: TaskPrioritySchema.optional(),
     dueDate: z
