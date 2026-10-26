@@ -45,6 +45,41 @@ const PROTECTED_TASK_FIELDS = [
 ] as const;
 
 /**
+ * Campos permitidos en cada operación de mutación de tarea.
+ * Se verifican antes del parseo Zod para que campos desconocidos devuelvan 400 explícito
+ * en lugar de ser descartados silenciosamente, conforme a additionalProperties:false del
+ * contrato OpenAPI (CreateTaskRequest, UpdateTaskRequest, MoveTaskRequest).
+ */
+const KNOWN_CREATE_TASK_FIELDS = new Set([
+  'title',
+  'description',
+  'columnId',
+  'priority',
+  'dueDate',
+  'labels',
+  'assigneeIds',
+]);
+
+const KNOWN_UPDATE_TASK_FIELDS = new Set([
+  'title',
+  'description',
+  'priority',
+  'dueDate',
+  'labels',
+  'assigneeIds',
+]);
+
+const KNOWN_MOVE_TASK_FIELDS = new Set(['destinationColumnId', 'destinationIndex']);
+
+/**
+ * Devuelve el primer campo del body que no está en el conjunto de campos conocidos,
+ * o undefined si el body es conforme.
+ */
+function findUnknownField(body: Record<string, unknown>, known: Set<string>): string | undefined {
+  return Object.keys(body).find((k) => !known.has(k));
+}
+
+/**
  * Enrutador HTTP para la gestión de tareas del tablero Kanban.
  * Debe montarse bajo /api/projects para que las rutas efectivas sean:
  *   GET   /api/projects/:projectId/tasks
@@ -191,6 +226,21 @@ export function createTasksRouter(
       );
     }
 
+    const unknownCreateField = findUnknownField(
+      rawBody as Record<string, unknown>,
+      KNOWN_CREATE_TASK_FIELDS,
+    );
+    if (unknownCreateField !== undefined) {
+      c.header('Cache-Control', 'no-store');
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: `El campo '${unknownCreateField}' no está permitido en la creación de tarea`,
+        },
+        400,
+      );
+    }
+
     const parseBody = CreateTaskSchema.safeParse(rawBody);
     if (!parseBody.success) {
       c.header('Cache-Control', 'no-store');
@@ -278,6 +328,21 @@ export function createTasksRouter(
         {
           error: 'Bad Request',
           message: 'El cuerpo de la petición debe ser un objeto JSON',
+        },
+        400,
+      );
+    }
+
+    const unknownMoveField = findUnknownField(
+      rawBody as Record<string, unknown>,
+      KNOWN_MOVE_TASK_FIELDS,
+    );
+    if (unknownMoveField !== undefined) {
+      c.header('Cache-Control', 'no-store');
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: `El campo '${unknownMoveField}' no está permitido en el movimiento de tarea`,
         },
         400,
       );
@@ -387,6 +452,18 @@ export function createTasksRouter(
       }
     }
 
+    const unknownUpdateField = findUnknownField(bodyRecord, KNOWN_UPDATE_TASK_FIELDS);
+    if (unknownUpdateField !== undefined) {
+      c.header('Cache-Control', 'no-store');
+      return c.json(
+        {
+          error: 'Bad Request',
+          message: `El campo '${unknownUpdateField}' no está permitido en la actualización de tarea`,
+        },
+        400,
+      );
+    }
+
     const parseBody = UpdateTaskSchema.safeParse(rawBody);
     if (!parseBody.success) {
       c.header('Cache-Control', 'no-store');
@@ -422,8 +499,9 @@ export function createTasksRouter(
   });
 
   // ── Manejo de métodos no permitidos (405 Method Not Allowed) ──────────────────────────
-  // LIMITACIÓN DE ALCANCE: El preflight CORS (OPTIONS) queda fuera del alcance de este enrutador
-  // (delegado a Vite proxy en local y a Cloudflare en producción). Peticiones OPTIONS pasan a 404 por defecto.
+  // LIMITACIÓN PENDIENTE: El preflight CORS (OPTIONS) no está implementado en este enrutador.
+  // Peticiones OPTIONS no coinciden con los handlers POST/GET/PATCH y pasan al manejador .all(),
+  // que las deja pasar con next(). El soporte completo de CORS queda como trabajo futuro.
   router.all('/:projectId/tasks/:taskId/move', (c, next) => {
     if (c.req.method === 'OPTIONS') {
       return next();

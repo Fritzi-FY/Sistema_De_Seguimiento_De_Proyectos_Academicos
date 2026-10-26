@@ -10,6 +10,8 @@ import type {
   TaskUpdatePort,
   TaskMovePort,
   TaskListPort,
+  TaskRepositoryPort,
+  TaskActivityRepositoryPort,
 } from '@is488/shared';
 import type { Project, ProjectMembership } from '@is488/shared';
 import { SystemClock } from '../adapters/clock/system-clock.adapter.js';
@@ -29,6 +31,10 @@ import { createProjectMembersRouter } from './routes/project-members.route.js';
 import { createBoardRouter } from './routes/board.route.js';
 import { createTasksRouter } from './routes/tasks.route.js';
 import { openApiSpec } from '../openapi/openapi.contract.js';
+import { InMemoryTaskRepository } from '../adapters/repositories/in-memory-task.repository.js';
+import { InMemoryTaskActivityRepository } from '../adapters/repositories/in-memory-task-activity.repository.js';
+import { GetTaskActivityUseCase } from '../../application/use-cases/get-task-activity.use-case.js';
+import { createTaskActivityRouter } from './routes/task-activity.route.js';
 
 export interface AppOptions {
   clock?: SystemClockPort;
@@ -42,6 +48,8 @@ export interface AppOptions {
   taskUpdatePort?: TaskUpdatePort;
   taskMovePort?: TaskMovePort;
   taskListPort?: TaskListPort;
+  taskRepository?: TaskRepositoryPort;
+  taskActivityRepository?: TaskActivityRepositoryPort;
   version?: string;
   nodeEnv?: string;
 }
@@ -145,6 +153,19 @@ export function createApp(options: AppOptions = {}) {
   );
 
   // Exponer contrato OpenAPI para clientes y herramientas de documentación
+  app.route(
+    '/api/projects',
+    createTaskActivityRouter(
+      new GetTaskActivityUseCase(
+        projectRepository,
+        membershipRepository,
+        options.taskRepository ?? new InMemoryTaskRepository(kanbanStorage),
+        options.taskActivityRepository ?? new InMemoryTaskActivityRepository(kanbanStorage),
+      ),
+      nodeEnv,
+    ),
+  );
+
   app.get('/api/openapi.json', (c) => {
     return c.json(openApiSpec, 200);
   });

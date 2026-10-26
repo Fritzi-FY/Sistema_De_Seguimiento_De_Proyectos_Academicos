@@ -544,7 +544,11 @@ describe('Pruebas de integración HTTP de Rutas de Tareas (/api/projects/:projec
       expect(resOutsiderMove.status).toBe(404);
     });
 
-    it('la identidad del creador debe provenir exclusivamente del middleware y no del cuerpo de la petición', async () => {
+    it('debe rechazar con 400 campos desconocidos en POST /tasks, incluyendo intentos de inyectar creatorId', async () => {
+      // El rechazo explícito (400) es una garantía más fuerte que el stripping silencioso:
+      // el cliente recibe retroalimentación inmediata en lugar de que el campo sea ignorado.
+      // La verificación de que creatorId proviene del middleware queda cubierta por el
+      // test de ciclo completo (describe 1: ciclo completo) donde CREATOR_ID se verifica en createRes.
       const res = await setup.app.request(`/api/projects/${projectId}/tasks`, {
         method: 'POST',
         headers: {
@@ -558,10 +562,11 @@ describe('Pruebas de integración HTTP de Rutas de Tareas (/api/projects/:projec
         }),
       });
 
-      expect(res.status).toBe(201);
-      const data = (await res.json()) as { creatorId: string };
-      // Debe conservar dev-student-01 del middleware
-      expect(data.creatorId).toBe(CREATOR_ID);
+      // Campo 'creatorId' no está en KNOWN_CREATE_TASK_FIELDS → 400 explícito
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { error: string; message: string };
+      expect(data.error).toBe('Bad Request');
+      expect(data.message).toContain('creatorId');
     });
 
     it('no debe permitir mover una tarea a una columna perteneciente a otro proyecto (400 Bad Request)', async () => {
@@ -805,6 +810,76 @@ describe('Pruebas de integración HTTP de Rutas de Tareas (/api/projects/:projec
         },
       );
       expect(resInvalidTaskId.status).toBe(400);
+    });
+
+    it('debe rechazar con 400 campo válido combinado con campo desconocido en CREATE, UPDATE y MOVE (additionalProperties: false)', async () => {
+      // CREATE: campo válido (title, columnId) + campo desconocido (metadata)
+      const resCreateUnknown = await setup.app.request(`/api/projects/${projectId}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dev-User-Id': CREATOR_ID,
+        },
+        body: JSON.stringify({
+          title: 'Título válido',
+          columnId: columnTodoId,
+          metadata: { extra: true }, // campo desconocido
+        }),
+      });
+      expect(resCreateUnknown.status).toBe(400);
+      const errCreate = (await resCreateUnknown.json()) as { error: string; message: string };
+      expect(errCreate.error).toBe('Bad Request');
+      expect(errCreate.message).toContain('metadata');
+
+      // UPDATE: campo válido (title) + campo desconocido (source)
+      const resPatchUnknown = await setup.app.request(
+        `/api/projects/${projectId}/tasks/${taskId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Dev-User-Id': CREATOR_ID,
+          },
+          body: JSON.stringify({
+            title: 'Título válido',
+            source: 'externo', // campo desconocido (no es campo protegido ni de UpdateTaskSchema)
+          }),
+        },
+      );
+      expect(resPatchUnknown.status).toBe(400);
+      const errPatch = (await resPatchUnknown.json()) as { error: string; message: string };
+      expect(errPatch.error).toBe('Bad Request');
+      expect(errPatch.message).toContain('source');
+
+      // MOVE: campo válido (destinationColumnId, destinationIndex) + campo desconocido (reason)
+      const firstCreateRes = await setup.app.request(`/api/projects/${projectId}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dev-User-Id': CREATOR_ID,
+        },
+        body: JSON.stringify({ title: 'Tarea para MOVE desconocido', columnId: columnTodoId }),
+      });
+      const firstTask = (await firstCreateRes.json()) as { id: string };
+      const resMoveUnknown = await setup.app.request(
+        `/api/projects/${projectId}/tasks/${firstTask.id}/move`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Dev-User-Id': CREATOR_ID,
+          },
+          body: JSON.stringify({
+            destinationColumnId: columnInProgressId,
+            destinationIndex: 0,
+            reason: 'sprint-review', // campo desconocido
+          }),
+        },
+      );
+      expect(resMoveUnknown.status).toBe(400);
+      const errMove = (await resMoveUnknown.json()) as { error: string; message: string };
+      expect(errMove.error).toBe('Bad Request');
+      expect(errMove.message).toContain('reason');
     });
   });
 

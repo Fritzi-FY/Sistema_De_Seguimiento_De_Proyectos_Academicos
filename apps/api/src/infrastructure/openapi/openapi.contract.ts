@@ -11,6 +11,51 @@ export const openApiSpec = {
       'API técnica y de negocio del Sistema de Seguimiento de Proyectos Académicos (UNSCH IS488).',
   },
   paths: {
+    '/api/projects/{projectId}/tasks/{taskId}/activity': {
+      get: {
+        operationId: 'getTaskActivity',
+        summary: 'Historial real de una tarea',
+        description:
+          'Autenticación existente y acceso contextual. 404 uniforme para recursos inexistentes o ajenos. Orden createdAt descendente, id ascendente. Lectura sin efectos.',
+        security: [{ DevAuthUserId: [] }],
+        parameters: [
+          {
+            name: 'projectId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+          {
+            name: 'taskId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Eventos; lista vacía si no existen eventos.',
+            headers: { 'Cache-Control': { schema: { type: 'string', example: 'no-store' } } },
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/TaskActivityResponse' },
+                },
+              },
+            },
+          },
+          '400': { description: 'Identificadores inválidos' },
+          '401': { description: 'No autenticado' },
+          '404': { description: 'Recurso no encontrado o sin acceso' },
+          '405': {
+            description: 'Método no permitido',
+            headers: { Allow: { schema: { type: 'string', example: 'GET' } } },
+          },
+          '500': { description: 'Error interno' },
+        },
+      },
+    },
     '/api/health': {
       get: {
         summary: 'Diagnóstico de salud operativa',
@@ -1173,7 +1218,33 @@ export const openApiSpec = {
     },
   },
   components: {
+    securitySchemes: {
+      DevAuthUserId: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-Dev-User-Id',
+        description: 'Solo development/test; no es autenticación de producción.',
+      },
+    },
     schemas: {
+      TaskActivityResponse: {
+        type: 'object',
+        required: ['id', 'taskId', 'projectId', 'actorId', 'action', 'createdAt'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          taskId: { type: 'string', format: 'uuid' },
+          projectId: { type: 'string', format: 'uuid' },
+          actorId: { type: 'string', minLength: 1 },
+          action: {
+            type: 'string',
+            enum: ['CREATED', 'UPDATED', 'MOVED', 'COLUMN_DELETED_REALLOCATION', 'DELETED'],
+          },
+          fromColumnId: { type: 'string', format: 'uuid' },
+          toColumnId: { type: 'string', format: 'uuid' },
+          details: { type: 'object', additionalProperties: true },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
       CreateProjectRequest: {
         type: 'object',
         properties: {

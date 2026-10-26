@@ -176,3 +176,6 @@ export const TaskActivityResponseSchema = z.object({
 });
 
 export type TaskActivityResponse = z.infer<typeof TaskActivityResponseSchema>;
+
+export const TaskActivityListResponseSchema = z.array(TaskActivityResponseSchema);
+export type TaskActivityListResponse = z.infer<typeof TaskActivityListResponseSchema>;
