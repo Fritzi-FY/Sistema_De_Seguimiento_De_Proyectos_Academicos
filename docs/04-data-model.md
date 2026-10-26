@@ -54,7 +54,7 @@ erDiagram
 - Usar UUID como identificadores públicos para evitar exponer secuencias internas y facilitar portabilidad.
 - `email` debe tener restricción única tras normalización.
 - Una tarea debe pertenecer a un proyecto y una columna de ese mismo proyecto/tablero.
-- Una membresía por par proyecto/usuario debe ser única.
+- Solo puede existir una membresía activa por par proyecto/usuario; las membresías retiradas se conservan como historial y una reincorporación crea un nuevo registro activo sin modificar los registros históricos.
 - La asignación de usuarios a tareas debe validar que pertenecen al proyecto, salvo una regla explícita.
 - Las transiciones de columna se validan en el servidor; el frontend no es autoridad.
 - Las eliminaciones de cursos/proyectos con datos dependientes deben ser restringidas o lógicas según reglas documentadas.
