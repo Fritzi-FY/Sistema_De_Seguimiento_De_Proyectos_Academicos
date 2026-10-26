@@ -31,7 +31,7 @@ describe('membership.service', () => {
       } as Response);
 
       const result = await getMembers(sampleProjectId, {
-        userId: 'dev-student-01',
+        userId: '11111111-1111-4111-8111-111111111111',
         role: 'student',
       });
 
@@ -41,7 +41,7 @@ describe('membership.service', () => {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          'X-Dev-User-Id': 'dev-student-01',
+          'X-Dev-User-Id': '11111111-1111-4111-8111-111111111111',
           'X-Dev-User-Role': 'student',
         },
       });
@@ -81,7 +81,7 @@ describe('membership.service', () => {
       } as Response);
 
       const result = await addMember(sampleProjectId, validAddRequest, {
-        userId: 'dev-student-01',
+        userId: '11111111-1111-4111-8111-111111111111',
         role: 'student',
       });
 
@@ -157,7 +157,7 @@ describe('membership.service', () => {
       } as Response);
 
       const result = await removeMember(sampleProjectId, sampleUserId, {
-        userId: 'dev-student-01',
+        userId: '11111111-1111-4111-8111-111111111111',
         role: 'student',
       });
 
@@ -167,7 +167,7 @@ describe('membership.service', () => {
         {
           method: 'DELETE',
           headers: expect.objectContaining({
-            'X-Dev-User-Id': 'dev-student-01',
+            'X-Dev-User-Id': '11111111-1111-4111-8111-111111111111',
           }),
         },
       );

@@ -4,22 +4,52 @@ import type {
   ProjectRepositoryPort,
   MembershipRepositoryPort,
   ProjectCreationPort,
+  BoardRepositoryPort,
+  BoardColumnDeletionPort,
+  TaskCreationPort,
+  TaskUpdatePort,
+  TaskMovePort,
+  TaskListPort,
+  TaskRepositoryPort,
+  TaskActivityRepositoryPort,
 } from '@is488/shared';
 import type { Project, ProjectMembership } from '@is488/shared';
 import { SystemClock } from '../adapters/clock/system-clock.adapter.js';
 import { InMemoryProjectRepository } from '../adapters/repositories/in-memory-project.repository.js';
 import { InMemoryMembershipRepository } from '../adapters/repositories/in-memory-membership.repository.js';
 import { InMemoryProjectCreationAdapter } from '../adapters/repositories/in-memory-project-creation.adapter.js';
+import { InMemoryKanbanProjectStorage } from '../adapters/repositories/in-memory-kanban-project.storage.js';
+import { InMemoryBoardRepository } from '../adapters/repositories/in-memory-board.repository.js';
+import { InMemoryBoardColumnDeletionAdapter } from '../adapters/repositories/in-memory-board-column-deletion.adapter.js';
+import { InMemoryTaskCreationAdapter } from '../adapters/repositories/in-memory-task-creation.adapter.js';
+import { InMemoryTaskUpdateAdapter } from '../adapters/repositories/in-memory-task-update.adapter.js';
+import { InMemoryTaskMoveAdapter } from '../adapters/repositories/in-memory-task-move.adapter.js';
+import { InMemoryTaskListAdapter } from '../adapters/repositories/in-memory-task-list.adapter.js';
 import { createHealthRouter } from './routes/health.route.js';
 import { createProjectsRouter } from './routes/projects.route.js';
 import { createProjectMembersRouter } from './routes/project-members.route.js';
+import { createBoardRouter } from './routes/board.route.js';
+import { createTasksRouter } from './routes/tasks.route.js';
 import { openApiSpec } from '../openapi/openapi.contract.js';
+import { InMemoryTaskRepository } from '../adapters/repositories/in-memory-task.repository.js';
+import { InMemoryTaskActivityRepository } from '../adapters/repositories/in-memory-task-activity.repository.js';
+import { GetTaskActivityUseCase } from '../../application/use-cases/get-task-activity.use-case.js';
+import { createTaskActivityRouter } from './routes/task-activity.route.js';
 
 export interface AppOptions {
   clock?: SystemClockPort;
   projectRepository?: ProjectRepositoryPort;
   membershipRepository?: MembershipRepositoryPort;
   projectCreationPort?: ProjectCreationPort;
+  kanbanStorage?: InMemoryKanbanProjectStorage;
+  boardRepository?: BoardRepositoryPort;
+  boardColumnDeletionPort?: BoardColumnDeletionPort;
+  taskCreationPort?: TaskCreationPort;
+  taskUpdatePort?: TaskUpdatePort;
+  taskMovePort?: TaskMovePort;
+  taskListPort?: TaskListPort;
+  taskRepository?: TaskRepositoryPort;
+  taskActivityRepository?: TaskActivityRepositoryPort;
   version?: string;
   nodeEnv?: string;
 }
@@ -29,10 +59,16 @@ export interface AppOptions {
  * Permite inyectar dependencias para pruebas de integración independientes en memoria.
  *
  * PATRÓN B.1 — Composición compartida de Map:
- * Se crean exactamente UNA instancia de `projectMap` y UNA de `membershipMap`. Estas
+ * Se crean exactamente UNA instancia de projectMap y UNA de membershipMap. Estas
  * referencias se inyectan en los repositorios individuales Y en el adaptador de creación
- * coordinada. Esta unicidad garantiza que las escrituras de `InMemoryProjectCreationAdapter`
+ * coordinada. Esta unicidad garantiza que las escrituras de InMemoryProjectCreationAdapter
  * sean visibles de forma inmediata a través de los repositorios individuales.
+ *
+ * PATRÓN B.2 — Storage Kanban único compartido por aplicación:
+ * Se crea exactamente UNA instancia de InMemoryKanbanProjectStorage por instancia de createApp().
+ * Esta instancia se inyecta en InMemoryBoardRepository, InMemoryBoardColumnDeletionAdapter,
+ * InMemoryTaskCreationAdapter, InMemoryTaskUpdateAdapter, InMemoryTaskMoveAdapter e InMemoryTaskListAdapter.
+ * Distintas instancias de createApp() NO comparten estado Kanban por defecto.
  */
 export function createApp(options: AppOptions = {}) {
   const clock = options.clock ?? new SystemClock();
@@ -52,6 +88,17 @@ export function createApp(options: AppOptions = {}) {
   // ── Adaptador de creación coordinada: recibe las mismas referencias de Map ────────────
   const projectCreationPort =
     options.projectCreationPort ?? new InMemoryProjectCreationAdapter(projectMap, membershipMap);
+
+  // ── Dominio Kanban: UNA SOLA instancia compartida por app (Patrón B.2) ────────────────
+  const kanbanStorage = options.kanbanStorage ?? new InMemoryKanbanProjectStorage();
+  const boardRepository = options.boardRepository ?? new InMemoryBoardRepository(kanbanStorage);
+  const boardColumnDeletionPort =
+    options.boardColumnDeletionPort ?? new InMemoryBoardColumnDeletionAdapter(kanbanStorage);
+  const taskCreationPort =
+    options.taskCreationPort ?? new InMemoryTaskCreationAdapter(kanbanStorage);
+  const taskUpdatePort = options.taskUpdatePort ?? new InMemoryTaskUpdateAdapter(kanbanStorage);
+  const taskMovePort = options.taskMovePort ?? new InMemoryTaskMoveAdapter(kanbanStorage);
+  const taskListPort = options.taskListPort ?? new InMemoryTaskListAdapter(kanbanStorage);
 
   const app = new Hono();
 
@@ -77,7 +124,48 @@ export function createApp(options: AppOptions = {}) {
     createProjectMembersRouter(membershipRepository, projectRepository, clock, { nodeEnv }),
   );
 
+  // Montar enrutador de tablero y columnas bajo /api/projects
+  app.route(
+    '/api/projects',
+    createBoardRouter(
+      boardRepository,
+      boardColumnDeletionPort,
+      projectRepository,
+      membershipRepository,
+      clock,
+      { nodeEnv },
+    ),
+  );
+
+  // Montar enrutador de tareas bajo /api/projects
+  app.route(
+    '/api/projects',
+    createTasksRouter(
+      taskCreationPort,
+      taskListPort,
+      taskUpdatePort,
+      taskMovePort,
+      projectRepository,
+      membershipRepository,
+      clock,
+      { nodeEnv },
+    ),
+  );
+
   // Exponer contrato OpenAPI para clientes y herramientas de documentación
+  app.route(
+    '/api/projects',
+    createTaskActivityRouter(
+      new GetTaskActivityUseCase(
+        projectRepository,
+        membershipRepository,
+        options.taskRepository ?? new InMemoryTaskRepository(kanbanStorage),
+        options.taskActivityRepository ?? new InMemoryTaskActivityRepository(kanbanStorage),
+      ),
+      nodeEnv,
+    ),
+  );
+
   app.get('/api/openapi.json', (c) => {
     return c.json(openApiSpec, 200);
   });

@@ -12,18 +12,17 @@ export interface DevUserHeaders {
   role?: string;
 }
 
-const DEFAULT_DEV_HEADERS: DevUserHeaders = {
-  userId: 'dev-student-01',
-  role: 'student',
-};
+import { DEFAULT_DEV_IDENTITY } from './dev-identity.js';
+
+const DEFAULT_DEV_HEADERS: DevUserHeaders = DEFAULT_DEV_IDENTITY;
 
 function buildHeaders(userHeaders?: DevUserHeaders): HeadersInit {
   const current = { ...DEFAULT_DEV_HEADERS, ...userHeaders };
   return {
     Accept: 'application/json',
     'Content-Type': 'application/json',
-    'X-Dev-User-Id': current.userId ?? 'dev-student-01',
-    'X-Dev-User-Role': current.role ?? 'student',
+    'X-Dev-User-Id': current.userId ?? DEFAULT_DEV_IDENTITY.userId,
+    'X-Dev-User-Role': current.role ?? DEFAULT_DEV_IDENTITY.role,
   };
 }
 
