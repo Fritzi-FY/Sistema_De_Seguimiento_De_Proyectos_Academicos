@@ -15,7 +15,7 @@ describe('ProjectDetail Component', () => {
     status: 'active',
     startDate: '2026-10-15T00:00:00.000Z',
     targetDate: '2026-12-15T23:59:59.000Z',
-    creatorId: 'dev-student-01',
+    creatorId: '11111111-1111-4111-8111-111111111111',
     createdAt: '2026-10-11T12:00:00.000Z',
     updatedAt: '2026-10-11T12:00:00.000Z',
   };
@@ -24,7 +24,7 @@ describe('ProjectDetail Component', () => {
     {
       id: '11111111-1111-4111-8111-111111111111',
       projectId: sampleProject.id,
-      userId: 'dev-student-01',
+      userId: '11111111-1111-4111-8111-111111111111',
       role: 'owner',
       status: 'active',
       joinedAt: '2026-10-15T10:00:00.000Z',
@@ -33,7 +33,7 @@ describe('ProjectDetail Component', () => {
     {
       id: '22222222-2222-4222-8222-222222222222',
       projectId: sampleProject.id,
-      userId: 'dev-student-02',
+      userId: '22222222-2222-4222-8222-222222222222',
       role: 'collaborator',
       status: 'active',
       joinedAt: '2026-10-16T14:30:00.000Z',
@@ -48,7 +48,7 @@ describe('ProjectDetail Component', () => {
     render(
       <ProjectDetail
         project={sampleProject}
-        currentUserId="dev-student-01"
+        currentUserId="11111111-1111-4111-8111-111111111111"
         onBack={onBackMock}
         membersFetcher={membersFetcherMock}
       />,
@@ -63,8 +63,12 @@ describe('ProjectDetail Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Integrantes del Proyecto (2)')).toBeInTheDocument();
-      expect(screen.getByTestId('member-row-dev-student-01')).toBeInTheDocument();
-      expect(screen.getByTestId('member-row-dev-student-02')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('member-row-11111111-1111-4111-8111-111111111111'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId('member-row-22222222-2222-4222-8222-222222222222'),
+      ).toBeInTheDocument();
     });
 
     const backBtn = screen.getByTestId('back-to-list-btn');
@@ -88,7 +92,7 @@ describe('ProjectDetail Component', () => {
     render(
       <ProjectDetail
         project={sampleProject}
-        currentUserId="dev-student-01"
+        currentUserId="11111111-1111-4111-8111-111111111111"
         onBack={vi.fn()}
         membersFetcher={membersFetcherMock}
         memberAdder={memberAdderMock}
@@ -126,7 +130,7 @@ describe('ProjectDetail Component', () => {
     render(
       <ProjectDetail
         project={sampleProject}
-        currentUserId="dev-student-02"
+        currentUserId="22222222-2222-4222-8222-222222222222"
         onBack={vi.fn()}
         membersFetcher={membersFetcherMock}
       />,
@@ -148,7 +152,7 @@ describe('ProjectDetail Component', () => {
     render(
       <ProjectDetail
         project={sampleProject}
-        currentUserId="dev-student-01"
+        currentUserId="11111111-1111-4111-8111-111111111111"
         onBack={vi.fn()}
         membersFetcher={membersFetcherMock}
         memberRemover={memberRemoverMock}
@@ -156,14 +160,75 @@ describe('ProjectDetail Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('remove-member-btn-dev-student-02')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('remove-member-btn-22222222-2222-4222-8222-222222222222'),
+      ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('remove-member-btn-dev-student-02'));
+    fireEvent.click(screen.getByTestId('remove-member-btn-22222222-2222-4222-8222-222222222222'));
 
     await waitFor(() => {
-      expect(memberRemoverMock).toHaveBeenCalledWith(sampleProject.id, 'dev-student-02');
-      expect(screen.queryByText('dev-student-02')).not.toBeInTheDocument();
+      expect(memberRemoverMock).toHaveBeenCalledWith(
+        sampleProject.id,
+        '22222222-2222-4222-8222-222222222222',
+      );
+      expect(screen.queryByText('22222222-2222-4222-8222-222222222222')).not.toBeInTheDocument();
+    });
+  });
+
+  it('debe integrar y renderizar la sección de Tablero Kanban con columnas y tarjetas', async () => {
+    const boardFetcherMock = vi.fn().mockResolvedValue({
+      id: '22222222-2222-4222-8222-222222222222',
+      projectId: sampleProject.id,
+      columns: [
+        {
+          id: 'col-1',
+          boardId: '22222222-2222-4222-8222-222222222222',
+          name: 'Por Hacer',
+          orderIndex: 0,
+          category: 'TODO',
+          createdAt: '2026-10-20T10:00:00.000Z',
+          updatedAt: '2026-10-20T10:00:00.000Z',
+        },
+      ],
+      createdAt: '2026-10-20T10:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z',
+    });
+
+    const tasksFetcherMock = vi.fn().mockResolvedValue([
+      {
+        id: 't-1',
+        projectId: sampleProject.id,
+        columnId: 'col-1',
+        title: 'Primera Tarea de Prueba',
+        priority: 'MEDIUM',
+        orderIndex: 0,
+        labels: [],
+        creatorId: '11111111-1111-4111-8111-111111111111',
+        assigneeIds: [],
+        createdAt: '2026-10-20T10:00:00.000Z',
+        updatedAt: '2026-10-20T10:00:00.000Z',
+      },
+    ]);
+
+    render(
+      <ProjectDetail
+        project={sampleProject}
+        onBack={vi.fn()}
+        membersFetcher={vi.fn().mockResolvedValue(sampleMembers)}
+        boardFetcher={boardFetcherMock}
+        tasksFetcher={tasksFetcherMock}
+      />,
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Tablero de Tareas Kanban' }),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('kanban-board')).toBeInTheDocument();
+      expect(screen.getByText('Por Hacer')).toBeInTheDocument();
+      expect(screen.getByText('Primera Tarea de Prueba')).toBeInTheDocument();
     });
   });
 });

@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { ProjectResponse, MembershipResponse, AddMemberRequest } from '@is488/shared';
+import { DEFAULT_DEV_IDENTITY } from '../services/dev-identity.js';
+import type {
+  ProjectResponse,
+  MembershipResponse,
+  AddMemberRequest,
+  BoardResponse,
+  TaskResponse,
+} from '@is488/shared';
 import { getMembers, addMember, removeMember } from '../services/membership.service.js';
+import { getBoard } from '../services/board.service.js';
+import { getAllProjectTasks } from '../services/task.service.js';
 import { ProjectMembersList } from './ProjectMembersList.js';
 import { AddMemberModal } from './AddMemberModal.js';
+import { KanbanBoard } from './KanbanBoard.js';
+import { TaskListView, type TaskPageFetcher } from './TaskListView.js';
 import {
   ArrowLeft,
   Calendar,
@@ -14,13 +25,21 @@ import {
 } from 'lucide-react';
 
 export interface ProjectDetailProps {
+  taskPageFetcher?: TaskPageFetcher;
   project: ProjectResponse;
   currentUserId?: string;
   onBack: () => void;
   membersFetcher?: (projectId: string) => Promise<MembershipResponse[]>;
   memberAdder?: (projectId: string, data: AddMemberRequest) => Promise<MembershipResponse>;
   memberRemover?: (projectId: string, userId: string) => Promise<MembershipResponse>;
+  boardFetcher?: (projectId: string, options?: { signal?: AbortSignal }) => Promise<BoardResponse>;
+  tasksFetcher?: (projectId: string, options?: { signal?: AbortSignal }) => Promise<TaskResponse[]>;
 }
+
+const defaultBoardFetcher = (id: string, options?: { signal?: AbortSignal }) =>
+  getBoard(id, undefined, options);
+const defaultTasksFetcher = (id: string, options?: { signal?: AbortSignal }) =>
+  getAllProjectTasks(id, undefined, options);
 
 function formatUtcDate(isoString: string): string {
   try {
@@ -35,14 +54,24 @@ function formatUtcDate(isoString: string): string {
   }
 }
 
-export const ProjectDetail: React.FC<ProjectDetailProps> = ({
+export const ProjectDetail: React.FC<ProjectDetailProps> = (props) => (
+  <ProjectDetailContent key={props.project.id} {...props} />
+);
+
+const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
   project,
-  currentUserId = 'dev-student-01',
+  currentUserId = DEFAULT_DEV_IDENTITY.userId,
   onBack,
   membersFetcher = getMembers,
   memberAdder = addMember,
   memberRemover = removeMember,
+  boardFetcher = defaultBoardFetcher,
+  tasksFetcher = defaultTasksFetcher,
+  taskPageFetcher,
 }) => {
+  const [view, setView] = useState<'board' | 'list'>('board');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [pendingOperation, setPendingOperation] = useState(false);
   const [members, setMembers] = useState<MembershipResponse[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
@@ -183,6 +212,86 @@ export const ProjectDetail: React.FC<ProjectDetailProps> = ({
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Sección del Tablero Kanban */}
+      <section aria-labelledby="kanban-section-title" className="space-y-4">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div>
+            <h3
+              id="kanban-section-title"
+              className="text-lg font-bold tracking-tight text-slate-900"
+            >
+              {view === 'board' ? 'Tablero de Tareas Kanban' : 'Lista de tareas'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              Seguimiento visual del flujo de trabajo y estado de las tareas del proyecto académico.
+            </p>
+          </div>
+        </div>
+
+        <div
+          role="group"
+          aria-label="Vista de tareas"
+          aria-describedby={pendingOperation ? 'task-view-pending' : undefined}
+          className="flex flex-wrap items-center gap-3"
+        >
+          {(['board', 'list'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={view === value}
+              disabled={pendingOperation}
+              onClick={() => {
+                if (!pendingOperation) setView(value);
+              }}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 aria-pressed:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-unsch-garnet disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {value === 'board' ? 'Tablero' : 'Lista'}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={pendingOperation}
+            aria-label={
+              view === 'board' ? 'Actualizar vista de tablero' : 'Actualizar vista de lista'
+            }
+            onClick={() => {
+              if (!pendingOperation) setRefreshKey((value) => value + 1);
+            }}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-unsch-garnet disabled:opacity-50"
+          >
+            Actualizar {view === 'board' ? 'tablero' : 'lista'}
+          </button>
+          <span className="text-sm text-slate-700">
+            {view === 'board'
+              ? 'Arrastra tareas o gestiona las columnas.'
+              : 'Consulta tareas y aplica filtros.'}
+          </span>
+        </div>
+        {pendingOperation && (
+          <p id="task-view-pending" role="status">
+            Operación de tarea pendiente o cambio de columnas pendiente. Espera a que termine para
+            cambiar de vista.
+          </p>
+        )}
+        {view === 'board' ? (
+          <KanbanBoard
+            refreshKey={refreshKey}
+            projectId={project.id}
+            boardFetcher={boardFetcher}
+            tasksFetcher={tasksFetcher}
+            onPendingChange={setPendingOperation}
+            membersFetcher={membersFetcher}
+          />
+        ) : (
+          <TaskListView
+            refreshKey={refreshKey}
+            projectId={project.id}
+            tasksFetcher={taskPageFetcher}
+            boardFetcher={boardFetcher}
+          />
+        )}
       </section>
 
       {/* Sección de integrantes */}

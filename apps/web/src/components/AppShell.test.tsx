@@ -15,7 +15,7 @@ describe('AppShell Component (Frontend SPA Baseline)', () => {
     status: 'active',
     startDate: '2026-10-15T00:00:00.000Z',
     targetDate: '2026-12-15T23:59:59.000Z',
-    creatorId: 'dev-student-01',
+    creatorId: '11111111-1111-4111-8111-111111111111',
     createdAt: '2026-10-11T12:00:00.000Z',
     updatedAt: '2026-10-11T12:00:00.000Z',
   };

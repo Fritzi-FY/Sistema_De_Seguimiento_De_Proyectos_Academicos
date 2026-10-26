@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { DEFAULT_DEV_IDENTITY } from '../services/dev-identity.js';
 import type { HealthResponse, ProjectResponse, CreateProjectRequest } from '@is488/shared';
 import { fetchSystemHealth } from '../services/health.service.js';
 import { fetchProjects, createProject } from '../services/project.service.js';
@@ -110,7 +111,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="flex items-center space-x-3">
             <span className="hidden items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-200 sm:inline-flex">
               <UserCheck className="mr-1.5 h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
-              Sesión Dev: dev-student-01 (Estudiante)
+              Sesión Dev: {DEFAULT_DEV_IDENTITY.userId} (Estudiante)
             </span>
             <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               <Layers className="mr-1.5 h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
@@ -127,7 +128,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           {selectedProject ? (
             <ProjectDetail
               project={selectedProject}
-              currentUserId="dev-student-01"
+              currentUserId={DEFAULT_DEV_IDENTITY.userId}
               onBack={() => setSelectedProject(null)}
             />
           ) : (
