@@ -1,14 +1,46 @@
 ## Why
 
+## Consolidacion documental del movimiento Kanban
+
+El movimiento se consolida dentro de `kanban-boards-tasks`; `kanban-task-movement` no representa un incremento OpenSpec entregado independiente. Las precisiones incorporadas son:
+
+- El cliente reutiliza `POST /api/projects/:projectId/tasks/:taskId/move` y envia exclusivamente `destinationColumnId` y `destinationIndex`; no envia identidad, proyecto, columna de origen ni campos de creacion/edicion.
+- La actualizacion optimista conserva un snapshot por operacion, reindexa de forma contigua las columnas afectadas y revierte ese snapshot ante error HTTP, de red o respuesta invalida, sin reintento automatico.
+- Mientras exista un movimiento pendiente se serializan las mutaciones del tablero: se bloquean movimientos, creacion y edicion mediante guardas de logica y controles deshabilitados. Las respuestas tardias de otra operacion, proyecto o componente desmontado no pueden alterar el tablero actual.
+- El control de arrastre es independiente del boton Editar y cubre puntero, teclado, Escape, foco restaurado, anuncios `aria-live`, reordenamiento intra-columna, traslado entre columnas y destino vacio.
+- La evidencia histórica reportada cubre servicio, componentes, teclado real, puntero real contra API local, rollback controlado, recarga y persistencia; no constituye una nueva ejecución sobre el estado actual. Las comprobaciones finales pendientes se distinguen en `tasks.md`.
+- Por decisión humana del 25 de octubre de 2026, EPIC-003 mantiene servicios HTTP y estado local de React para consultas y mutaciones, incluido el movimiento optimista. TanStack Query queda fuera de este EPIC, sin instalación ni migración de código; esta decisión acota el stack de referencia de `docs/03-architecture.md` para este cambio.
+
 El Sistema de Seguimiento de Proyectos Académicos (IS488) cuenta con la línea base de gestión de proyectos y membresías establecida en los EPICs previos. Sin embargo, para cumplir con los requisitos funcionales FR-007, FR-008 y FR-009 y los criterios de aceptación globales, es indispensable proveer a los equipos académicos (estudiantes y docentes de la UNSCH) la capacidad de descomponer el trabajo en tareas, organizarlas en tableros Kanban interactivos y configurables, asignar responsables verificados, controlar fechas límite y prioridades, y disponer de una vista de lista con ordenamiento y paginación en el servidor.
 
 Adicionalmente, el seguimiento pedagógico y la integridad de los datos exigen garantías rigurosas de consistencia:
+
 1. **Acceso contextual restringido:** los docentes únicamente pueden consultar y gestionar proyectos a los que estén formalmente asignados, manteniendo aislamiento horizontal defensivo (HTTP 404 ante proyectos no asignados).
 2. **Atomicidad transaccional completa:** las transiciones de estado, movimientos entre columnas y reasignaciones por eliminación de columnas deben ejecutarse en transacciones atómicas con reversión íntegra ante fallos, registrando eventos de actividad inmutables para cada tarea afectada.
 3. **Inicialización idempotente y segura ante concurrencia:** la creación perezosa del tablero y sus columnas canónicas debe ser estrictamente idempotente para evitar duplicados o fallos de carrera cuando múltiples solicitudes accedan en paralelo.
 4. **Accesibilidad universal:** la interfaz de usuario debe garantizar cumplimiento WCAG 2.1 AA mediante navegación completa por teclado y anuncios auditivos en vivo sobre `@dnd-kit`.
 
 ## What Changes
+
+### Historial real y responsables en creación (incremento autorizado)
+
+GET /api/projects/:projectId/tasks/:taskId/activity reutiliza eventos internos, autenticación y acceso contextual existentes, con 404 uniforme ante proyecto/tarea inexistente, ajeno o acceso denegado. Contrato compartido de lista y OpenAPI; orden createdAt descendente e id ascendente como desempate. Sin eventos nuevos al leer. El detalle consume el historial real con carga, vacío, error/reintento y aislamiento de respuestas tardías. La creación reutiliza la selección de miembros y conserva validación, doble envío y bloqueo del selector.
+
+Diagnóstico previo a contratos: dev-auth acepta X-Dev-User-Id como texto no vacío y CreateProjectUseCase lo copia sin conversión a creatorId y owner.userId; MembershipResponse admite ese texto, pero assigneeIds exige UUID. No hay mapeo canónico de identidad en ese flujo. Asignar dev-student-01 requiere ampliar identidad fuera de este alcance: no convertir IDs, relajar UUID ni omitir asignados existentes. La creación con miembros activos UUID sigue siendo viable.
+
+### Incremento autorizado: responsables en detalle de tarea
+
+Extender EditTaskModal con responsables actuales de TaskResponse y consulta de miembros mediante GET /api/projects/:projectId/members. Permitir asignar miembros activos compatibles con assigneeIds (UUID) y quitar asignaciones mediante PATCH existente, incluido assigneeIds vacío. Mostrar IDs reales: MembershipResponse no incluye nombres. Conservar campos, validación, doble envío, respuestas tardías y bloqueo del selector durante la mutación.
+
+En el incremento previo faltaba la lectura HTTP de historial; la ruta autorizada en este incremento resuelve ese límite. Sigue sin existir GET individual de tarea: el detalle usa la TaskResponse cargada. Miembros con userId no UUID pueden existir según MembershipResponse, pero no son asignables conforme al contrato de tareas; se muestran con esa limitación sin conversión ni relajación de UUID.
+
+### Incremento autorizado: filtros server-side de Lista
+
+Añadir búsqueda en título o descripción (subcadena sin distinguir mayúsculas, máximo 100 caracteres), columna mediante getBoard, prioridad y etiqueta exacta (máximo 30 caracteres). Los filtros se combinan con AND en el servidor mediante getTasks y límite 20. Aplicar/Limpiar actualizan filtros y página 1 conjuntamente; navegación y reintento conservan filtros aplicados. Se omiten valores vacíos, se validan límites contractuales y se aíslan respuestas/rechazos obsoletos. Las columnas tienen carga/error/reintento independientes. Sin coincidencias no se muestra Página 1 de 0. No se añaden filtros de responsable/fechas, ordenación, mutaciones ni dependencias. Se conserva el bloqueo del selector durante mutaciones del tablero.
+
+### Incremento autorizado: lista paginada de solo lectura
+
+Nivel D autorizado para `TaskListView` mediante `getTasks` con `page` y límite 20, conservando el orden y los metadatos de paginación del servidor. No usa `getAllProjectTasks`. `ProjectDetail` ofrece selector Tablero/Lista; cada entrada en Lista consulta página 1. Al cambiar proyecto se reinicia la vista a Tablero y se descartan datos, errores y respuestas anteriores. Creación, edición y movimiento pendientes bloquean el selector para no desmontar el tablero. Incluye carga, vacío, error/reintento y aislamiento de respuestas tardías. No incluye filtros, nueva ordenación, mutaciones desde Lista ni dependencias adicionales.
 
 - **Diseño del Dominio y Reglas Invariantes (`Boards & Tasks`):**
   - Entidad `Board`: asociado unívocamente a un `Project`, contiene columnas ordenadas y configuraciones visuales. Un proyecto nuevo inicializa perezosamente 3 columnas canónicas (`Por hacer`, `En progreso`, `Completado`) de forma estrictamente idempotente y resistente a condiciones de carrera concurrentes.
@@ -48,7 +80,7 @@ Adicionalmente, el seguimiento pedagógico y la integridad de los datos exigen g
 - **Interfaz de Usuario Moderna, Accesible y Reactiva (Web UI):**
   - Componentes en `apps/web/src/components`: `KanbanBoard`, `KanbanColumn`, `TaskCard`, `CreateTaskModal`, `TaskDetailModal`, `TaskListView`, `TaskFiltersBar`.
   - Accesibilidad integral: soporte completo de teclado (`KeyboardSensor` con `sortableKeyboardCoordinates`), anuncios auditivos ARIA en vivo (`aria-live`), foco visible y contrastes WCAG 2.1 AA.
-  - Integración con TanStack Query para mutaciones optimistas con reversión (rollback) automática ante fallos de red.
+  - Servicios HTTP tipados y estado local de React para consultas y mutaciones, con snapshot, actualización optimista, rollback ante fallos e invalidación de respuestas tardías. La integración futura de lista y filtros conservará la sincronización visible después de las mutaciones sin TanStack Query.
 
 ## Capabilities
 
@@ -72,3 +104,15 @@ Adicionalmente, el seguimiento pedagógico y la integridad de los datos exigen g
   - Esta propuesta corresponde estrictamente a la **Fase 2: Planificación (Nivel de Autorización C)**.
   - No se modifica código productivo, no se instalan dependencias, no se ejecutan commits ni migraciones.
   - Se requiere autorización explícita **Nivel D** antes de proceder con la implementación.
+
+## Identidades UUID explícitas de desarrollo
+
+El incremento autorizado el 2026-10-26 sustituye exclusivamente el valor predeterminado textual del frontend por un UUID fijo en configuración de desarrollo y alinea sus consumidores y fixtures. No requiere EPIC-002 ni modificar usuarios canónicos, contratos, middleware, permisos o persistencia. Sin dependencias ni costos adicionales. El diagnóstico previo describía un límite del incremento anterior; no implica que sea necesario cambiar el modelo canónico para nuevos datos de desarrollo.
+
+## Incremento C: gestión de columnas
+
+Gestión frontend de columnas autorizada el 2026-10-26: crear nombre/categoría, renombrar, ordenar con controles accesibles y eliminar con confirmación/destino explícito mediante endpoints actuales. Mantener las tres columnas iniciales; IN_REVIEW opcional. Reflejar estado confirmado en Tablero y consultar columnas actualizadas al entrar a Lista. Sin cambios backend/shared, dependencias, costos, EPIC-002, Git ni ZIP.
+
+## Verificación final autorizada F (2026-10-26)
+
+El usuario autoriza completar pendientes frontend ya especificados y verificación final, sin cerrar/archivar EPIC-003. Se implementa assigneeId UUID sobre el contrato existente, actualización contextual de la vista activa conservando filtros aplicados, y precisión de anuncios de movimiento (origen/destino/posición). No cambia arquitectura/backend/shared ni EPIC-002. Se revisan marcas históricas y se separa implementación/pruebas/manual. Una ronda final completa y repeticiones solo afectadas si hay correcciones, intento de navegador y un ZIP final de revisión con hashes y evidencia; sin operaciones Git de escritura ni dependencias.
