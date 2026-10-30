@@ -1,4 +1,10 @@
-﻿import { it, expect, vi } from 'vitest';
+import {
+  ciSqlProfile,
+  ciAdminConnection,
+  ciRolePasswordClause,
+  assertCiSqlTarget,
+} from '../../testing/sql-ci.js';
+import { it, expect, vi } from 'vitest';
 import { SqlSession } from './session.js';
 import { PostgresqlTeacherProjectScopeAdapter } from './teacher-project-scope.adapter.js';
 it('SQL assignment adapter binds actor, qualifies schema and propagates failure without fallback', async () => {
@@ -28,7 +34,8 @@ import { createApp } from '../http/app.js';
 it.skipIf(process.env.IS488_TEACHER_SQL_TEST !== '1')(
   'SQL local HTTP: assignment-only read, owner management and independent membership revocation',
   async () => {
-    const base = {
+    const ci = ciSqlProfile();
+    const base = ciAdminConnection() ?? {
       host: '127.0.0.1',
       port: 55490,
       user: 'is488_migration_admin',
@@ -49,17 +56,26 @@ it.skipIf(process.env.IS488_TEACHER_SQL_TEST !== '1')(
       const guard = (
         await admin.query("SELECT current_user AS actor,current_setting('data_directory') AS dir")
       ).rows[0];
-      expect(guard.actor).toBe(base.user);
-      expect(guard.dir.replaceAll('\\', '/').toLowerCase()).toBe(
-        process.env.IS488_MIGRATION_TEST_DIR!.replaceAll('\\', '/').toLowerCase(),
-      );
-      expect(guard.dir.replaceAll('\\', '/')).toMatch(/\/Temp\/is488-migrator-[a-f0-9]{32}$/);
+      if (ci) await assertCiSqlTarget(admin);
+      else {
+        expect(guard.actor).toBe(base.user);
+        expect(guard.dir.replaceAll('\\', '/').toLowerCase()).toBe(
+          process.env.IS488_MIGRATION_TEST_DIR!.replaceAll('\\', '/').toLowerCase(),
+        );
+        expect(guard.dir.replaceAll('\\', '/')).toMatch(/\/Temp\/is488-migrator-[a-f0-9]{32}$/);
+      }
       await admin.query(
-        'CREATE ROLE ' + m + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT',
+        'CREATE ROLE ' +
+          m +
+          ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' +
+          ciRolePasswordClause(),
       );
       madeM = true;
       await admin.query(
-        'CREATE ROLE ' + r + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT',
+        'CREATE ROLE ' +
+          r +
+          ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' +
+          ciRolePasswordClause(),
       );
       madeR = true;
       await admin.query('CREATE DATABASE ' + db + ' OWNER ' + m);
@@ -75,6 +91,7 @@ it.skipIf(process.env.IS488_TEACHER_SQL_TEST !== '1')(
             IS488_MIGRATION_PORT: '55490',
             IS488_MIGRATION_DATABASE: db,
             IS488_MIGRATION_USER: m,
+            IS488_MIGRATION_PASSWORD: ci?.rolePassword ?? '',
             IS488_RUNTIME_ROLE: r,
             IS488_MIGRATION_REMOTE_PROFILE: '',
             IS488_MIGRATION_AUDIT: join(process.env.IS488_SCOPE_EVIDENCE!, suffix + '-api.jsonl'),
@@ -82,11 +99,14 @@ it.skipIf(process.env.IS488_TEACHER_SQL_TEST !== '1')(
           timeout: 15000,
         },
       );
-      operator = new Client({ ...base, database: db, user: m });
+      operator = new Client({ ...base, database: db, user: m, password: ci?.rolePassword });
       await operator.connect();
       const app = createApp({
         nodeEnv: 'test',
-        persistence: { mode: 'postgres', connection: { ...base, database: db, user: r } },
+        persistence: {
+          mode: 'postgres',
+          connection: { ...base, database: db, user: r, password: ci?.rolePassword },
+        },
       });
       const owner = '11111111-1111-4111-8111-111111111111',
         teacher = '22222222-2222-4222-8222-222222222222';

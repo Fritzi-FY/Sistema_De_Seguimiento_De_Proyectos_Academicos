@@ -1,6 +1,17 @@
+import {
+  ciSqlProfile,
+  ciAdminConnection,
+  ciRolePasswordClause,
+  assertCiSqlTarget,
+} from '../../testing/sql-ci.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { Client, type ClientConfig } from 'pg';
-import { readFile } from 'node:fs/promises';
 import { createServer, connect, type Socket } from 'node:net';
 import { once } from 'node:events';
 import { createApp } from '../http/app.js';
@@ -25,7 +36,8 @@ import {
 } from '@is488/shared';
 
 const enabled = process.env.IS488_SQL_TEST === '1';
-const base: ClientConfig = {
+const ci = ciSqlProfile();
+const base: ClientConfig = ciAdminConnection(55489) ?? {
   host: '127.0.0.1',
   port: 55489,
   user: 'is488_test_admin',
@@ -35,6 +47,8 @@ const base: ClientConfig = {
 const suffix = crypto.randomUUID().replaceAll('-', '');
 const database = 'is488_test_' + suffix;
 const role = 'is488_runtime_' + suffix;
+const migrationRole = 'is488_pm_' + suffix;
+let migrationRoleCreated = false;
 let config: ClientConfig;
 let admin: Client;
 let databaseCreated = false;
@@ -84,34 +98,58 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     const check = await admin.query(
       "SELECT current_setting('data_directory') AS dir, current_user AS actor",
     );
-    expect(check.rows[0].actor).toBe('is488_test_admin');
-    expect(check.rows[0].dir.replaceAll('\\', '/')).toContain('/Temp/is488-epic002-');
+    if (ci) await assertCiSqlTarget(admin);
+    else {
+      expect(check.rows[0].actor).toBe('is488_test_admin');
+      expect(check.rows[0].dir.replaceAll('\\', '/')).toContain('/Temp/is488-epic002-');
+    }
     await admin.query(
-      'CREATE ROLE ' + role + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT',
+      'CREATE ROLE ' +
+        role +
+        ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' +
+        ciRolePasswordClause(),
     );
     roleCreated = true;
-    await admin.query('CREATE DATABASE ' + database);
+    await admin.query(
+      'CREATE ROLE ' +
+        migrationRole +
+        ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' +
+        ciRolePasswordClause(),
+    );
+    migrationRoleCreated = true;
+    await admin.query('CREATE DATABASE ' + database + ' OWNER ' + migrationRole);
     databaseCreated = true;
-    config = { ...base, user: role, database };
-    const migrator = new Client({ ...base, database });
-    await migrator.connect();
-    try {
-      await migrator.query('BEGIN');
-      await migrator.query(await readFile(new URL('./schema.sql', import.meta.url), 'utf8'));
-      await migrator.query('GRANT USAGE ON SCHEMA public TO ' + role);
-      await migrator.query(
-        'GRANT SELECT, INSERT, UPDATE ON projects, project_memberships TO ' + role,
-      );
-      await migrator.query('COMMIT');
-    } finally {
-      await migrator.end();
-    }
+    await admin.query('REVOKE TEMPORARY ON DATABASE ' + database + ' FROM PUBLIC,' + role);
+    config = { ...base, user: role, database, password: ci?.rolePassword };
+    const audit = join(
+      process.env.IS488_CI_EVIDENCE ?? mkdtempSync(join(tmpdir(), 'is488-projects-sql-')),
+      suffix + '-projects.jsonl',
+    );
+    await promisify(execFile)(
+      process.execPath,
+      [fileURLToPath(new URL('../../../migrations/runner.ts', import.meta.url)), 'apply'],
+      {
+        env: {
+          ...process.env,
+          IS488_MIGRATION_HOST: '127.0.0.1',
+          IS488_MIGRATION_PORT: '55489',
+          IS488_MIGRATION_DATABASE: database,
+          IS488_MIGRATION_USER: migrationRole,
+          IS488_MIGRATION_PASSWORD: ci?.rolePassword ?? '',
+          IS488_RUNTIME_ROLE: role,
+          IS488_MIGRATION_REMOTE_PROFILE: '',
+          IS488_MIGRATION_AUDIT: audit,
+        },
+        timeout: 15000,
+      },
+    );
   }, 20000);
   afterAll(async () => {
     await Promise.all(sessions.map((s) => s.close()));
     if (admin) {
       if (databaseCreated) await admin.query('DROP DATABASE ' + database);
       if (roleCreated) await admin.query('DROP ROLE ' + role);
+      if (migrationRoleCreated) await admin.query('DROP ROLE ' + migrationRole);
       await admin.end();
     }
   }, 20000);
@@ -251,7 +289,11 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     const repo = new PostgresqlMembershipRepository(() => s);
     await expect(
       repo.addMember({ ...m, id: crypto.randomUUID(), userId: outsider }),
-    ).rejects.toMatchObject({ code: '23505', constraint: 'membership_active_owner' });
+    ).rejects.toMatchObject({
+      outcome: 'rolled_back',
+      sqlState: '23505',
+      constraint: 'membership_active_owner',
+    });
     await expect(
       repo.addMember({
         ...m,
@@ -259,7 +301,7 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
         projectId: crypto.randomUUID(),
         role: 'collaborator',
       }),
-    ).rejects.toMatchObject({ code: '23503' });
+    ).rejects.toMatchObject({ outcome: 'rolled_back', sqlState: '23503' });
     await expect(
       repo.addMember({
         ...m,
@@ -268,15 +310,17 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
         role: 'collaborator',
         status: 'removed',
       }),
-    ).rejects.toMatchObject({ code: '23514' });
+    ).rejects.toMatchObject({ outcome: 'rolled_back', sqlState: '23514' });
     await expect(
       new PostgresqlProjectRepository(() => s).save({ ...p, id: crypto.randomUUID(), title: 'x' }),
-    ).rejects.toMatchObject({ code: '23514' });
+    ).rejects.toMatchObject({ outcome: 'rolled_back', sqlState: '23514' });
     await expect(s.query('DELETE FROM projects WHERE id=$1', [p.id])).rejects.toMatchObject({
-      code: '42501',
+      outcome: 'rolled_back',
+      sqlState: '42501',
     });
     await expect(s.query('CREATE TABLE forbidden_table (id int)')).rejects.toMatchObject({
-      code: '42501',
+      outcome: 'rolled_back',
+      sqlState: '42501',
     });
   });
 
@@ -409,7 +453,16 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     const fresh = (await (
       await restarted.request(url + '/board', { headers: headers(owner) })
     ).json()) as { columns: { id: string }[] };
-    expect(fresh.columns.map((c) => c.id)).not.toEqual(data.columns.map((c) => c.id));
+    expect(fresh.columns.map((c) => c.id)).toEqual(data.columns.map((c) => c.id));
+    const persistedTask = await restarted.request(url + '/tasks/' + created.id + '/activity', {
+      headers: headers(owner),
+    });
+    expect(persistedTask.status).toBe(200);
+    expect(await persistedTask.json()).toEqual(
+      await (
+        await app.request(url + '/tasks/' + created.id + '/activity', { headers: headers(owner) })
+      ).json(),
+    );
   });
 
   it('COMMIT confirmado en servidor con respuesta perdida: unknown, sin retry ni rollback compensatorio', async () => {

@@ -1,4 +1,10 @@
-﻿import { it, expect } from 'vitest';
+import {
+  ciSqlProfile,
+  ciAdminConnection,
+  ciRolePasswordClause,
+  assertCiSqlTarget,
+} from '../src/testing/sql-ci.ts';
+import { it, expect } from 'vitest';
 import { Client } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -13,7 +19,8 @@ import {
 it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
   'adaptadores reales usan el esquema migrado como runtime sin DDL',
   async () => {
-    const base = {
+    const ci = ciSqlProfile();
+    const base = ciAdminConnection() ?? {
       host: '127.0.0.1',
       port: 55490,
       user: 'is488_migration_admin',
@@ -34,26 +41,35 @@ it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
       const check = await admin.query(
         "SELECT current_user AS actor,current_setting('data_directory') AS dir",
       );
-      expect(check.rows[0].actor).toBe('is488_migration_admin');
-      expect(check.rows[0].dir.replaceAll('\\', '/').toLowerCase()).toBe(
-        process.env.IS488_MIGRATION_TEST_DIR!.replaceAll('\\', '/').toLowerCase(),
-      );
-      expect(check.rows[0].dir.replaceAll('\\', '/')).toMatch(
-        /\/Temp\/is488-migrator-[a-f0-9]{32}$/,
-      );
+      if (ci) await assertCiSqlTarget(admin);
+      else {
+        expect(check.rows[0].actor).toBe('is488_migration_admin');
+        expect(check.rows[0].dir.replaceAll('\\', '/').toLowerCase()).toBe(
+          process.env.IS488_MIGRATION_TEST_DIR!.replaceAll('\\', '/').toLowerCase(),
+        );
+        expect(check.rows[0].dir.replaceAll('\\', '/')).toMatch(
+          /\/Temp\/is488-migrator-[a-f0-9]{32}$/,
+        );
+      }
       await admin.query(
-        'CREATE ROLE ' + migrator + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT',
+        'CREATE ROLE ' +
+          migrator +
+          ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' +
+          ciRolePasswordClause(),
       );
       migratorCreated = true;
       await admin.query(
-        'CREATE ROLE ' + runtime + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT',
+        'CREATE ROLE ' +
+          runtime +
+          ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' +
+          ciRolePasswordClause(),
       );
       runtimeCreated = true;
       await admin.query('CREATE DATABASE ' + db + ' OWNER ' + migrator);
       dbCreated = true;
       await admin.query('REVOKE TEMPORARY ON DATABASE ' + db + ' FROM PUBLIC,' + runtime);
       await run('apply', {
-        connection: { ...base, database: db, user: migrator },
+        connection: { ...base, database: db, user: migrator, password: ci?.rolePassword },
         runtimeRole: runtime,
         auditFile: join(process.env.IS488_MIGRATION_TEST_EVIDENCE!, 'adapters-' + id + '.jsonl'),
       });
@@ -61,6 +77,7 @@ it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
         ...base,
         database: db,
         user: runtime,
+        password: ci?.rolePassword,
         options: '-c search_path=pg_catalog',
       });
       const s = session;
@@ -94,10 +111,12 @@ it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
       expect(await members.findByProject(p.id)).toEqual([m]);
       expect((await s.query('SHOW search_path')).rows[0].search_path).toBe('pg_catalog, public');
       await expect(s.query('CREATE TEMP TABLE forbidden(id int)')).rejects.toMatchObject({
-        code: '42501',
+        outcome: 'rolled_back',
+        sqlState: '42501',
       });
       await expect(s.query('SELECT * FROM is488_migrations.versions')).rejects.toMatchObject({
-        code: '42501',
+        outcome: 'rolled_back',
+        sqlState: '42501',
       });
     } finally {
       if (session) await session.close();

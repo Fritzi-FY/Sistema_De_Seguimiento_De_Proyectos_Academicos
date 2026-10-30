@@ -1,3 +1,4 @@
+import { ciSqlProfile, assertCiSqlTarget } from '../../testing/sql-ci.js';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { Client, type ClientConfig } from 'pg';
 import { createServer, connect, type Socket } from 'node:net';
@@ -23,11 +24,13 @@ import type {
 } from '@is488/shared';
 
 const enabled = process.env.IS488_KANBAN_SQL_TEST === '1';
+const ci = ciSqlProfile();
 const config: ClientConfig = {
   host: '127.0.0.1',
   port: 55490,
-  database: 'is488_dev',
-  user: 'is488_dev_runtime',
+  database: ci?.database ?? 'is488_dev',
+  user: ci?.runtime ?? 'is488_dev_runtime',
+  password: ci?.rolePassword,
   connectionTimeoutMillis: 3000,
   query_timeout: 6000,
 };
@@ -119,7 +122,11 @@ function scoped<T>(work: () => Promise<T>, override: ClientConfig = {}, actor = 
 }
 describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => {
   beforeAll(async () => {
-    admin = new Client({ ...config, user: 'is488_migration_admin' });
+    admin = new Client({
+      ...config,
+      user: ci?.admin ?? 'is488_migration_admin',
+      password: ci?.adminPassword,
+    });
     admin.on('error', () => {});
     await admin.connect();
     const row = (
@@ -127,11 +134,14 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => 
         "SELECT current_database() AS database,inet_server_port() AS port,current_setting('data_directory') AS directory",
       )
     ).rows[0];
-    expect(row.database).toBe('is488_dev');
-    expect(row.port).toBe(55490);
-    expect(String(row.directory).replaceAll('\\', '/').toLowerCase()).toBe(
-      'c:/users/fritz/appdata/local/temp/is488-migrator-d5974a0c7b7444ff9f9d85079bc86898',
-    );
+    expect(row.database).toBe(config.database);
+    if (ci) await assertCiSqlTarget(admin);
+    else {
+      expect(row.port).toBe(55490);
+      expect(String(row.directory).replaceAll('\\', '/').toLowerCase()).toBe(
+        'c:/users/fritz/appdata/local/temp/is488-migrator-d5974a0c7b7444ff9f9d85079bc86898',
+      );
+    }
     expect(
       (
         await admin.query('SELECT version FROM is488_migrations.versions ORDER BY version')
@@ -166,7 +176,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => 
         JSON.stringify(
           {
             at: new Date().toISOString(),
-            database: 'is488_dev',
+            database: config.database,
             otherDatabasesModified: false,
             originalProjectsAndMembershipsPreserved: true,
             fixtureProjectsRetained: fixtureProjects,

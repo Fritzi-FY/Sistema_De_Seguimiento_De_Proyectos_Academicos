@@ -89,3 +89,11 @@ Evidencia actual: [migración 0003](../evidence/kanban-postgresql/migration.json
 - La eliminación manual del proyecto Neon de run4 sigue pendiente de confirmación humana; este trabajo no lo consultó ni modificó.
 
 No hubo recursos ni consultas remotas nuevas, ZIP, commits, push o despliegue. Los contadores remotos siguen en **143/220 solicitudes y 1020/2200 sentencias**; la actividad local no los reinicia ni consume.
+
+## PostgreSQL efímero en CI
+
+El job PostgreSQL ephemeral integration (25 SQL cases) usa PostgreSQL 18 en un servicio exclusivo de GitHub Actions, con credenciales de esa ejecución y roles de migración/runtime sin privilegios administrativos. Verifica identidad, directorio, versión y una marca del run antes de DDL. No usa Neon, Cloudflare ni bases del desarrollador.
+
+Aplica 0001–0004 con el migrador, conserva un proyecto y membresía sintéticos iniciales, y ejecuta las 25 pruebas antes omitidas más la prueba unitaria existente del adaptador docente. El runner exige los cuatro archivos y sus conteos exactos; cualquier omisión falla el job. Los controles originales siguen activos. El servicio y sus datos se eliminan al finalizar el job. Las guardas locales continúan separadas del perfil CI.
+
+La validación de CI SQL no sustituye aceptación remota, E2E de navegador, backup/restore ni recuperación forward-fix. El resultado real se registra en el PR; no se considera aprobado por estar configurado.
