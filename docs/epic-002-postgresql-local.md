@@ -61,3 +61,7 @@ No se ejecutó navegador/E2E ni servicios remotos. Siguen pendientes la aceptaci
 Al finalizar se comprobó que no quedaban bases is488_test_* ni roles is488_runtime_* y se detuvo el cluster exclusivo. Su directorio nuevo de TEMP se conserva detenido; el servicio PostgreSQL preexistente no se usó ni detuvo. Lint TypeScript acotado y formato de la guía nueva aprobados.
 
 Corrección documental (2026-10-26): los siete casos de postgresql.sql.test.ts son seis SQL y uno Maps. Total 358 sin cambios; no se repitió el incremento por esta corrección.
+
+## Migrador local manual
+
+El migrador del producto está separado de la API en `apps/api/migrations/`. Ver [operación y recuperación](../apps/api/migrations/README.md). Comandos manuales `migrate:plan`, `migrate:apply` y `migrate:reconcile` del workspace API; no aplican SQL al arrancar. Solo conexión directa local y base vacía con roles aprovisionados por separado. La aceptación remota y la recuperación productiva siguen pendientes.

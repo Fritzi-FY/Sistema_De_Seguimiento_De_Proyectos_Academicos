@@ -8,7 +8,12 @@
     "build": "wrangler build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "migrate:plan": "node migrations/runner.ts plan",
+    "migrate:apply": "node migrations/runner.ts apply",
+    "migrate:reconcile": "node migrations/runner.ts reconcile",
+    "test:migrations": "node --test migrations/migrator.node-test.ts",
+    "typecheck:migrations": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node migrations/runner.ts migrations/migrator.node-test.ts migrations/adapters.test.ts"
   },
   "dependencies": {
     "@is488/shared": "^0.1.0",

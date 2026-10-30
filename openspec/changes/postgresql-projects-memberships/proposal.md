@@ -47,3 +47,7 @@ Actualización C H1/H2: autorización expresa de gobernanza y de estos cuatro ar
 ## Incremento local autorizado — 2026-10-26
 
 Nivel D explícito para proyectos y membresías PostgreSQL locales y sus consumidores. Maps conserva el modo predeterminado; Kanban mantiene una sola instancia volátil por aplicación. Se autorizan únicamente pg 8.23.1 y @types/pg 8.23.1 como dependencias directas nuevas del producto. Sin aceptación de spikes WIP, conexiones remotas, despliegue ni cierre de SEC-01.
+
+## Migrador local de producto autorizado (2026-10-26)
+
+El usuario concede implementación D del migrador local según la propuesta de revisión y pruebas nuevas en cluster exclusivo con datos sintéticos. Primero se actualizan estos cuatro artefactos. Sin dependencias nuevas, spikes, Git de escritura, destinos remotos, despliegue ni archivado. Valor: evolución SQL reproducible y recuperación observable, costo US$0 local. No se acepta el spike remoto ni se cambia la arquitectura.

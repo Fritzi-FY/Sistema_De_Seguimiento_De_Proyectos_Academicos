@@ -80,3 +80,13 @@ Estas tareas son independientes de la aceptación remota de spikes. El usuario c
 - [x] L.5 Verificar pruebas afectadas, typecheck, lint, formato, contratos OpenAPI y builds; registrar resultados y límites sin aceptar spikes ni cerrar SEC-01.
 
 Evidencia del incremento local: [guía e informe](../../../docs/epic-002-postgresql-local.md). 358 pruebas afectadas aprobadas, incluyendo SQL real exclusivo en localhost y simulaciones identificadas por separado. Builds y tipos aprobados; no completa las tareas remotas/históricas anteriores ni cierra el EPIC.
+
+## M. Migrador local autorizado (2026-10-26)
+
+- [x] M.1 Actualizar y validar los cuatro artefactos, conservando límites y autorizaciones.
+- [x] M.2 Implementar catálogo versionado/checksum, ledger privado transaccional y guardas de baseline/roles/esquema; probar primera aplicación, reejecución, rechazos y ACL.
+- [x] M.3 Implementar sesión dedicada/lock/plazos/evidencia/COMMIT incierto y reconciliación sin reapply; probar concurrencia inicial, timeout y pérdida real de respuesta COMMIT.
+- [x] M.4 Añadir comandos manuales y probar evolución con datos sintéticos/fallo intermedio sin modificar migraciones aplicadas ni spikes.
+- [x] M.5 Corregir clasificación anterior (6 SQL + 1 Maps), ejecutar checks afectados y conservar salidas saneadas; limpiar solo recursos exclusivos nuevos.
+
+Evidencia nueva: informe del migrador (evidencia histórica local excluida de esta publicación; no acredita aceptación remota). Catorce casos SQL reales nuevos (trece del runner y uno de adaptadores), separados de las 28 pruebas afectadas de sesión/contrato. Sin repetir el incremento anterior; no completa tareas remotas ni archiva el cambio.

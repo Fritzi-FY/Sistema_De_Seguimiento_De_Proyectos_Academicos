@@ -436,3 +436,40 @@ El producto SHALL permitir selección explícita memory/postgres, con memory pre
 - **GIVEN** ambas inserciones despachadas en una transacción
 - **WHEN** COMMIT no recibe confirmación
 - **THEN** se distingue resultado incierto de rollback confirmado sin éxito, retry ni compensación SQL
+
+### Requirement: Migrador local ordenado y explícito
+El producto SHALL ofrecer comandos manuales plan/apply/reconcile locales, sin SQL de arranque API. Usará migraciones consecutivas inmutables con SHA-256 y ledger privado; public será explícito y coherente con adaptadores y search_path pg_catalog,public.
+
+#### Scenario: Primera aplicación y evolución
+- **GIVEN** una base vacía exclusiva y credenciales migradoras separadas
+- **WHEN** se aplican versiones consecutivas bajo sesión directa y lock exclusivo
+- **THEN** cada DDL y fila de ledger se confirman juntos, datos previos se conservan y reejecutar no repite DDL
+
+#### Scenario: Historial no aprobado
+- **GIVEN** versión desconocida, hueco, checksum alterado o base existente sin ledger/baseline aprobado
+- **WHEN** se solicita plan/apply/reconcile
+- **THEN** se rechaza sin aplicar ni adoptar objetos
+
+#### Scenario: Exclusión y fallo intermedio
+- **GIVEN** dos primeras ejecuciones o fallo dentro de una versión
+- **WHEN** compiten por el mismo lock con plazo acotado o falla DDL
+- **THEN** solo una sesión modifica a la vez, timeout no despacha DDL y fallo confirmado no deja DDL ni fila parcial
+
+### Requirement: Confirmación y reconciliación del migrador
+El migrador SHALL preservar evidencia saneada antes de despachar, distinguir confirmación de incertidumbre y usar el mismo lock para aplicar y reconciliar.
+
+#### Scenario: Respuesta COMMIT perdida
+- **GIVEN** COMMIT despachado y respuesta perdida
+- **WHEN** termina la espera acotada
+- **THEN** se detiene el lote unknown sin retry ni rollback compensatorio, con cierre informado separado
+- **AND** reconcile en nueva sesión bajo el mismo lock observa ledger/checksum/esquema sin reaplicar automáticamente ni atribuir causalidad
+
+#### Scenario: Reconciliación ausente
+- **GIVEN** un intento incierto y transacción anterior excluida mediante el mismo lock
+- **WHEN** reconcile no encuentra la versión
+- **THEN** registra observación ausente sin reapply y mantiene apply bloqueado hasta recuperación aprobada
+
+#### Scenario: Privilegios separados
+- **GIVEN** roles migrador/runtime no administrativos ni asumibles entre sí
+- **WHEN** runtime opera en negocio o intenta DDL, DELETE o ledger
+- **THEN** solo arw autorizado es posible y ledger/DDL/DELETE son denegados, considerando PUBLIC/defaults/herencia
