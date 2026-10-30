@@ -1,0 +1,39 @@
+{
+  "scope": "only is488_dev; no other database modifications",
+  "status": "local implementation verified; ordered repeated assignees supported",
+  "appliedMigrations": [1, 2, 3, 4],
+  "existingProjectsAndMembershipsPreserved": true,
+  "importedMaps": false,
+  "tests": {
+    "sqlDistinctPassed": 16,
+    "aclUnitPassed": 2,
+    "mapsHttpSessionRegressionPassed": 76,
+    "openApiPassed": 21,
+    "explicitMapsPassed": 1
+  },
+  "checks": {
+    "apiTypecheck": "passed",
+    "migratorTypecheck": "passed",
+    "preparationTypecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "apiBuild": "dry-run passed"
+  },
+  "restart": {
+    "postgresql": true,
+    "wrangler": true,
+    "vite": true,
+    "exactStateComparison": "passed"
+  },
+  "remoteCounters": {
+    "requests": 143,
+    "requestLimit": 220,
+    "sql": 1020,
+    "sqlLimit": 2200
+  },
+  "repeatedAssigneeCompatibility": {
+    "sqlTest": "passed",
+    "fullRestart": "passed",
+    "migration0004AllRowsPreserved": true
+  }
+}

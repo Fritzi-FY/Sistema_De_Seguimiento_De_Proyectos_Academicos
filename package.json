@@ -18,7 +18,13 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "dev:local": "node scripts/local-dev.mjs start",
+    "dev:local:init": "node scripts/local-dev.mjs init",
+    "dev:local:stop": "node scripts/local-dev.mjs stop",
+    "dev:local:status": "node scripts/local-dev.mjs status",
+    "dev:local:verify": "node scripts/local-dev.mjs verify",
+    "dev:local:migrate": "node scripts/local-dev.mjs migrate"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",

@@ -8,5 +8,15 @@
     "version": 2,
     "name": "0002_teacher_project_assignments.sql",
     "sha256": "4e441b4b093cca87ca7f50ff3d82439e511cb02991bc4f1bc1287d8c956a13fb"
+  },
+  {
+    "version": 3,
+    "name": "0003_kanban_persistence.sql",
+    "sha256": "1cf10aa0f370a82a2864ab8001a03b5f90f9b6a2f7a5b11dcdc6c1cb922d0b85"
+  },
+  {
+    "version": 4,
+    "name": "0004_kanban_assignee_positions.sql",
+    "sha256": "915bf68ed69e54e0fb86704e1a680b2947a897e2111d9bfe51c84275ab4db059"
   }
 ]

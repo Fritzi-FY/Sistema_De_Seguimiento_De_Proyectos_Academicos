@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8787',
+        target: process.env.IS488_LOCAL_API_ORIGIN ?? 'http://localhost:8787',
         changeOrigin: true,
       },
     },

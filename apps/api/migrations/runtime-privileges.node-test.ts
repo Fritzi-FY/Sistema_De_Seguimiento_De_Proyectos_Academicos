@@ -86,3 +86,22 @@ test('ACL verifier covers MAINTAIN, columns, roles, defaults-derived effective A
   ])
     await assert.rejects(verifyRuntime(database(p), 'runtime'));
 });
+
+test('version 2 omits future Kanban tables while version 3 requires their complete ACL matrix', async () => {
+  const targets: string[][] = [];
+  const inner = database();
+  const capture: QueryClient = {
+    async query(sql, values) {
+      if (sql.includes('WITH targets AS')) targets.push(values![1] as string[]);
+      return inner.query(sql, values);
+    },
+  };
+  await verifyRuntime(capture, 'runtime', 2);
+  assert.equal(targets[0]?.includes('public.boards'), false);
+  await verifyRuntime(capture, 'runtime', 3);
+  assert.equal(targets[1]?.includes('public.boards'), true);
+  await assert.rejects(
+    verifyRuntime(database('missing_board'), 'runtime', 3),
+    /missing_policy_table/,
+  );
+});

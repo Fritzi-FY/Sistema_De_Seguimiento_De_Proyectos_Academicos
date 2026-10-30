@@ -17,7 +17,13 @@ export class SqlSession {
   private tail: Promise<unknown> = Promise.resolve();
   private context = new AsyncLocalStorage<boolean>();
   private uncertain = false;
-  constructor(private readonly config: ClientConfig) {}
+  constructor(
+    private readonly config: ClientConfig,
+    private readonly requester?: () => string | undefined,
+  ) {}
+  get actorId(): string | undefined {
+    return this.requester?.();
+  }
   private connect() {
     this.pending ??= (async () => {
       const c = new Client({ ...this.config, connectionTimeoutMillis: 5000, query_timeout: 6000 });

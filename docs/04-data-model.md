@@ -72,3 +72,13 @@ Toda modificación se entrega con migración hacia adelante y estrategia de roll
 ## 4.6 Archivos
 
 Primera versión: almacenar URL, nombre, tipo declarado, autor y fecha como metadatos cuando corresponda. No almacenar archivos subidos en el filesystem del Worker. Si se aprueba carga binaria, diseñar un cambio OpenSpec separado para R2 u otro almacenamiento de objetos, validación de tipo/tamaño, autorización de descarga y políticas de retención.
+
+
+
+## Persistencia Kanban local — migraciones 0003 y 0004
+
+Implementada únicamente en `is488_dev`: `boards` (un tablero por proyecto), `board_columns` (orden por tablero), `tasks` (campos y orden), `task_assignees` (responsables y posición) y `task_activity` (append-only). FKs compuestas impiden columnas de otro proyecto; unicidad diferida permite reordenar en una transacción. El borrado interno de tareas es lógico para conservar referencias históricas; no se agrega un endpoint de eliminación. Las referencias históricas a columnas eliminadas no se borran en cascada.
+
+0004 identifica cada entrada por `(task_id,position)`, preservando listas ordenadas con repeticiones ya admitidas por Maps, sin deduplicar silenciosamente. El filtro por responsable usa EXISTS y no multiplica tareas. SQL 0001–0003 y sus hashes permanecen intactos; las ocho tablas tuvieron el mismo hash de contenido antes/después de 0004.
+
+Runtime carece de UPDATE/DELETE sobre actividad y de acceso al ledger. La validación de miembros/responsables y su retiro se coordinan con locks. El resultado transaccional se mantiene separado del transporte/cierre. Se comprobó conservación exacta tras reiniciar el entorno completo. Véase [guía local](development-local.md) y `evidence/kanban-postgresql/`.

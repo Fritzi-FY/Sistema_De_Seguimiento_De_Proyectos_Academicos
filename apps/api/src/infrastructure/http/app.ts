@@ -1,3 +1,15 @@
+import {
+  PostgresqlBoardRepository,
+  PostgresqlTaskRepository,
+  PostgresqlTaskActivityRepository,
+} from '../postgresql/kanban.repositories.js';
+import {
+  PostgresqlTaskCreationAdapter,
+  PostgresqlTaskUpdateAdapter,
+  PostgresqlTaskMoveAdapter,
+  PostgresqlBoardColumnDeletionAdapter,
+} from '../postgresql/kanban.transactions.js';
+import { PostgresqlTaskListAdapter } from '../postgresql/kanban-list.adapter.js';
 import type { AuthMiddleware } from './middleware/auth.middleware.js';
 import { createDevAuthMiddleware } from './middleware/dev-auth.middleware.js';
 import { createAccessAuth, type AccessProfile } from './middleware/access-auth.middleware.js';
@@ -136,14 +148,30 @@ export function createApp(options: AppOptions = {}) {
 
   // ── Dominio Kanban: UNA SOLA instancia compartida por app (Patrón B.2) ────────────────
   const kanbanStorage = options.kanbanStorage ?? new InMemoryKanbanProjectStorage();
-  const boardRepository = options.boardRepository ?? new InMemoryBoardRepository(kanbanStorage);
-  const boardColumnDeletionPort =
-    options.boardColumnDeletionPort ?? new InMemoryBoardColumnDeletionAdapter(kanbanStorage);
-  const taskCreationPort =
-    options.taskCreationPort ?? new InMemoryTaskCreationAdapter(kanbanStorage);
-  const taskUpdatePort = options.taskUpdatePort ?? new InMemoryTaskUpdateAdapter(kanbanStorage);
-  const taskMovePort = options.taskMovePort ?? new InMemoryTaskMoveAdapter(kanbanStorage);
-  const taskListPort = options.taskListPort ?? new InMemoryTaskListAdapter(kanbanStorage);
+  const boardRepository = selectPort<BoardRepositoryPort>(
+    options.boardRepository ?? new InMemoryBoardRepository(kanbanStorage),
+    new PostgresqlBoardRepository(),
+  );
+  const boardColumnDeletionPort = selectPort<BoardColumnDeletionPort>(
+    options.boardColumnDeletionPort ?? new InMemoryBoardColumnDeletionAdapter(kanbanStorage),
+    new PostgresqlBoardColumnDeletionAdapter(),
+  );
+  const taskCreationPort = selectPort<TaskCreationPort>(
+    options.taskCreationPort ?? new InMemoryTaskCreationAdapter(kanbanStorage),
+    new PostgresqlTaskCreationAdapter(),
+  );
+  const taskUpdatePort = selectPort<TaskUpdatePort>(
+    options.taskUpdatePort ?? new InMemoryTaskUpdateAdapter(kanbanStorage),
+    new PostgresqlTaskUpdateAdapter(),
+  );
+  const taskMovePort = selectPort<TaskMovePort>(
+    options.taskMovePort ?? new InMemoryTaskMoveAdapter(kanbanStorage),
+    new PostgresqlTaskMoveAdapter(),
+  );
+  const taskListPort = selectPort<TaskListPort>(
+    options.taskListPort ?? new InMemoryTaskListAdapter(kanbanStorage),
+    new PostgresqlTaskListAdapter(),
+  );
 
   const teacherScope = selectPort<TeacherProjectScopePort>(
     options.teacherProjectScope ?? new InMemoryTeacherProjectScopeAdapter(),
@@ -244,7 +272,7 @@ export function createApp(options: AppOptions = {}) {
         throw new Error('Local SQL connection required');
       connection = { connectionString: env.DATABASE_URL };
     }
-    const session = new SqlSession(connection);
+    const session = new SqlSession(connection, () => c.get('user')?.userId);
     return sqlRequestScope.run(session, async () => {
       try {
         await next();
@@ -316,8 +344,14 @@ export function createApp(options: AppOptions = {}) {
       new GetTaskActivityUseCase(
         projectRepository,
         membershipRepository,
-        options.taskRepository ?? new InMemoryTaskRepository(kanbanStorage),
-        options.taskActivityRepository ?? new InMemoryTaskActivityRepository(kanbanStorage),
+        selectPort<TaskRepositoryPort>(
+          options.taskRepository ?? new InMemoryTaskRepository(kanbanStorage),
+          new PostgresqlTaskRepository(),
+        ),
+        selectPort<TaskActivityRepositoryPort>(
+          options.taskActivityRepository ?? new InMemoryTaskActivityRepository(kanbanStorage),
+          new PostgresqlTaskActivityRepository(),
+        ),
       ),
       nodeEnv,
       routerAuth,
