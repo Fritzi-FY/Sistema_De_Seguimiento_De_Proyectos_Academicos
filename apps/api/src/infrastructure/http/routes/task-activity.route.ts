@@ -1,12 +1,17 @@
+import type { AuthMiddleware } from '../middleware/auth.middleware.js';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { TaskActivityListResponseSchema } from '@is488/shared';
 import type { GetTaskActivityUseCase } from '../../../application/use-cases/get-task-activity.use-case.js';
 import { createDevAuthMiddleware } from '../middleware/dev-auth.middleware.js';
 
-export function createTaskActivityRouter(useCase: GetTaskActivityUseCase, nodeEnv?: string) {
+export function createTaskActivityRouter(
+  useCase: GetTaskActivityUseCase,
+  nodeEnv?: string,
+  authentication?: AuthMiddleware,
+) {
   const router = new Hono();
-  router.use('*', createDevAuthMiddleware({ nodeEnv }));
+  router.use('*', authentication ?? createDevAuthMiddleware({ nodeEnv }));
   router.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
     await next();

@@ -5,6 +5,7 @@ export interface QueryClient {
 export const runtimePolicy: { table: string; grants: string[]; since?: number }[] = [
   { table: 'public.projects', grants: ['SELECT', 'INSERT', 'UPDATE'] },
   { table: 'public.project_memberships', grants: ['SELECT', 'INSERT', 'UPDATE'] },
+  { table: 'public.teacher_project_assignments', grants: ['SELECT'] },
 ];
 const quote = (s: string) => {
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(s)) throw new RuntimePrivilegesError('invalid_role');

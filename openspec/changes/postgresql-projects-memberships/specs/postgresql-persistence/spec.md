@@ -473,3 +473,101 @@ El migrador SHALL preservar evidencia saneada antes de despachar, distinguir con
 - **GIVEN** roles migrador/runtime no administrativos ni asumibles entre sí
 - **WHEN** runtime opera en negocio o intenta DDL, DELETE o ledger
 - **THEN** solo arw autorizado es posible y ledger/DDL/DELETE son denegados, considerando PUBLIC/defaults/herencia
+
+### Requirement: R Product remote validation has separate authorizations
+Remote validation SHALL reuse product adapters and migrator, not the WIP probe. Code preparation, dependency installation, account reads, resources (including origin connection), administrative SQL/ACL, migration, deployment, synthetic DML and cleanup SHALL retain independent scoped authorizations. US$0 SHALL depend on actual approved quotas. Endpoint exposure SHALL require implemented and verified teacher-project-scope-enforcement and remote authentication.
+
+#### Scenario: Only planning is approved
+- **GIVEN** C approves these artifacts and the independent SEC-01 policy
+- **WHEN** formalization finishes
+- **THEN** the agent SHALL stop before code, installation, SQL, resources, deployment or Git mutation and present exact D-P files/dependencies from design R.8
+
+#### Scenario: Historical tests are not remote acceptance
+- **GIVEN** local spike or product tests have passed
+- **WHEN** product remote validation is prepared
+- **THEN** evidence SHALL retain local/simulated boundaries without repeating historical experiments or marking R1–R7/H1/H2 complete
+
+### Requirement: R Transaction-local settings under pooling
+Every repository operation SHALL run with public-qualified business queries and bounded transaction-local search_path/timeouts under pooling. Existing explicit transactions SHALL reuse their context without nested BEGIN/COMMIT. Connection-only SET SHALL NOT establish later backend state. Confirmed rollback conflict mapping and uncertain outcomes SHALL be preserved.
+
+#### Scenario: Pool resets and reassigns backends
+- **GIVEN** a pool resets settings between transactions
+- **WHEN** the product executes independent repository operations
+- **THEN** each unit SHALL establish its own transaction-local limits before SQL without depending on a previous backend
+
+#### Scenario: Lost commit response of autonomous write
+- **GIVEN** COMMIT was dispatched without acknowledgement
+- **WHEN** a deadline expires
+- **THEN** outcome SHALL remain unknown, without retry or compensating ROLLBACK, and close SHALL be reported separately
+
+### Requirement: R Injectable synthetic remote authentication
+Remote product routes SHALL accept only verified identities from an injected authenticator. Access service tokens SHALL represent approved synthetic machine actors, not institutional academic authentication. Client roles and X-Dev headers SHALL NOT grant privileges remotely. Missing configuration/verification SHALL fail closed before SQL.
+
+#### Scenario: Invalid token or client-selected identity
+- **GIVEN** invalid signature, issuer, audience, expiry, unknown actor or attempted X-Dev override
+- **WHEN** a protected remote route is requested
+- **THEN** no SQL SHALL be dispatched and no client-selected identity or role SHALL become authorized
+
+#### Scenario: Unapproved remote route or bypass
+- **GIVEN** only authenticated health and enumerated project/membership methods are allowed
+- **WHEN** another route or bypass hostname is requested
+- **THEN** access SHALL be denied without database operations or development-auth fallback
+
+### Requirement: R Opt-in direct TLS migration profile
+The product migrator SHALL retain local guards and require a separately approved exact-target remote TLS profile with verified CA/hostname and no pooled endpoint. The same catalog/checksum/private ledger/session lock and per-version DDL-ledger transaction SHALL apply to plan/apply/reconcile. Effective privileges SHALL include ownership, database/schema/table/column ACLs, PUBLIC, defaults and assumable roles, including MAINTAIN where supported.
+
+#### Scenario: Missing or mismatched remote target
+- **GIVEN** local mode or an unapproved remote host, database, role, CA, version or server identity
+- **WHEN** remote connection/migration is requested
+- **THEN** it SHALL reject without relaxing local guards or bypassing TLS verification
+
+#### Scenario: Unapproved managed baseline
+- **GIVEN** provider objects do not match the approved empty-base inventory
+- **WHEN** migration preflight inspects them
+- **THEN** it SHALL stop for an explicit baseline decision without deleting provider objects or disabling the guard
+
+#### Scenario: Extra runtime privileges
+- **GIVEN** runtime can access ledger, assume privileged roles, own objects or perform non-allowlisted DDL/TEMP/MAINTAIN operations
+- **WHEN** effective privilege checks run
+- **THEN** acceptance SHALL fail without expanding privileges or hiding the discrepancy
+
+#### Scenario: Uncertain migration reconciliation
+- **GIVEN** COMMIT has no confirmation
+- **WHEN** a new direct session reconciles under the same lock
+- **THEN** it SHALL only observe ledger/checksum/fingerprint, and an absent version SHALL preserve the block without automatic reapplication
+
+### Requirement: R Bounded isolated product acceptance
+The future run SHALL use newly approved synthetic resources, identified A/B product deployments sharing one database and bundle hash, and disabled SQL cache. Shared limits SHALL be 95 requests, 1200 statements and 30 minutes including setup/failures/observations/cleanup. Reservations SHALL precede dispatch and uncertain attempts SHALL NOT refund budget. Missing Free quota or uncertain effects SHALL stop new mutations without automatic upgrade/retry.
+
+#### Scenario: Conditional removal and immediate revocation
+- **GIVEN** C has membership M1 on P1 without ownership or another authorization
+- **WHEN** O removes M1 in A and removal is confirmed
+- **THEN** B SHALL deny detail/membership reads with 404, omit P1 from C's list and retain removedAt equal to persisted updatedAt
+- **AND** later membership M2 SHALL remain intact after an obsolete M1 removal request
+
+#### Scenario: Teacher assignment does not grant mutation
+- **GIVEN** SEC-01 is implemented and T has assignment but no creator/collaborator relationship
+- **WHEN** T consults P1 or attempts member management
+- **THEN** consultation SHALL follow assignment while mutations SHALL remain governed by their existing relationship-specific rules
+
+#### Scenario: Persistence is not inferred from repeated requests
+- **GIVEN** A created a project and exactly one matching owner atomically
+- **WHEN** B and an independent direct session read the same database
+- **THEN** original IDs/timestamps SHALL remain, without claiming in-memory Kanban durability or distinct isolates from repeated requests alone
+## Local implementation evidence
+
+Implementation and bounded local tests are recorded in evidence/epic-002-remote-preparation/20261026-dp-ds/README.md and evidence/teacher-project-scope/20261026-ds/README.md. No remote acceptance, institutional source integration, deployment or EPIC closure is asserted.
+
+
+### Requirement: Explicit Neon proxy TLS observation
+For the approved direct endpoint `ep-icy-meadow-b4zhj5uj.c-6.us-east-2.aws.neon.tech` and database `is488_epic002_validation` only, an explicit Neon proxy profile SHALL verify the live client TLS socket before any SQL: negotiated TLS 1.2/1.3, authorized certificate chain, no authorization error, a peer certificate and Node hostname verification against the exact endpoint. Strict CA/hostname configuration remains mandatory. The profile SHALL retain database/role/version/CA guards. `pg_stat_ssl` SHALL be recorded as a backend observation, without claiming it establishes client-to-proxy encryption or all provider-internal segments. Other remote profiles retain their backend TLS guard.
+
+#### Scenario: Proxy backend reports no TLS with a verified external channel
+- **GIVEN** the exact opt-in Neon profile and live authorized TLS evidence for that endpoint
+- **WHEN** the backend identity query reports ssl=false
+- **THEN** the backend observation SHALL be retained and SHALL NOT alone reject the verified external channel
+
+#### Scenario: Missing TLS or invalid certificate or hostname
+- **GIVEN** missing TLS, an unauthorized certificate chain, missing peer certificate or a mismatched hostname
+- **WHEN** remote validation starts
+- **THEN** it SHALL fail before SQL, without plaintext fallback or disabling certificate verification

@@ -199,7 +199,7 @@ describe('Pruebas de integración HTTP de Proyectos (/api/projects)', () => {
       expect(json[0]?.creatorId).toBe('student-B');
     });
 
-    it('debe permitir a un docente ver todos los proyectos', async () => {
+    it('teacher without relationship has no global project listing', async () => {
       const res = await testApp.request('/api/projects', {
         method: 'GET',
         headers: {
@@ -210,7 +210,7 @@ describe('Pruebas de integración HTTP de Proyectos (/api/projects)', () => {
 
       expect(res.status).toBe(200);
       const json = (await res.json()) as Array<{ title: string }>;
-      expect(json).toHaveLength(2);
+      expect(json).toHaveLength(0);
     });
   });
 

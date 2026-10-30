@@ -323,3 +323,114 @@ Auditoría JSONL saneada con fsync antes de BEGIN/COMMIT, ID de intento, versió
 Reconcile abre nueva sesión y usa el mismo lock. Solo observa ledger/checksum/fingerprint: aplicada permite otro comando manual; ausente mantiene bloqueo sin reapply automático ni afirmación causal. Drift o timeout detienen. Forward-fix/restauración requieren decisión y autorización separadas. No hay SQL al arrancar API, fallback a Maps ni acceso remoto.
 
 Cluster de pruebas nuevo exclusivo en TEMP/is488-migrator-*, loopback:55490 y usuario exclusivo; guardas de identidad y data_directory exacto. Bases/roles aleatorios, datos sintéticos y limpieza confinada a recursos creados. Pruebas reales para aplicación, reejecución, evolución, fallo, concurrencia inicial observada por otra sesión, timeout de lock/sentencia, pérdida de respuesta COMMIT, reconciliación aplicada/ausente, rechazos y ACL. Una prueba adicional usa adaptadores reales con runtime sobre esquema migrado. Auditorías copiadas antes de borrar fixtures; salidas conservan fallos iniciales y ronda final, sin sumar repeticiones.
+
+## R. Diseño remoto del producto — C aprobada, D pendiente
+
+### R.1 Base, dependencia y evidencia
+
+Reutilizar tres adaptadores repositories.ts, SqlSession, createApp y apps/api/migrations/runner.ts. Sin imports de spikes, Drizzle ni /probe. SEC-01 se implementa solo en [su cambio independiente](../teacher-project-scope-enforcement/design.md) y bloquea exposición, no esta planificación. La política del usuario aprobada en ese cambio reemplaza las decisiones docentes que el texto histórico marcaba pendientes; no amplía otros permisos.
+
+Evidencia preservada, no reejecutada: [incremento anterior](../../../docs/epic-002-postgresql-local.md), 358 pruebas documentadas (seis SQL y un Maps en los siete casos del archivo SQL); migrador (evidencia histórica local excluida de esta publicación; no acredita aceptación remota), catorce SQL nuevos (trece runner y uno adaptadores), más 28 afectadas de sesión/OpenAPI. [Runner](../../../apps/api/migrations/runner.ts), [manifest](../../../apps/api/migrations/manifest.json), [SQL v1](../../../apps/api/migrations/sql/0001_initial.sql) y hashes de fuentes/evidencia (evidencia histórica local excluida de esta publicación; no acredita aceptación remota) siguen disponibles para revisión. Node/PostgreSQL/TCP local y build dry-run no acreditan cloud. R1–R7/H1/H2 permanecen pendientes, sin repetirlos como prueba del producto.
+
+Discrepancia WIP declarada: su README dice «contrato no conectado» y su worker.ts llama parser/reconcile. No se decide su aceptación ni se repara WIP. Este producto no ejecuta ese harness y su preparación no depende de resolver la discrepancia.
+
+### R.2 Sesión y pooling
+
+Hyperdrive resetea SET al devolver backend: SET al conectar y opciones startup no garantizan configuración posterior. Conservar Client perezoso por request y AsyncLocalStorage solo en infraestructura; dominio/aplicación independientes de pg/Workers.
+
+SqlSession.transaction configura BEGIN y SET LOCAL search_path=pg_catalog,public, statement_timeout=5s, lock_timeout=2s, transaction_timeout=10s antes del trabajo. Query autónoma de repositorio usa transacción explícita corta configurada y confirma antes de devolver; dentro de transaction reutiliza contexto sin anidar BEGIN/COMMIT. Consultas public calificadas; no concatenar SET con SQL parametrizado de protocolo extendido ni envolver todo request indiscriminadamente para retener backend. Conexión 5s, consulta driver 6s, cierre 1s; revisar efecto real de configuración bajo pooling en etapa remota.
+
+Preservar timestamps/filas y 409 por índice activo solo con SQLSTATE/constraint y rollback confirmados. BEGIN/ROLLBACK sin confirmación y COMMIT despachado sin respuesta mantienen incertidumbre; sin retry ni ROLLBACK compensatorio tras COMMIT. COMMIT confirmado + cierre fallido conserva resultado, cierre separado. Timeout cliente/HTTP no demuestra fin servidor. Revocación probada tras retiro confirmado no invalida retroactivamente peticiones ya autorizadas.
+
+Checks D-P nuevos simulados: backend reseteado/reasignado entre operaciones, SET LOCAL por unidad, no anidamiento, límites y fallos de todas las fronteras/409. SQL real nuevo requiere permiso separado de cluster exclusivo; no está incluido en D-P. Fuente: [Hyperdrive/SET](https://developers.cloudflare.com/hyperdrive/concepts/how-hyperdrive-works/). pg 8.23.1 satisface mínimo documental 8.16.3; [driver](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-drivers-and-libraries/node-postgres/) y [AsyncLocalStorage](https://developers.cloudflare.com/workers/runtime-apis/nodejs/asynclocalstorage/) no sustituyen prueba remota. Mantener inicialmente fecha 2024-09-23/nodejs_compat; avance de fecha sujeto a revisión propia.
+
+### R.3 Autenticación inyectable sintética
+
+Separar AuthUserContext/contrato HTTP del dev middleware. Inyectar authenticator en createApp y routers; dev solo development/test. Modo remoto exige auth, postgres explícito y binding; falta de configuración falla cerrado antes de SQL. No usar NODE_ENV=test/development remotamente ni traducir JWT a X-Dev-*. Rechazar X-Dev-* remoto y roles/identidad enviados en cuerpo/query/cabeceras arbitrarias.
+
+Access Service Auth delante de A/B, cinco service tokens O/O2/C/X/T. Validar JWT dentro del Worker mediante jose 6.2.13: issuer fijo HTTPS, firma/JWKS, RS256 permitido, audience respectiva, exp, nbf cuando exista y actor aprobado. common_name verificado se mapea a UUID/rol sintéticos en servidor, sin selector cliente de actor. No es OAuth UNSCH ni autenticación académica definitiva; ADR-004 sigue vigente.
+
+JWKS solo desde URL derivada del issuer aprobado, nunca jku/x5u del token. Deadline 2s incluyendo consumo, cuerpo máximo 64 KiB, caché máxima 5min; refresh acotado para kid desconocido y presupuesto previo. Fallo/timeout deniega, sin bucles ni secretos en logs. Cancelar/abandonar espera no prueba cancelación remota. Tests usan claves y transporte/JWKS locales simulados, no Access real.
+
+Allowlist remota solo health autenticado y métodos/rutas de proyectos/membresías del recorrido; excluir Kanban/tareas/actividad de este ensayo. Todas las rutas habilitadas usan auth inyectada; resto se deniega sin BD ni fallback dev. workers.dev/preview/version URLs cerrados o sujetos a misma verificación, sin versión temporal pública sin protección. Sesión SQL puede ser perezosa antes de auth, pero no conectar/ejecutar SQL antes de verificar.
+
+Fuentes: [JWT Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/), [common_name](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/), [release jose 6.2.13](https://github.com/panva/jose/releases/tag/v6.2.13), [manifiesto oficial](https://raw.githubusercontent.com/panva/jose/v6.2.13/package.json). Versión propuesta, no instalada/validada en producto; no copiar sus devDependencies.
+
+### R.4 Perfil remoto del mismo migrador y ACL
+
+Perfil opt-in remote separado de local, conservando todos los rechazos locales. Exigir host directo exacto/puerto/base/roles/proyecto/branch/versiones aprobados, CA y hostname verificados con rejectUnauthorized=true; sin wildcard, host alternativo, endpoint -pooler/Hyperdrive o downgrade TLS. Configuración por campos, sin URI sslmode/sslcert que sobreescriba ssl. Identidad remota por host/TLS y current_database/session_user/current_user/version, no inet_server_addr loopback. Rechazo antes de efectos si no se confirma.
+
+Misma sesión directa/lock (488,2002), catálogo/checksum/ledger y máquina de confirmación. Lock 2s, sentencia 5s, consulta 6s, conexión 3s, transacción 15s, cierre 1.5s. Plan no crea objetos; DDL y fila ledger por versión atómicos, sin SQL al arrancar API. Preservar bytes SQL v1. Rechazar desconocidos/huecos/checksum/drift/baseline no aprobado. Si la base vacía gestionada trae objetos ajenos a guarda actual, parar para aprobar inventario/baseline explícito; no borrarlos ni desactivar guarda.
+
+Auditoría saneada fsync antes de BEGIN/COMMIT; falla impide despacho siguiente. Sin credenciales/URLs/SQL/datos. Bind de auditoría al destino/perfil físico aprobado, no alias genérico. COMMIT incierto detiene sin retry/compensación; reconcile nueva sesión/mismo lock solo observa ledger/checksum/fingerprint: applied permite otro comando manual, absent mantiene bloqueo. Cierre separado. Ledger migración no es recibo de DML.
+
+Política ACL explícita y versionada: roles no administrativos ni asumibles; migrador propietario solo de base/objetos producto, runtime CONNECT/USAGE y arw únicamente en projects/memberships, sin propiedad ni ledger. Revisar database/schema/table/column ACL, PUBLIC, defaults, herencia y SET ROLE, incluidos CREATE/TEMP/DELETE/TRUNCATE/REFERENCES/TRIGGER/MAINTAIN y cualquier privilegio no allowlisted disponible por versión. Verificar ownership de esquema/tabla ledger y accesos efectivos antes de commit y en sesión runtime real cuando se autorice SQL. Observer SELECT negocio, sin escrituras/ledger. Sin defaults globales ni ampliar permisos para eludir fallos.
+
+SEC-01 es propietario de migración aditiva 0002_teacher_project_assignments.sql/manifest y su adaptación de política para SELECT runtime allí. EPIC-002 prepara mecanismo de ACL; D-P no crea esa tabla ni cambia manifest/v1. Módulos runner/FS nunca se importan al bundle Worker.
+
+Fuentes: [pg TLS](https://node-postgres.com/features/ssl), [TLS Hyperdrive](https://developers.cloudflare.com/hyperdrive/configuration/tls-ssl-certificates-for-hyperdrive/), [locks](https://www.postgresql.org/docs/18/explicit-locking.html#ADVISORY-LOCKS), [timeouts](https://www.postgresql.org/docs/18/runtime-config-client.html), [roles Neon](https://neon.com/docs/manage/roles). Roles mínimos Neon por SQL administrativo aprobado, no Console/API con neon_superuser.
+### R.5 Recursos, secretos, presupuesto y parada
+
+Nombres propuestos sin existencia/saldo/IDs verificados: proyecto Neon is488-epic002-val-20261026, branch validation, región aws-us-east-2 condicionada a Free/disponibilidad, base vacía is488_epic002_validation. Roles is488_e002_val_migrator/runtime/observer. Workers is488-epic002-val-a/b con mismo bundle SHA y un Hyperdrive is488-epic002-val-hd (binding HYPERDRIVE, cache SQL deshabilitada, verify-full). CA is488-epic002-val-ca solo si requiere carga nueva; ID de CA distinto de Hyperdrive. Dos subdominios epic002-val-a/b.<zona-controlada>, Access is488-e002-val-a/b con audiencias respectivas y tokens is488-e002-val-o/o2/c/x/t. No reutilizar neondb/is488_spike ni objetos/credenciales WIP. No aprovisionamiento automático al validar configs.
+
+Secretos sin valores: credencial administrativa Neon efímera; passwords migrador/runtime/observer; tokens Cloudflare de provisión y despliegue separados (Neon API solo si se elige); Client ID/Secret Access y JWTs efímeros. Migrador/observer solo operador, runtime origen Hyperdrive; ninguna credencial migradora en Worker. Issuer/audiencias/CA pública/IDs son configuración. Sin URLs con password, argumentos sensibles, cabeceras/logs o .env versionados. Permisos Cloudflare por cuenta/recurso/zona: Workers Editor y Routes Write A/B; Hyperdrive Edit; Access/CA solo provisión. Grupos/IDs y disponibilidad real se verifican bajo permiso futuro, sin Global API Key.
+
+US$0 objetivo/límite estricto sujeto a cuotas reales, sin upgrade ni facturación nuevos. Propuesta 30min incluyendo cierre, compute 0.25 CU (estimación 0.125 CU-h si activo media hora), datos <1 MiB. Máximo compartido 95 requests (48 producto, 16 auth/JWKS, 20 control, 11 reserva) y 1200 sentencias incluyendo setup/DDL/fallos/observaciones/limpieza. Secuencial, una petición producto en vuelo, sin carga/concurrencia artificial remota. Reservar peor caso antes del despacho, nunca devolver presupuesto incierto. El desglose exacto se implementa/valida localmente antes de autorización de ejecución.
+
+Hyperdrive pool mínimo 5 y límite blando/distribuido: proponer origen 5, runtime CONNECTION LIMIT 10, migrador 2 y observer 1, condicionado a capacidad real, sin cambiar max_connections global. Workers Free 10ms CPU puede no bastar para JWT/pg: medir después con permiso y detener si falla. Pool puede mantener compute activo; cierre obligatorio. [Pool](https://developers.cloudflare.com/hyperdrive/configuration/tune-connection-pool/), [precio Hyperdrive](https://developers.cloudflare.com/hyperdrive/platform/pricing/), [límites Workers](https://developers.cloudflare.com/workers/platform/limits/), [planes Neon](https://neon.com/docs/introduction/plans), consulta pública 2026-10-26. Documentación no prueba saldo del usuario.
+
+Parar ante cuota/costo no aprobado, destino/versión/CA/ACL/historial inesperado, auth/configuración faltantes, caché habilitada, evidencia no persistible, timeout, COMMIT/HTTP incierto o cierre requerido sin confirmar. No retry automático de mutaciones, ni nuevos efectos tras fallos; recoger pares ya despachados con plazo original y preservar estado para recuperación autorizada.
+
+### R.6 Secuencia y autorizaciones separadas
+
+1. C actual: cuatro artefactos por cambio; sin código, ramas ni mover cambios locales.
+2. D-P siguiente: preparación local R.8; instalación jose con permiso propio. Sin SQL ni cloud.
+3. D-S independiente: corrección SEC-01 según sus artefactos; acordar separación Git/worktrees antes de código, sin operación Git inferida ni mezcla de EPIC. Fuente institucional pendiente no se presenta como resuelta por fixtures.
+4. Recursos: permiso de lectura cuentas/cuotas y, aparte, creación/configuración/conexión/SQL administrativo/ACL sobre objetivos nuevos. Crear Hyperdrive ya intenta conectar al origen.
+5. Migración: autorización de destino/artefactos/checksums y SQL separada; plan→revisión→apply→plan solo tras preparar perfil remoto. Sin SQL al arranque.
+6. E: aprobación explícita de upload/publicación A/B, secretos y rutas. Access antes de habilitarlas; D no concede E.
+7. Ensayo: HTTP/DML sintético/observaciones SQL con permiso propio, solo con SEC-01 y auth verificadas.
+8. Limpieza por IDs: impedir escrituras/revocar tokens, preservar evidencia, retirar A/B/rutas, quitar Hyperdrive/pool y borrar solo proyecto/base/roles nuevos verificados; CA solo sin otras referencias y Access al final. Ante incertidumbre no borrar estado de reconciliación. Sin DROP OWNED genérico, objetos ajenos, borrado WIP/evidencia, merge/archivado o despliegue productivo.
+
+Recorrido mínimo: guardas JWT/X-Dev antes de SQL; O crea P1/P2, O2 P3 en A; observación independiente confirma proyecto+exactamente un owner coherente. B consulta IDs/fechas originales sin memoria compartida. C accede P1 tras alta M1; X/T sin relación no ven ajenos. Operador asigna T→P1 bajo permiso SQL separado; T consulta pero no gestiona miembros por asignación. O retira M1 con removedAt=updatedAt; C pierde listado/detalle/miembros en B tras confirmación. Query membershipId ausente/inválida 400, segundo retiro/antiguo 404, owner protegido 422. Reincorporar M2 no permite a M1 retirar M2. Si T es también creador/colaborador, conserva exactamente permisos de esa relación, sin convertirla en permiso global.
+
+A/B identificados por despliegue/bundle y misma base; otra sesión directa confirma durabilidad. Dos requests al mismo Worker no prueban isolates distintos. Kanban permanece en memoria. Creación genera IDs servidor: pérdida HTTP sin conocerlos detiene, sin recrear ni tratar correlation ID como idempotencia. Ledger migraciones no reconcilia ese DML. No repetir spikes, suites completas ni inyección remota de fallos/concurrencia ya probada localmente. Incertidumbre real requiere observación autorizada, sin reapply automático.
+
+### R.7 Estado y separación
+
+Formalización C no corrige SEC-01 ni autentica por sí sola. Implementación/ensayos remotos pendientes. Se conserva WIP; no se crean ramas/worktrees ni se mueve código. D-P se limita al EPIC-002 actual; D-S requiere plan Git independiente o excepción humana explícita para coexistir, sin asumir ninguna autorización Git. Falta dominio/cuenta/IDs/cuotas/CA real y aprobación futura de recursos/SQL/E. Fuente institucional de asignaciones y autenticación académica siguen pendientes.
+
+### R.8 Inventario D-P aprobado e implementado localmente (2026-10-26–27)
+
+Preparación local EPIC-002, sin semántica docente nueva, migración/cluster SQL, cuentas/JWKS reales, recursos, despliegue ni Git de escritura. Tests unitarios/simulaciones nuevos y checks afectados offline incluidos en la propuesta D; instalaciones/recursos SQL con permisos propios. Exposición bloqueada hasta D-S verificado.
+
+**Modificar existentes:**
+
+- apps/api/src/infrastructure/postgresql/session.ts y session.test.ts; repositories.ts: contexto/límites transaccionales, estados y SQLSTATE confirmado.
+- apps/api/src/infrastructure/http/app.ts; routes/projects.route.ts, project-members.route.ts, board.route.ts, tasks.route.ts y task-activity.route.ts; sus cinco .test.ts existentes: auth inyectable y allowlist remota. middleware/dev-auth.middleware.ts: tipo común sin dev remoto. No cambios funcionales docentes en D-P.
+- apps/api/migrations/runner.ts, migrator.node-test.ts y README.md: perfil opt-in y política de privilegios. SQL v1/manifest intocados en D-P.
+- apps/api/package.json y package-lock.json: únicamente dependencia/scripts aprobados; sin actualizar paquetes ajenos.
+- docs/epic-002-postgresql-local.md: límites/enlaces sin reescritura histórica. Los cuatro artefactos activos: tareas solo tras evidencia real, sin falsear aceptación remota.
+
+**Crear:**
+
+- apps/api/src/infrastructure/http/middleware/auth.middleware.ts (contrato), access-auth.middleware.ts y access-auth.middleware.test.ts (verificador/JWKS/perfil sintético); apps/api/src/infrastructure/http/remote-composition.test.ts.
+- apps/api/migrations/remote-profile.ts y remote-profile.node-test.ts; runtime-privileges.ts y runtime-privileges.node-test.ts. Runner/FS fuera de bundle Worker.
+- apps/api/validation/remote-product/runner.ts, runner.node-test.ts, target.ts y README.md: harness con presupuesto/evidencia/estado incierto; tests no llaman remoto.
+- apps/api/wrangler.validation-a.jsonc y wrangler.validation-b.jsonc: configs revisables con IDs pendientes/placeholder deliberadamente no desplegables, nodejs_compat/postgres explícitos/rutas privadas. No modificar wrangler.jsonc principal ni habilitar aprovisionamiento automático.
+- evidence/epic-002-remote-preparation/<run-id>/: salidas/hash saneados locales durante D-P; no evidencia cloud.
+
+**Dependencias exactas:** única nueva jose 6.2.13 runtime API, sin ^/~, lock raíz v3 con integridades revisadas. Manifiesto oficial no declara dependencias runtime; no copiar devDependencies. Conservar versiones observadas en lock: pg 8.23.1, @types/pg 8.23.1, Hono 4.13.13, Zod 4.6.5, Wrangler 4.149.0, TypeScript 5.9.3, Vitest 2.1.9, workers-types 5.20261010.1. Referencia Node 24.18.0/npm 11.16.0/OpenSpec 1.7.0, sin upgrade. Sin Drizzle/Better Auth/parser/jsonc/esbuild directos nuevos ni paquete remote WIP.
+
+Instalar/resolver jose, escribir lock y cache/consultar registry requiere permiso separado para cwd raíz y archivos indicados, sin scripts/audit/fund ni cambios incidentales. Si no se concede, no instalar ni afirmar prueba JWT exitosa; separar preparación pooling/perfil/contrato de adaptador JWT pendiente. La versión publicada no acredita tipos/bundle del producto hasta ejecución D.
+
+**Verificación D-P:** nuevas pruebas auth con firma/issuer/aud/claims/actor/oversize/JWKS timeout/caché, pooling y estados SQL simulados, perfiles TLS/ACL con stubs, harness reservas/no retry con transporte simulado. Lint, tipos API/migrador/harness, formato afectados, OpenAPI y build/dry-run offline; revisar imports/hash bundle. Sin PostgreSQL preexistente, suite histórica global, --remote ni dev remoto. Si se requiere SQL local exclusivo se presenta permiso aparte. Al terminar preparación STOP antes de D-S/recursos/SQL/E.
+### Estado posterior a la implementación local
+
+Informe y archivos (evidencia histórica local excluida de esta publicación; no acredita aceptación remota). jose 6.2.13 instalado exactamente, sin cambio de versiones previas. Pooling/auth/perfil/harness verificados localmente. La contabilidad implementada reserva conservadoramente dos solicitudes por HTTP (incluido posible JWKS), con 36 de setup/auth/control y 500 sentencias iniciales, siempre dentro de 95/1200. Configs A/B con placeholders permanecen inactivas. No se ejecutaron etapas R.8–R.12 ni se aceptó remotamente SEC-01/EPIC-002.
+
+
+### Correcci?n TLS Neon autorizada, 2026-10-27 (America/Lima)
+El socket de pg se inspecciona inmediatamente despu?s de connect y antes de SQL: encrypted, authorized, authorizationError, protocolo, certificado de par y checkServerIdentity del host aprobado. No se acepta solo la configuraci?n rejectUnauthorized=true. El perfil neonProxy es opt-in exclusivamente para ep-icy-meadow-b4zhj5uj.c-6.us-east-2.aws.neon.tech / is488_epic002_validation; conserva CA/hash, puerto, roles, versi?n e identidad. Fuera de ese perfil sigue vigente la exigencia de TLS en la observaci?n del backend. pg_stat_ssl se conserva como observaci?n separada, sin inferir cifrado de todos los tramos internos. No se modifica el SQL de migraciones ni se incorporan dependencias.
+
+Fuentes oficiales consultadas: https://neon.com/docs/security/security-overview, https://github.com/neondatabase/neon/blob/main/proxy/README.md y https://nodejs.org/api/tls.html. El proxy recibe conexiones del cliente y usa certificado/clave propios; la observaci?n del backend no describe necesariamente el socket cliente?proxy. Evidencia remota saneada conservada en el workspace de ejecuci?n IS488-epic-003-kanban/evidence/epic-002-remote-product/tls-stop-20261028T023136Z/tls-correction.jsonl. La consulta previa se mantiene: acumulado dos sentencias, cero mutaciones. Esto no completa R.8?R.12.

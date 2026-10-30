@@ -1,4 +1,5 @@
-﻿import { Hono, type Context } from 'hono';
+import type { AuthMiddleware } from '../middleware/auth.middleware.js';
+import { Hono, type Context } from 'hono';
 import { z, ZodError } from 'zod';
 import type {
   BoardRepositoryPort,
@@ -20,6 +21,7 @@ import { createDevAuthMiddleware } from '../middleware/dev-auth.middleware.js';
 
 export interface BoardRouterOptions {
   nodeEnv?: string;
+  authentication?: AuthMiddleware;
 }
 
 const UuidSchema = z.string().uuid({ message: 'El identificador debe ser un UUID valido' });
@@ -65,7 +67,7 @@ export function createBoardRouter(
   );
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas de este router
-  router.use('*', createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
+  router.use('*', options.authentication ?? createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
 
   /**
    * GET /:projectId/board — Consulta o inicialización perezosa e idempotente del tablero Kanban

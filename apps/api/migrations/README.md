@@ -39,3 +39,21 @@ npm.cmd run typecheck:migrations -w @is488/api
 ```
 
 Las pruebas crean bases y roles aleatorios y eliminan exclusivamente sus propios recursos. Los catálogos de evolución/fallo son fixtures temporales; no modifican migraciones del producto ni spikes. La limpieza de fixtures no borra las auditorías copiadas al directorio de evidencia. Las pruebas TCP prueban transporte PostgreSQL local, no Workers/Hyperdrive/HTTP. Ver informe de ejecución en evidence/postgresql-migrator-local/README.md desde la raíz del repositorio.
+
+## Perfil remoto opt-in preparado (D-P / D-S, 2026-10-26)
+
+El perfil local sigue predeterminado, con identidad de auditoría compatible con registros previos. runner.ts puede recibir remoteProfile solo mediante archivo explícito IS488_MIGRATION_REMOTE_PROFILE; ausencia de ese perfil conserva el rechazo local de destinos remotos/TLS. Esta preparación no autoriza usarlo contra una base remota.
+
+remote-profile.ts valida host directo Neon exacto, puerto/base/migrador/runtime/proyecto/branch/versiones/approvalId y CA SHA-256, comprueba certificado CA vigente y genera SSL con servername y rejectUnauthorized=true. Sin connectionString, overrides ssl, -pooler, wildcard ni downgrade. Identidad de servidor debe coincidir y confirmar TLS/versiones en sesión directa; el lock de sesión no pasa por Hyperdrive. No poner password en el archivo de perfil, valores en logs ni URI en argumentos.
+
+runtime-privileges.ts revisa roles/membresías/ownership, CREATE/TEMP, esquema/ledger, privilegios efectivos de tablas/columnas, MAINTAIN y GRANT OPTION. La política conocida corresponde a PostgreSQL 17/18; una versión no reconocida requiere revisión, no omitir privilegios. Roles de operador/migrador/runtime y observación remota se aprovisionan y verifican solo con sus permisos futuros; no existe configuración de cuentas automática.
+
+El catálogo agrega 0002_teacher_project_assignments.sql: tabla vacía mantenida por operador autorizado, runtime SELECT únicamente. No da autoconcesión por API ni altera SQL v1. DDL y ledger siguen atómicos por versión, sin SQL al arrancar API. Migración/snapshots/datos del usuario no se adoptan automáticamente; base existente sin baseline aprobado sigue rechazada. COMMIT incierto y reconciliación conservan no-retry/no-compensación y bloqueo si la versión no aparece.
+
+Las nuevas pruebas SQL autorizadas usaron solo el cluster exclusivo :55490. Para repetirlas se requiere la autorización/guardas de pruebas exclusiva vigente; no usar el servicio PostgreSQL del usuario:
+
+```powershell
+npm.cmd run test:teacher-sql -w @is488/api
+```
+
+Sin IS488_TEACHER_SQL_TEST=1 se omiten; no confundir omisión con SQL aprobado. La fuente institucional definitiva de asignaciones y aceptación remota siguen pendientes. Evidencia D-S (evidencia histórica local excluida de esta publicación; no acredita aceptación remota).

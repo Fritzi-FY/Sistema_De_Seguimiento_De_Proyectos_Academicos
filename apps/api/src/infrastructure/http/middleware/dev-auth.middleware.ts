@@ -1,16 +1,6 @@
 import type { Context, MiddlewareHandler, Next } from 'hono';
 
-export interface AuthUserContext {
-  userId: string;
-  role: string;
-}
-
-declare module 'hono' {
-  interface ContextVariableMap {
-    user: AuthUserContext;
-  }
-}
-
+export type { AuthUserContext } from './auth.middleware.js';
 export interface DevAuthOptions {
   nodeEnv?: string;
 }

@@ -210,11 +210,11 @@ describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ
       expect(results[0]?.creatorId).toBe('student-B');
     });
 
-    it('debe retornar todos los proyectos si el rol es teacher o admin', async () => {
+    it('teacher has no global access; existing administrative permission is separate', async () => {
       const teacherResults = await listUseCase.execute({
         user: { userId: 'teacher-01', role: 'teacher' },
       });
-      expect(teacherResults).toHaveLength(3);
+      expect(teacherResults).toHaveLength(0);
 
       const adminResults = await listUseCase.execute({
         user: { userId: 'admin-01', role: 'admin' },
@@ -285,14 +285,13 @@ describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ
       expect(result?.id).toBe(P1_ID);
     });
 
-    it('debe permitir a un docente consultar proyectos de cualquier estudiante', async () => {
+    it('teacher without relationship cannot read an unrelated project', async () => {
       const result = await getByIdUseCase.execute({
         id: P3_ID,
         user: { userId: 'teacher-01', role: 'teacher' },
       });
 
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe(P3_ID);
+      expect(result).toBeNull();
     });
   });
 });

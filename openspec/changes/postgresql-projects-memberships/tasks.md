@@ -90,3 +90,25 @@ Evidencia del incremento local: [guía e informe](../../../docs/epic-002-postgre
 - [x] M.5 Corregir clasificación anterior (6 SQL + 1 Maps), ejecutar checks afectados y conservar salidas saneadas; limpiar solo recursos exclusivos nuevos.
 
 Evidencia nueva: informe del migrador (evidencia histórica local excluida de esta publicación; no acredita aceptación remota). Catorce casos SQL reales nuevos (trece del runner y uno de adaptadores), separados de las 28 pruebas afectadas de sesión/contrato. Sin repetir el incremento anterior; no completa tareas remotas ni archiva el cambio.
+
+## R. Producto remoto: preparación y ejecución pendientes
+
+C autoriza estos artefactos, no las tareas siguientes. SEC-01 mantiene cambio independiente. L/M históricos no se alteran ni se repiten por formalizar; no se completa R1–R7/H1/H2.
+
+- [x] R.1 Obtener D-P para inventario exacto design R.8 y permiso jose 6.2.13/lock/cache separado si se concede; conservar límites sin SQL/Git/cloud.
+- [x] R.2 Preparar SET LOCAL/límites por operación y contexto sin anidamiento; nuevas pruebas simuladas de backend reset, BEGIN/COMMIT/ROLLBACK/cierre, 409 confirmado, deadlines/timestamps.
+- [x] R.3 Preparar auth común inyectable y Access solo sintético; tests con claves/JWKS locales de firma/issuer/aud/RS256/exp/nbf/actor, cabeceras dev rechazadas, tamaño/timeout/caché y ausencia de SQL antes de auth.
+- [x] R.4 Preparar perfil remoto TLS opt-in y revisión completa de ACL/ownership/columnas/defaults/asunción/MAINTAIN; pruebas con stubs de identidad/baseline/certificados y confirmación/lock. No modificar SQL v1 ni aplicar migraciones.
+- [x] R.5 Preparar harness con reservas compartidas 95 requests/1200 sentencias/30min y evidencia previa; tests simulados de agotamiento, fallos/cierre/HTTP incierto y no retry.
+- [x] R.6 Preparar configs A/B con IDs pendientes no desplegables y allowlist; verificar lint/tipos/formato/OpenAPI/bundle offline/hash y separación runner/Worker. Guardar salidas solo bajo D-P. STOP al terminar preparación.
+- [x] R.7 Exigir implementación/verificación SEC-01 en cambio separado antes de endpoint; acordar separación Git/worktrees o excepción explícita sin ejecutarla por inferencia.
+- [ ] R.8 Tras permisos específicos, leer cuentas/cuotas/capacidad y aprobar manifiesto nombres→IDs. Crear solo objetivos nuevos, con permiso de conexión Hyperdrive y SQL administrativo/ACL independientes. Detener si no cabe US$0.
+- [ ] R.9 Tras autorización de migración exacta, comprobar destino/TLS/baseline/ACL y ejecutar plan→revisión→apply→plan; denegaciones con sesión runtime real, sin runner WIP ni SQL de arranque.
+- [ ] R.10 Tras E independiente, publicar A/B con auth activa antes de rutas, bundle/versiones registrados y bypass cerrado. Sin inferir permiso DML de E.
+- [ ] R.11 Tras autorización HTTP/DML/observaciones, recorrer proyecto–owner, aislamiento/asignación docente, alta/retiro/reincorporación, revocación y persistencia A/B; distinguir evidencia real local/remota y no repetir experimentos históricos.
+- [ ] R.12 Tras permiso de limpieza por IDs, cerrar accesos/pool y borrar solo recursos nuevos verificados, conservando evidencia y estados inciertos. Sin archivado/merge ni despliegue productivo.
+
+Formalización: cuatro artefactos actualizados; el resultado de CLI se entrega después de ejecutarlo. Ninguna tarea R de implementación/ensayo se marca completada en C.
+
+## Correcci?n TLS Neon acotada autorizada, 2026-10-27
+- [x] Inspeccionar socket TLS real antes de SQL y limitar el perfil de proxy al destino autorizado; conservar guardas gen?ricas. Cinco pruebas afectadas y typecheck acotado aprobados. Los handshakes reales con hostname incorrecto y CA no confiable fueron rechazados sin SQL; ausencia de TLS verificada en prueba unitaria. El canal externo positivo negoci? TLS 1.3 con cadena autorizada y hostname v?lido. pg_stat_ssl=false se conserva como observaci?n del backend. Acumulado dos sentencias SQL, cero mutaciones; R.8?R.12 permanecen pendientes.

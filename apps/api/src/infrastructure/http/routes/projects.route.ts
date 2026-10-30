@@ -1,8 +1,10 @@
+import type { AuthMiddleware } from '../middleware/auth.middleware.js';
 import { Hono } from 'hono';
 import { ZodError } from 'zod';
 import type {
   ProjectRepositoryPort,
   MembershipRepositoryPort,
+  TeacherProjectScopePort,
   SystemClockPort,
   ProjectCreationPort,
 } from '@is488/shared';
@@ -15,6 +17,8 @@ import { createDevAuthMiddleware } from '../middleware/dev-auth.middleware.js';
 
 export interface ProjectsRouterOptions {
   nodeEnv?: string;
+  authentication?: AuthMiddleware;
+  teacherScope?: TeacherProjectScopePort;
 }
 
 /**
@@ -31,11 +35,19 @@ export function createProjectsRouter(
   const router = new Hono();
 
   const createUseCase = new CreateProjectUseCase(projectCreationPort, clock);
-  const listUseCase = new ListProjectsUseCase(projectRepository, membershipRepository);
-  const getByIdUseCase = new GetProjectByIdUseCase(projectRepository, membershipRepository);
+  const listUseCase = new ListProjectsUseCase(
+    projectRepository,
+    membershipRepository,
+    options.teacherScope,
+  );
+  const getByIdUseCase = new GetProjectByIdUseCase(
+    projectRepository,
+    membershipRepository,
+    options.teacherScope,
+  );
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas de proyectos
-  router.use('*', createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
+  router.use('*', options.authentication ?? createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
 
   // GET /api/projects: Listar proyectos autorizados para el usuario
   router.get('/', async (c) => {

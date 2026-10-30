@@ -525,6 +525,58 @@ test('statement timeout revierte la versión con límite finito', { skip: !enabl
 });
 
 test(
+  'migration 2 keeps the 15s bound with 130ms roundtrips and batched ACL checks',
+  { skip: !enabled },
+  async () => {
+    const f = await fixture();
+    const latencyDirectory = mkdtempSync(join(fixtureRoot, 'latency-v2-'));
+    const latencyCatalog = catalog(directory).filter((m) => m.version <= 2);
+    assert.deepEqual(
+      latencyCatalog.map((m) => m.version),
+      [1, 2],
+    );
+    mkdirSync(join(latencyDirectory, 'sql'));
+    for (const migration of latencyCatalog)
+      copyFileSync(
+        join(directory, 'sql', migration.name),
+        join(latencyDirectory, 'sql', migration.name),
+      );
+    writeFileSync(join(latencyDirectory, 'manifest.json'), JSON.stringify(latencyCatalog));
+    await run('apply', f.options);
+    const original = Client.prototype.query;
+    let inTransaction = false,
+      transactionQueries = 0;
+    Client.prototype.query = async function (this: Client, sql: string, ...args: unknown[]) {
+      const matches = (this as unknown as { database: string }).database === f.db;
+      if (matches && inTransaction) {
+        transactionQueries++;
+        await new Promise((resolve) => setTimeout(resolve, 130));
+      }
+      const result = await (
+        original as unknown as (this: Client, sql: string, ...args: unknown[]) => Promise<unknown>
+      ).call(this, sql, ...args);
+      if (matches && sql === 'BEGIN') inTransaction = true;
+      if (matches && (sql === 'COMMIT' || sql === 'ROLLBACK')) inTransaction = false;
+      return result;
+    } as typeof Client.prototype.query;
+    let result;
+    try {
+      result = await run('apply', { ...f.options, directory: latencyDirectory });
+    } finally {
+      Client.prototype.query = original;
+    }
+    assert.deepEqual(result.applied, [2]);
+    assert.equal(result.transactionOutcome, 'committed');
+    assert.ok(result.timings.transactionMs! < 15000);
+    assert.ok(result.timings.preparationMs! < 15000);
+    assert.ok(transactionQueries < 30);
+    assert.ok(result.timings.phases.some((p) => p.stage === 'validate_runtime'));
+    assert.ok(result.timings.beginConfirmedAt);
+    assert.ok(result.timings.commitConfirmedAt);
+  },
+);
+
+test(
   'original SQLSTATE and timing survive rollback without leaking server messages',
   { skip: !enabled },
   async () => {
@@ -584,6 +636,76 @@ test('confirmed commit and failed close remain separate', { skip: !enabled }, as
 });
 
 test(
+  'absent migration 2 after lost COMMIT stays unknown and blocked after observing migration 1',
+  { skip: !enabled },
+  async () => {
+    const f = await fixture();
+    await run('apply', f.options);
+    const sockets = new Set<Socket>();
+    let dropped = false;
+    const proxy = createServer((peer) => {
+      const backend = connect({ host: '127.0.0.1', port: 55490 });
+      sockets.add(peer);
+      sockets.add(backend);
+      let input = Buffer.alloc(0);
+      peer.on('data', (b) => {
+        input = Buffer.concat([input, typeof b === 'string' ? Buffer.from(b) : b]);
+        if (!dropped && input.includes(Buffer.from('COMMIT\0'))) {
+          dropped = true;
+          peer.destroy();
+          backend.destroy();
+        } else backend.write(b);
+      });
+      backend.on('data', (b) => peer.write(b));
+      peer.on('error', () => {});
+      backend.on('error', () => peer.destroy());
+      peer.on('close', () => backend.destroy());
+      backend.on('close', () => peer.destroy());
+    });
+    proxy.listen(0, '127.0.0.1');
+    await once(proxy, 'listening');
+    const opts = {
+      ...f.options,
+      directory,
+      connection: { ...f.options.connection, port: (proxy.address() as { port: number }).port },
+    };
+    try {
+      await assert.rejects(run('apply', opts), (error: unknown) => {
+        const e = error as MigrationError;
+        assert.equal(e.outcome, 'commit_unknown');
+        assert.equal(e.transactionOutcome, 'unknown');
+        assert.equal(e.diagnostic?.stage, 'commit');
+        assert.equal(e.rollbackError, undefined);
+        return true;
+      });
+      assert.ok(dropped);
+      const reconciled = await run('reconcile', opts);
+      assert.deepEqual(reconciled.observed, [1]);
+      assert.equal(reconciled.outcome, 'observed');
+      await rejected(run('apply', opts), 'reconciliation_required');
+      const events = readFileSync(opts.auditFile, 'utf8')
+        .trim()
+        .split('\n')
+        .map((s) => JSON.parse(s));
+      assert.ok(events.some((e) => e.event === 'reconciled_absent' && e.version === 2));
+      assert.equal(
+        events.some((e) => e.event === 'rollback_confirmed' && e.version === 2),
+        false,
+      );
+      assert.equal(
+        events.filter((e) => e.event === 'transaction_dispatch' && e.version === 2).length,
+        1,
+      );
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise<void>((resolve, reject) =>
+        proxy.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  },
+);
+
+test(
   'batched ACL query rejects real MAINTAIN, column and delegation privileges',
   { skip: !enabled },
   async () => {
@@ -614,5 +736,43 @@ test(
       await c.query(revoke + f.runtime);
     }
     assert.equal((await run('plan', { ...f.options, directory })).outcome, 'planned');
+  },
+);
+
+test(
+  'server transaction timeout retains original SQLSTATE separately from rollback and close',
+  { skip: !enabled },
+  async () => {
+    const f = await fixture();
+    await run('apply', f.options);
+    const original = Client.prototype.query;
+    let inTransaction = false;
+    Client.prototype.query = async function (this: Client, sql: string, ...args: unknown[]) {
+      const matches = (this as unknown as { database: string }).database === f.db;
+      if (matches && inTransaction) await new Promise((resolve) => setTimeout(resolve, 1100));
+      const result = await (
+        original as unknown as (this: Client, sql: string, ...args: unknown[]) => Promise<unknown>
+      ).call(this, sql, ...args);
+      if (matches && sql === 'BEGIN') inTransaction = true;
+      if (matches && (sql === 'COMMIT' || sql === 'ROLLBACK')) inTransaction = false;
+      return result;
+    } as typeof Client.prototype.query;
+    try {
+      await assert.rejects(run('apply', { ...f.options, directory }), (error: unknown) => {
+        const e = error as MigrationError;
+        assert.equal(e.sessionError?.sqlState, '25P04');
+        assert.equal(e.sessionError?.errorType, 'DatabaseError');
+        assert.equal(e.transactionOutcome, 'unknown');
+        assert.ok(e.rollbackError);
+        assert.equal(e.closeConfirmed, true);
+        assert.ok(e.timings!.transactionMs! >= 15000);
+        return true;
+      });
+    } finally {
+      Client.prototype.query = original;
+    }
+    const reconciled = await run('reconcile', { ...f.options, directory });
+    assert.deepEqual(reconciled.observed, [1]);
+    await rejected(run('apply', { ...f.options, directory }), 'reconciliation_required');
   },
 );

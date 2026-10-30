@@ -65,3 +65,11 @@ Corrección documental (2026-10-26): los siete casos de postgresql.sql.test.ts s
 ## Migrador local manual
 
 El migrador del producto está separado de la API en `apps/api/migrations/`. Ver [operación y recuperación](../apps/api/migrations/README.md). Comandos manuales `migrate:plan`, `migrate:apply` y `migrate:reconcile` del workspace API; no aplican SQL al arrancar. Solo conexión directa local y base vacía con roles aprovisionados por separado. La aceptación remota y la recuperación productiva siguen pendientes.
+
+## Implementación local D-P y SEC-01 (2026-10-26)
+
+Se implementaron la preparación D-P y el cambio independiente teacher-project-scope-enforcement conforme a autorización posterior del usuario. Teacher ya no consulta globalmente: conserva proyectos propios/membresías y puede consultar por asignación explícita de operador, sin mutaciones derivadas. La fuente institucional sigue pendiente. Migración 0002 aditiva; SQL v1 intacto.
+
+SqlSession configura límites/search_path por operación transaccional bajo pooling y conserva resultado incierto/cierre por separado. Autenticación inyectable con jose 6.2.13 para tokens Access de actores sintéticos únicamente; no es autenticación académica final. Perfil TLS remoto opt-in y harness/configs A/B están preparados pero sin destinos/IDs/credenciales reales ni ejecución remota. Maps predeterminado permanece.
+
+Informe D-P (evidencia histórica local excluida de esta publicación; no acredita aceptación remota) y evidencia SQL D-S (evidencia histórica local excluida de esta publicación; no acredita aceptación remota). Sin aceptación remota, cierre de EPIC, archivado o despliegue.

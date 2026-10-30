@@ -1,3 +1,4 @@
+import type { AuthMiddleware } from '../middleware/auth.middleware.js';
 import { Hono, type Context } from 'hono';
 import { ZodError } from 'zod';
 import type {
@@ -13,6 +14,7 @@ import { createDevAuthMiddleware } from '../middleware/dev-auth.middleware.js';
 
 export interface ProjectMembersRouterOptions {
   nodeEnv?: string;
+  authentication?: AuthMiddleware;
 }
 
 /**
@@ -39,7 +41,7 @@ export function createProjectMembersRouter(
   const listMembersUseCase = new ListMembersUseCase(projectRepository, membershipRepository);
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas
-  router.use('*', createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
+  router.use('*', options.authentication ?? createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
 
   /**
    * POST /:projectId/members — Agregar un colaborador al proyecto

@@ -1,3 +1,9 @@
+import type { AuthMiddleware } from './middleware/auth.middleware.js';
+import { createDevAuthMiddleware } from './middleware/dev-auth.middleware.js';
+import { createAccessAuth, type AccessProfile } from './middleware/access-auth.middleware.js';
+import { InMemoryTeacherProjectScopeAdapter } from '../adapters/repositories/in-memory-teacher-project-scope.adapter.js';
+import { PostgresqlTeacherProjectScopeAdapter } from '../postgresql/teacher-project-scope.adapter.js';
+import type { TeacherProjectScopePort } from '@is488/shared';
 import type { ClientConfig } from 'pg';
 import { SqlSession, sqlRequestScope } from '../postgresql/session.js';
 import {
@@ -44,6 +50,9 @@ import { GetTaskActivityUseCase } from '../../application/use-cases/get-task-act
 import { createTaskActivityRouter } from './routes/task-activity.route.js';
 
 export interface AppOptions {
+  authentication?: AuthMiddleware;
+  remoteValidation?: 'A' | 'B';
+  teacherProjectScope?: TeacherProjectScopePort;
   persistence?: { mode: 'memory' } | { mode: 'postgres'; connection: ClientConfig };
   persistenceFromEnvironment?: boolean;
   clock?: SystemClockPort;
@@ -91,7 +100,10 @@ export function createApp(options: AppOptions = {}) {
   // ── Repositorios individuales: reciben la misma referencia de Map ─────────────────────
   if (
     (options.persistence?.mode === 'postgres' || options.persistenceFromEnvironment) &&
-    (options.projectRepository || options.membershipRepository || options.projectCreationPort)
+    (options.projectRepository ||
+      options.membershipRepository ||
+      options.projectCreationPort ||
+      options.teacherProjectScope)
   ) {
     throw new Error('SQL persistence requires joint composition of all three ports');
   }
@@ -133,20 +145,95 @@ export function createApp(options: AppOptions = {}) {
   const taskMovePort = options.taskMovePort ?? new InMemoryTaskMoveAdapter(kanbanStorage);
   const taskListPort = options.taskListPort ?? new InMemoryTaskListAdapter(kanbanStorage);
 
+  const teacherScope = selectPort<TeacherProjectScopePort>(
+    options.teacherProjectScope ?? new InMemoryTeacherProjectScopeAdapter(),
+    new PostgresqlTeacherProjectScopeAdapter(),
+  );
   const app = new Hono();
+  const localAuth = createDevAuthMiddleware({ nodeEnv });
+  const routerAuth: AuthMiddleware = async (c, next) =>
+    c.get('user') ? next() : localAuth(c, next);
+  let accessCache: { key: string; auth: AuthMiddleware } | undefined;
+  app.use('*', async (c, next) => {
+    const env = c.env as Record<string, unknown> | undefined;
+    const deployment = options.remoteValidation ?? env?.VALIDATION_DEPLOYMENT;
+    if (deployment) {
+      if (deployment !== 'A' && deployment !== 'B')
+        return c.json({ error: 'Validation configuration required' }, 503);
+      if ([...c.req.raw.headers.keys()].some((k) => k.toLowerCase().startsWith('x-dev-')))
+        return c.json({ error: 'Unauthorized' }, 401);
+      const path = c.req.path;
+      const method = c.req.method;
+      const allowed =
+        (method === 'GET' && path === '/api/health') ||
+        (['GET', 'POST'].includes(method) && path === '/api/projects') ||
+        (method === 'GET' && /^\/api\/projects\/[^/]+$/.test(path)) ||
+        (['GET', 'POST'].includes(method) && /^\/api\/projects\/[^/]+\/members$/.test(path)) ||
+        (method === 'DELETE' && /^\/api\/projects\/[^/]+\/members\/[^/]+$/.test(path));
+      if (!allowed) return c.json({ error: 'Not Found' }, 404);
+      let auth = options.authentication;
+      if (!auth) {
+        try {
+          const key = JSON.stringify([
+            env?.ACCESS_ISSUER,
+            env?.ACCESS_AUDIENCE,
+            env?.ACCESS_SYNTHETIC_ACTORS,
+          ]);
+          if (accessCache?.key !== key)
+            accessCache = {
+              key,
+              auth: createAccessAuth({
+                issuer: String(env?.ACCESS_ISSUER ?? ''),
+                audience: String(env?.ACCESS_AUDIENCE ?? ''),
+                actors: JSON.parse(String(env?.ACCESS_SYNTHETIC_ACTORS ?? '')),
+              } as AccessProfile),
+            };
+          auth = accessCache.auth;
+        } catch {
+          return c.json({ error: 'Validation configuration required' }, 503);
+        }
+      }
+      return auth(c, async () => {
+        if (!c.get('user')) {
+          c.res = c.json({ error: 'Unauthorized' }, 401);
+          return;
+        }
+        if (
+          env?.PERSISTENCE_MODE !== 'postgres' ||
+          !(env?.HYPERDRIVE as { connectionString?: string } | undefined)?.connectionString
+        ) {
+          c.res = c.json({ error: 'Validation configuration required' }, 503);
+          return;
+        }
+        c.header('Cache-Control', 'private, no-store');
+        c.header('X-Validation-Deployment', String(deployment));
+        await next();
+      });
+    }
+    if (options.authentication) return options.authentication(c, next);
+    await next();
+  });
+
   app.use('*', async (c, next) => {
     const env = (c.env ?? {}) as {
+      VALIDATION_DEPLOYMENT?: string;
       PERSISTENCE_MODE?: string;
       DATABASE_URL?: string;
       HYPERDRIVE?: { connectionString: string };
     };
-    const mode =
-      options.persistence?.mode ??
-      (options.persistenceFromEnvironment ? (env.PERSISTENCE_MODE ?? 'memory') : 'memory');
+    const remote = !!(options.remoteValidation || env.VALIDATION_DEPLOYMENT);
+    const mode = remote
+      ? 'postgres'
+      : (options.persistence?.mode ??
+        (options.persistenceFromEnvironment ? (env.PERSISTENCE_MODE ?? 'memory') : 'memory'));
     if (mode === 'memory') return sqlRequestScope.run(null, next);
     if (mode !== 'postgres') throw new Error('Invalid persistence mode');
     let connection: ClientConfig;
-    if (options.persistence?.mode === 'postgres') connection = options.persistence.connection;
+    if (remote) {
+      if (!env.HYPERDRIVE?.connectionString) throw new Error('Validation binding required');
+      connection = { connectionString: env.HYPERDRIVE.connectionString };
+    } else if (options.persistence?.mode === 'postgres')
+      connection = options.persistence.connection;
     else if (env.HYPERDRIVE?.connectionString)
       connection = { connectionString: env.HYPERDRIVE.connectionString };
     else {
@@ -180,6 +267,8 @@ export function createApp(options: AppOptions = {}) {
     '/api/projects',
     createProjectsRouter(projectRepository, projectCreationPort, membershipRepository, clock, {
       nodeEnv,
+      authentication: routerAuth,
+      teacherScope,
     }),
   );
 
@@ -188,6 +277,7 @@ export function createApp(options: AppOptions = {}) {
     '/api/projects',
     createProjectMembersRouter(membershipRepository, projectRepository, clock, {
       nodeEnv,
+      authentication: routerAuth,
     }),
   );
 
@@ -200,7 +290,7 @@ export function createApp(options: AppOptions = {}) {
       projectRepository,
       membershipRepository,
       clock,
-      { nodeEnv },
+      { nodeEnv, authentication: routerAuth },
     ),
   );
 
@@ -215,7 +305,7 @@ export function createApp(options: AppOptions = {}) {
       projectRepository,
       membershipRepository,
       clock,
-      { nodeEnv },
+      { nodeEnv, authentication: routerAuth },
     ),
   );
 
@@ -230,6 +320,7 @@ export function createApp(options: AppOptions = {}) {
         options.taskActivityRepository ?? new InMemoryTaskActivityRepository(kanbanStorage),
       ),
       nodeEnv,
+      routerAuth,
     ),
   );
 

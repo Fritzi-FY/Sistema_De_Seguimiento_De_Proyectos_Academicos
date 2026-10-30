@@ -1,3 +1,4 @@
+import type { AuthMiddleware } from '../middleware/auth.middleware.js';
 import { Hono, type Context } from 'hono';
 import { z, ZodError } from 'zod';
 import type {
@@ -23,6 +24,7 @@ import { createDevAuthMiddleware } from '../middleware/dev-auth.middleware.js';
 
 export interface TasksRouterOptions {
   nodeEnv?: string;
+  authentication?: AuthMiddleware;
 }
 
 const UuidSchema = z.string().uuid({ message: 'El identificador debe ser un UUID valido' });
@@ -124,7 +126,7 @@ export function createTasksRouter(
   );
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas de este router
-  router.use('*', createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
+  router.use('*', options.authentication ?? createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
 
   /**
    * GET /:projectId/tasks — Listado paginado y filtrado de tareas del proyecto

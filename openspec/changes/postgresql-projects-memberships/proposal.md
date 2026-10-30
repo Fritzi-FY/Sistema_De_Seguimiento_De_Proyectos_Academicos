@@ -51,3 +51,23 @@ Nivel D explícito para proyectos y membresías PostgreSQL locales y sus consumi
 ## Migrador local de producto autorizado (2026-10-26)
 
 El usuario concede implementación D del migrador local según la propuesta de revisión y pruebas nuevas en cluster exclusivo con datos sintéticos. Primero se actualizan estos cuatro artefactos. Sin dependencias nuevas, spikes, Git de escritura, destinos remotos, despliegue ni archivado. Valor: evolución SQL reproducible y recuperación observable, costo US$0 local. No se acepta el spike remoto ni se cambia la arquitectura.
+
+## R. Validación remota del producto — C, 2026-10-26
+
+### Problema y valor
+
+La evidencia local no demuestra Workers/Hyperdrive/TLS/Neon, autenticación remota ni persistencia entre despliegues. El valor académico es comprobar esas fronteras usando los adaptadores y migrador del producto, sin repetir experimentos históricos ni desplegar /probe o importar dependencias WIP.
+
+### Alcance
+
+Preparación local futura: límites/SET LOCAL bajo pooling; autenticación HTTP inyectable y Access/service tokens exclusivamente para actores sintéticos; perfil remoto TLS opt-in del mismo migrador; privilegios completos; configs A/B y harness secuencial con presupuesto/evidencia. No SQL al arranque, fallback a Maps ni cambios al SQL v1 aplicado. Preparar no es ejecutar cloud.
+
+SEC-01 depende del cambio independiente [teacher-project-scope-enforcement](../teacher-project-scope-enforcement/proposal.md). La política aprobada elimina acceso global teacher, conserva permisos por propiedad/membresía y añade consulta/revisión por asignación explícita sin inferir gestión de integrantes u otras mutaciones. Listados filtrados en servidor, detalle ajeno 404 y denegación sin relación; identidad/roles del cliente no conceden privilegios. Asignaciones mantenidas por operador sin autoconcesión; fuente institucional definitiva pendiente. SEC-01 implementado/verificado y auth real son precondiciones de exposición.
+
+### Impacto, costo y autorizaciones
+
+Durante C se escriben solo cuatro artefactos de cada cambio, sin código, specs canónicas, ramas ni movimiento de cambios locales. D de preparación se enumera en design R.8; ninguna aprobación C concede D. Recursos, lectura de cuenta, SQL administrativo/ACL, migraciones, E de publicación, pruebas remotas y limpieza conservan permisos independientes. No extender autorizaciones locales anteriores.
+
+US$0 es objetivo/límite condicionado a cuotas/saldos reales, sin upgrade automático. Única dependencia nueva propuesta para D: jose 6.2.13 exacta en API y lock raíz; instalación/registro/cache necesitan permiso separado. Mantener pg y herramientas fijadas en lock, sin Drizzle/Better Auth/parser nuevos ni promover tecnologías provisionales.
+
+Esta formalización no acepta R1–R7/H1/H2, no completa tareas remotas, no cierra SEC-01/EPIC-002 ni archiva nada. Los incrementos L/M y spikes WIP se preservan. Fuente general de esta ruta: propuesta de revisión del 2026-10-26; la política docente definitiva para esta formalización es la aprobada expresamente por el usuario.

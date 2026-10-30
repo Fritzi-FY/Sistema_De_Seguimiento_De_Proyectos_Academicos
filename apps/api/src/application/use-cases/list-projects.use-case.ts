@@ -1,3 +1,8 @@
+import type { TeacherProjectScopePort } from '@is488/shared';
+const noAssignments: TeacherProjectScopePort = {
+  listAssignedProjectIds: async () => [],
+  isAssigned: async () => false,
+};
 import type {
   ProjectRepositoryPort,
   MembershipRepositoryPort,
@@ -34,6 +39,7 @@ export class ListProjectsUseCase {
   constructor(
     private readonly projectRepository: ProjectRepositoryPort,
     private readonly membershipRepository: MembershipRepositoryPort,
+    private readonly teacherScope: TeacherProjectScopePort = noAssignments,
   ) {}
 
   /**
@@ -48,8 +54,8 @@ export class ListProjectsUseCase {
 
     const cleanUserId = userId.trim();
 
-    // Roles administrativos o docentes: acceso completo
-    if (role === 'admin' || role === 'teacher') {
+    // Administrative permission only; teacher must have a relationship.
+    if (role === 'admin') {
       const allProjects = await this.projectRepository.findAll();
       return ProjectListResponseSchema.parse(allProjects);
     }
@@ -61,7 +67,13 @@ export class ListProjectsUseCase {
     ]);
 
     // Obtener proyectos donde el usuario es colaborador (no creador) a través de membresías
-    const memberProjectIds = activeMemberships.map((m) => m.projectId);
+    const assigned =
+      role === 'teacher'
+        ? await this.teacherScope.listAssignedProjectIds(cleanUserId).catch(() => [])
+        : [];
+    const memberProjectIds = [
+      ...new Set([...activeMemberships.map((m) => m.projectId), ...assigned]),
+    ];
     const memberProjects = await Promise.all(
       memberProjectIds.map((id) => this.projectRepository.findById(id)),
     );
@@ -92,13 +104,14 @@ export class ListProjectsUseCase {
  *   Si la invariante se rompe (bug), el acceso por creatorId sigue siendo correcto.
  *   NUNCA eliminar esta comprobación creyendo que `isMember` es suficiente.
  * - Miembro con membresía activa (collaborator): acceso concedido.
- * - Roles elevados (admin, teacher): acceso concedido.
+ * - Administrative permission is separate; teacher alone grants no access.
  * - Cualquier otro caso: null → adaptador HTTP responde 404 (sin revelar existencia).
  */
 export class GetProjectByIdUseCase {
   constructor(
     private readonly projectRepository: ProjectRepositoryPort,
     private readonly membershipRepository: MembershipRepositoryPort,
+    private readonly teacherScope: TeacherProjectScopePort = noAssignments,
   ) {}
 
   async execute(query: GetProjectByIdQuery): Promise<ProjectResponse | null> {
@@ -116,8 +129,8 @@ export class GetProjectByIdUseCase {
 
     // Comprobación 1: creador directo (optimización — evita consulta a membresías para el caso más común)
     const isOwner = project.creatorId === cleanUserId;
-    // Comprobación 2: roles elevados (admin, teacher)
-    const isElevated = user.role === 'admin' || user.role === 'teacher';
+    // Comprobación 2: explicit administrative permission
+    const isElevated = user.role === 'admin';
 
     if (isOwner || isElevated) {
       return ProjectResponseSchema.parse(project);
@@ -125,7 +138,10 @@ export class GetProjectByIdUseCase {
 
     // Comprobación 3: membresía activa como colaborador
     const membership = await this.membershipRepository.findByProjectAndUser(id, cleanUserId);
-    const isMember = membership !== null;
+    const isAssigned =
+      user.role === 'teacher' &&
+      (await this.teacherScope.isAssigned(cleanUserId, id).catch(() => false));
+    const isMember = membership !== null || isAssigned;
 
     if (!isMember) {
       // Retorna null para disparar 404 Not Found sin divulgar la existencia del proyecto

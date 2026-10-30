@@ -3,5 +3,10 @@
     "version": 1,
     "name": "0001_initial.sql",
     "sha256": "1852946f821abca21f5dba6b5fd57568e167a54bf540adaf5aa45f7feec6a166"
+  },
+  {
+    "version": 2,
+    "name": "0002_teacher_project_assignments.sql",
+    "sha256": "4e441b4b093cca87ca7f50ff3d82439e511cb02991bc4f1bc1287d8c956a13fb"
   }
 ]

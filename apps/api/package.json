@@ -13,11 +13,15 @@
     "migrate:apply": "node migrations/runner.ts apply",
     "migrate:reconcile": "node migrations/runner.ts reconcile",
     "test:migrations": "node --test migrations/migrator.node-test.ts",
-    "typecheck:migrations": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node migrations/runner.ts migrations/migrator.node-test.ts migrations/adapters.test.ts"
+    "typecheck:migrations": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node migrations/runner.ts migrations/migrator.node-test.ts migrations/adapters.test.ts",
+    "typecheck:preparation": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --types node migrations/runner.ts migrations/remote-profile.node-test.ts migrations/runtime-privileges.node-test.ts migrations/teacher-project-scope.node-test.ts validation/remote-product/runner.node-test.ts",
+    "test:preparation": "node --test migrations/remote-profile.node-test.ts migrations/runtime-privileges.node-test.ts validation/remote-product/runner.node-test.ts",
+    "test:teacher-sql": "node --test migrations/teacher-project-scope.node-test.ts"
   },
   "dependencies": {
     "@is488/shared": "^0.1.0",
     "hono": "^4.13.13",
+    "jose": "6.2.13",
     "pg": "8.23.1"
   },
   "devDependencies": {
