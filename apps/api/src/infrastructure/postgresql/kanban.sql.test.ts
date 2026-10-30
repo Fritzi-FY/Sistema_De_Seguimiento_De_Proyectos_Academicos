@@ -547,7 +547,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => 
         dropped = false,
         commands = Buffer.alloc(0);
       const proxy = createServer((peer) => {
-        const backend = connect({ host: '127.0.0.1', port: config.port });
+        const backend = connect({ host: '127.0.0.1', port: config.port ?? 55490 });
         sockets.add(peer);
         sockets.add(backend);
         peer.on('data', (b) => {

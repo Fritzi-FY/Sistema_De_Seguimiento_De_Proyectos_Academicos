@@ -469,7 +469,7 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     const sockets = new Set<Socket>();
     let commits = 0;
     const proxy = createServer((downstream) => {
-      const upstream = connect({ host: '127.0.0.1', port: base.port });
+      const upstream = connect({ host: '127.0.0.1', port: base.port ?? 55489 });
       sockets.add(downstream);
       sockets.add(upstream);
       let armed = false;
