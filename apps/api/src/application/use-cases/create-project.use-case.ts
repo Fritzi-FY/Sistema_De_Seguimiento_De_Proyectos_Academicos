@@ -22,10 +22,7 @@ export interface CreateProjectCommand extends CreateProjectRequest {
  *   persistencia de la membresía es responsabilidad exclusiva del adaptador de
  *   ProjectCreationPort.
  *
- * @throws {Error} Si createProjectWithOwner falla, ni el proyecto ni la membresía
- * quedan persistidos. La garantía de consistencia es responsabilidad del adaptador
- * inyectado (en memoria: sin interleaving + compensación best-effort; en PostgreSQL:
- * transacción SQL con BEGIN/COMMIT/ROLLBACK).
+ * Un COMMIT sin confirmación tiene resultado incierto y no debe reintentarse automáticamente.
  */
 export class CreateProjectUseCase {
   constructor(
@@ -76,12 +73,11 @@ export class CreateProjectUseCase {
       userId: cleanCreatorId,
       role: 'owner',
       status: 'active',
+      removedAt: null,
       joinedAt: now,
       updatedAt: now,
     };
 
-    // Delegar la persistencia coordinada al puerto. Si lanza, ninguno de los dos
-    // registros queda persistido (garantía del adaptador inyectado).
     await this.projectCreationPort.createProjectWithOwner(newProject, ownerMembership);
 
     return ProjectResponseSchema.parse(newProject);

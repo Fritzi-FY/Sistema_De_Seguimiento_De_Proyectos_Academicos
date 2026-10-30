@@ -44,6 +44,7 @@ describe('GetProjectBoardUseCase', () => {
       userId: collaboratorId,
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-03-02T00:00:00.000Z',
       updatedAt: '2026-03-02T00:00:00.000Z',
     });
@@ -53,6 +54,7 @@ describe('GetProjectBoardUseCase', () => {
       userId: secondCollaboratorId,
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-03-02T00:00:00.000Z',
       updatedAt: '2026-03-02T00:00:00.000Z',
     });
@@ -92,10 +94,16 @@ describe('GetProjectBoardUseCase', () => {
       userId: removedUserId,
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-03-03T00:00:00.000Z',
       updatedAt: '2026-03-03T00:00:00.000Z',
     });
-    await membershipRepository.removeMember(membership.id);
+    await membershipRepository.removeMember({
+      membershipId: membership.id,
+      projectId,
+      userId: removedUserId,
+      removedAt: sampleProject.updatedAt,
+    });
 
     await expect(
       useCase.execute({

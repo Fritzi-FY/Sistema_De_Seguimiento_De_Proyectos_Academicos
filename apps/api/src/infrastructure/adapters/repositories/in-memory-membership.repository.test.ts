@@ -16,6 +16,7 @@ function makeMembershipData(
     userId: USER_A,
     role: 'collaborator',
     status: 'active',
+    removedAt: null,
     joinedAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -56,7 +57,12 @@ describe('InMemoryMembershipRepository', () => {
   describe('removeMember', () => {
     it('cambia status a removed exitosamente', async () => {
       const added = await repo.addMember(makeMembershipData());
-      await repo.removeMember(added.id);
+      await repo.removeMember({
+        membershipId: added.id,
+        projectId: PROJECT_ID,
+        userId: USER_A,
+        removedAt: NOW,
+      });
 
       // Verificar mediante findByProject (solo activos): debe estar excluido
       const activos = await repo.findByProject(PROJECT_ID);
@@ -64,9 +70,14 @@ describe('InMemoryMembershipRepository', () => {
     });
 
     it('lanza MembershipNotFoundError si la membresía no existe', async () => {
-      await expect(repo.removeMember('99999999-9999-4999-8999-999999999999')).rejects.toThrow(
-        MembershipNotFoundError,
-      );
+      await expect(
+        repo.removeMember({
+          membershipId: '99999999-9999-4999-8999-999999999999',
+          projectId: PROJECT_ID,
+          userId: USER_A,
+          removedAt: NOW,
+        }),
+      ).rejects.toThrow(MembershipNotFoundError);
     });
   });
 
@@ -74,7 +85,12 @@ describe('InMemoryMembershipRepository', () => {
     it('retorna solo miembros activos (excluye los removidos)', async () => {
       const memberA = await repo.addMember(makeMembershipData({ userId: USER_A }));
       await repo.addMember(makeMembershipData({ userId: USER_B }));
-      await repo.removeMember(memberA.id);
+      await repo.removeMember({
+        membershipId: memberA.id,
+        projectId: PROJECT_ID,
+        userId: USER_A,
+        removedAt: NOW,
+      });
 
       const activos = await repo.findByProject(PROJECT_ID);
       expect(activos).toHaveLength(1);
@@ -94,7 +110,12 @@ describe('InMemoryMembershipRepository', () => {
         makeMembershipData({ projectId: PROJECT_ID, userId: USER_A }),
       );
       await repo.addMember(makeMembershipData({ projectId: OTHER_PROJECT, userId: USER_A }));
-      await repo.removeMember(m1.id);
+      await repo.removeMember({
+        membershipId: m1.id,
+        projectId: PROJECT_ID,
+        userId: USER_A,
+        removedAt: NOW,
+      });
 
       const memberships = await repo.findByUser(USER_A);
       expect(memberships).toHaveLength(1);
@@ -115,7 +136,12 @@ describe('InMemoryMembershipRepository', () => {
 
     it('retorna null si la membresía existe pero está removed', async () => {
       const added = await repo.addMember(makeMembershipData());
-      await repo.removeMember(added.id);
+      await repo.removeMember({
+        membershipId: added.id,
+        projectId: PROJECT_ID,
+        userId: USER_A,
+        removedAt: NOW,
+      });
 
       const result = await repo.findByProjectAndUser(PROJECT_ID, USER_A);
       expect(result).toBeNull();
@@ -134,7 +160,12 @@ describe('InMemoryMembershipRepository', () => {
     it('permite re-agregar al mismo usuario y mantiene historial correcto', async () => {
       // Primera membresía (activa → retirada)
       const first = await repo.addMember(makeMembershipData({ userId: USER_A }));
-      await repo.removeMember(first.id);
+      await repo.removeMember({
+        membershipId: first.id,
+        projectId: PROJECT_ID,
+        userId: USER_A,
+        removedAt: NOW,
+      });
 
       // Segunda membresía (nueva, activa)
       const second = await repo.addMember(makeMembershipData({ userId: USER_A }));

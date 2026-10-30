@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { AddMemberRequestSchema, MembershipResponseSchema } from './membership.contract.js';
+import {
+  AddMemberRequestSchema,
+  MembershipResponseSchema,
+  RemoveMemberQuerySchema,
+} from './membership.contract.js';
 
 describe('AddMemberRequestSchema', () => {
   it('acepta una carga válida con userId UUID y role collaborator', () => {
@@ -58,6 +62,7 @@ describe('MembershipResponseSchema', () => {
     userId: 'user-student-01',
     role: 'owner' as const,
     status: 'active' as const,
+    removedAt: null,
     joinedAt: '2026-10-12T12:00:00.000Z',
     updatedAt: '2026-10-12T12:00:00.000Z',
   };
@@ -79,8 +84,35 @@ describe('MembershipResponseSchema', () => {
     const result = MembershipResponseSchema.safeParse({
       ...validMembership,
       status: 'removed',
+      removedAt: validMembership.updatedAt,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('requires explicit removedAt and coherent retirement', () => {
+    const { removedAt: _, ...missing } = validMembership;
+    expect(MembershipResponseSchema.safeParse(missing).success).toBe(false);
+    expect(
+      MembershipResponseSchema.safeParse({
+        ...validMembership,
+        removedAt: validMembership.updatedAt,
+      }).success,
+    ).toBe(false);
+    expect(
+      MembershipResponseSchema.safeParse({ ...validMembership, status: 'removed' }).success,
+    ).toBe(false);
+    expect(
+      MembershipResponseSchema.safeParse({
+        ...validMembership,
+        status: 'removed',
+        removedAt: '2026-01-01T00:00:00.000Z',
+      }).success,
+    ).toBe(false);
+    expect(RemoveMemberQuerySchema.safeParse({}).success).toBe(false);
+    expect(RemoveMemberQuerySchema.safeParse({ membershipId: 'text-id' }).success).toBe(false);
+    expect(RemoveMemberQuerySchema.safeParse({ membershipId: validMembership.id }).success).toBe(
+      true,
+    );
   });
 
   it('rechaza membresía con id no UUID', () => {

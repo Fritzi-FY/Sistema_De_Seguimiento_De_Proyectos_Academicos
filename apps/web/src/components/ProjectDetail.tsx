@@ -31,7 +31,11 @@ export interface ProjectDetailProps {
   onBack: () => void;
   membersFetcher?: (projectId: string) => Promise<MembershipResponse[]>;
   memberAdder?: (projectId: string, data: AddMemberRequest) => Promise<MembershipResponse>;
-  memberRemover?: (projectId: string, userId: string) => Promise<MembershipResponse>;
+  memberRemover?: (
+    projectId: string,
+    userId: string,
+    membershipId: string,
+  ) => Promise<MembershipResponse>;
   boardFetcher?: (projectId: string, options?: { signal?: AbortSignal }) => Promise<BoardResponse>;
   tasksFetcher?: (projectId: string, options?: { signal?: AbortSignal }) => Promise<TaskResponse[]>;
 }
@@ -104,11 +108,11 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
     setMembers((prev) => [...prev, created]);
   };
 
-  const handleRemoveMember = async (userId: string) => {
+  const handleRemoveMember = async (userId: string, membershipId: string) => {
     setRemovingUserId(userId);
     try {
-      await memberRemover(project.id, userId);
-      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+      await memberRemover(project.id, userId, membershipId);
+      setMembers((prev) => prev.filter((m) => m.id !== membershipId));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al retirar integrante');
     } finally {

@@ -4,7 +4,7 @@ import type {
   SystemClockPort,
   MembershipResponse,
 } from '@is488/shared';
-import { MembershipResponseSchema } from '@is488/shared';
+import { MembershipResponseSchema, MembershipNotFoundError } from '@is488/shared';
 
 export interface RemoveMemberCommand {
   projectId: string;
@@ -12,6 +12,7 @@ export interface RemoveMemberCommand {
   requesterId: string;
   /** ID del usuario a retirar. */
   targetUserId: string;
+  membershipId: string;
 }
 
 /**
@@ -55,7 +56,7 @@ export class RemoveMemberUseCase {
       command.projectId,
       command.targetUserId,
     );
-    if (!targetMembership) {
+    if (!targetMembership || targetMembership.id !== command.membershipId) {
       throw Object.assign(
         new Error(`El usuario '${command.targetUserId}' no tiene membresía activa en el proyecto`),
         { statusCode: 404 },
@@ -70,16 +71,17 @@ export class RemoveMemberUseCase {
       );
     }
 
-    // 5. Ejecutar la remoción (soft delete: status → 'removed')
-    await this.membershipRepository.removeMember(targetMembership.id);
-
-    // 6. Retornar la membresía actualizada
-    const updatedMembership = {
-      ...targetMembership,
-      status: 'removed' as const,
-      updatedAt: this.clock.isoString(),
-    };
-
-    return MembershipResponseSchema.parse(updatedMembership);
+    try {
+      const persisted = await this.membershipRepository.removeMember({
+        membershipId: command.membershipId,
+        projectId: command.projectId,
+        userId: command.targetUserId,
+        removedAt: this.clock.isoString(),
+      });
+      return MembershipResponseSchema.parse(persisted);
+    } catch (error) {
+      if (error instanceof MembershipNotFoundError) throw Object.assign(error, { statusCode: 404 });
+      throw error;
+    }
   }
 }

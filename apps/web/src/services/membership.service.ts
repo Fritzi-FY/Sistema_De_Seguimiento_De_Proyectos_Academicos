@@ -3,6 +3,7 @@ import {
   type MembershipResponse,
   type MemberListResponse,
   AddMemberRequestSchema,
+  RemoveMemberQuerySchema,
   MembershipResponseSchema,
   MemberListResponseSchema,
 } from '@is488/shared';
@@ -110,12 +111,17 @@ export async function addMember(
 export async function removeMember(
   projectId: string,
   userId: string,
+  membershipId: string,
   userHeaders?: DevUserHeaders,
 ): Promise<MembershipResponse> {
-  const response = await fetch(`/api/projects/${projectId}/members/${userId}`, {
-    method: 'DELETE',
-    headers: buildHeaders(userHeaders),
-  });
+  const query = RemoveMemberQuerySchema.parse({ membershipId });
+  const response = await fetch(
+    `/api/projects/${projectId}/members/${userId}?membershipId=${encodeURIComponent(query.membershipId)}`,
+    {
+      method: 'DELETE',
+      headers: buildHeaders(userHeaders),
+    },
+  );
 
   if (!response.ok) {
     const errorBody = (await response.json().catch(() => null)) as {
@@ -145,6 +151,14 @@ export async function removeMember(
     throw new Error(`Respuesta del servidor no válida según contrato: ${issues}`);
   }
 
+  if (
+    parsed.data.id !== membershipId ||
+    parsed.data.projectId !== projectId ||
+    parsed.data.userId !== userId ||
+    parsed.data.status !== 'removed'
+  ) {
+    throw new Error('Respuesta de retiro no corresponde a la membresía solicitada');
+  }
   return parsed.data;
 }
 

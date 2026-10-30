@@ -5,9 +5,8 @@ import type { ProjectMembership } from './membership-repository.port.js';
  * Puerto driven (secundario) para la creación coordinada de un proyecto académico
  * y su membresía owner inicial.
  *
- * Garantía todo-o-nada: al retornar sin error, tanto el proyecto como la membresía
- * owner están persistidos. Ante cualquier fallo durante la ejecución, ninguno de los
- * dos registros quedará persistido en el almacén.
+ * Success confirms both records. Only a confirmed rollback proves neither was persisted.
+ * An unconfirmed COMMIT is unknown and must not trigger retries or SQL compensation.
  *
  * La responsabilidad de implementar el mecanismo de consistencia apropiado recae en
  * el adaptador concreto:
@@ -30,12 +29,7 @@ export interface ProjectCreationPort {
    * @throws {ProjectAlreadyExistsError}  Si ya existe un proyecto con el mismo `id`.
    * @throws {DuplicateMembershipError}   Si ya existe una membresía activa para el par
    *                                       (project.id, ownerMembership.userId).
-   * @throws {Error}                      Si createProjectWithOwner falla por cualquier otra
-   *                                       razón, ni el proyecto ni la membresía quedan
-   *                                       persistidos. La garantía de consistencia es
-   *                                       responsabilidad del adaptador inyectado:
-   *                                       en memoria, sin interleaving + compensación best-effort;
-   *                                       en PostgreSQL, transacción SQL con BEGIN/COMMIT/ROLLBACK.
+   * @throws {Error} Un COMMIT sin confirmación tiene resultado incierto.
    */
   createProjectWithOwner(project: Project, ownerMembership: ProjectMembership): Promise<void>;
 }

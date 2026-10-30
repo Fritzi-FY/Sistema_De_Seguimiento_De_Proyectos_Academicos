@@ -152,7 +152,15 @@ describe('Task activity HTTP', () => {
     ).toBe(201);
     const headers = { ...owner, 'X-Dev-User-Id': collaborator };
     expect((await app.request(url(), { headers })).status).toBe(200);
-    await app.request(`${memberUrl}/${collaborator}`, { method: 'DELETE', headers: owner });
+    const members = (await (await app.request(memberUrl, { headers: owner })).json()) as {
+      id: string;
+      userId: string;
+    }[];
+    const membershipId = members.find((m) => m.userId === collaborator)!.id;
+    await app.request(`${memberUrl}/${collaborator}?membershipId=${membershipId}`, {
+      method: 'DELETE',
+      headers: owner,
+    });
     expect((await app.request(url(), { headers })).status).toBe(404);
   });
   it('contains repository failures without exposing details', async () => {

@@ -1,0 +1,21 @@
+{
+  "name": "is488-epic002-val-b",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "PERSISTENCE_MODE": "postgres",
+    "VALIDATION_DEPLOYMENT": "B",
+    "ACCESS_ISSUER": "PENDING_APPROVAL",
+    "ACCESS_AUDIENCE": "PENDING_APPROVAL",
+    "ACCESS_SYNTHETIC_ACTORS": "PENDING_APPROVAL",
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "PENDING_APPROVAL_NOT_DEPLOYABLE",
+    },
+  ],
+}

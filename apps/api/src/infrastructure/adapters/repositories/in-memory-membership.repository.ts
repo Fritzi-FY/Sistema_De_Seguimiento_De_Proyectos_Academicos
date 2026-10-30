@@ -1,4 +1,8 @@
-import type { ProjectMembership, MembershipRepositoryPort } from '@is488/shared';
+import type {
+  ProjectMembership,
+  MembershipRepositoryPort,
+  RemoveMembershipCondition,
+} from '@is488/shared';
 import { DuplicateMembershipError, MembershipNotFoundError } from '@is488/shared';
 
 /**
@@ -44,15 +48,18 @@ export class InMemoryMembershipRepository implements MembershipRepositoryPort {
     membershipData: Omit<ProjectMembership, 'id'> & { id?: string },
   ): Promise<ProjectMembership> {
     // Verificar unicidad del par activo (projectId, userId)
-    const existingActive = await this.findByProjectAndUser(
-      membershipData.projectId,
-      membershipData.userId,
+    const existingActive = Array.from(this.storage.values()).find(
+      (m) =>
+        m.projectId === membershipData.projectId &&
+        m.userId === membershipData.userId &&
+        m.status === 'active',
     );
-    if (existingActive !== null) {
+    if (existingActive !== undefined) {
       throw new DuplicateMembershipError(membershipData.projectId, membershipData.userId);
     }
 
     const id = membershipData.id ?? crypto.randomUUID();
+    if (this.storage.has(id)) throw new Error('Membership identifier already exists');
     const membership: ProjectMembership = {
       id,
       projectId: membershipData.projectId,
@@ -60,6 +67,7 @@ export class InMemoryMembershipRepository implements MembershipRepositoryPort {
       role: membershipData.role,
       status: membershipData.status,
       joinedAt: membershipData.joinedAt,
+      removedAt: membershipData.removedAt,
       updatedAt: membershipData.updatedAt,
     };
 
@@ -71,17 +79,25 @@ export class InMemoryMembershipRepository implements MembershipRepositoryPort {
    * Cambia el `status` de la membresía a `'removed'`.
    * @throws {MembershipNotFoundError} Si la membresía no existe en el almacén.
    */
-  async removeMember(membershipId: string): Promise<void> {
-    const existing = this.storage.get(membershipId);
-    if (!existing) {
-      throw new MembershipNotFoundError(membershipId);
+  async removeMember(condition: RemoveMembershipCondition): Promise<ProjectMembership> {
+    const existing = this.storage.get(condition.membershipId);
+    if (
+      !existing ||
+      existing.projectId !== condition.projectId ||
+      existing.userId !== condition.userId ||
+      existing.status !== 'active' ||
+      existing.role !== 'collaborator'
+    ) {
+      throw new MembershipNotFoundError(condition.membershipId);
     }
     const updated: ProjectMembership = {
       ...existing,
       status: 'removed',
-      updatedAt: new Date().toISOString(),
+      updatedAt: condition.removedAt,
+      removedAt: condition.removedAt,
     };
-    this.storage.set(membershipId, updated);
+    this.storage.set(existing.id, updated);
+    return { ...updated };
   }
 
   /**

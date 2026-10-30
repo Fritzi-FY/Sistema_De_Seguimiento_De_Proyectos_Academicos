@@ -11,6 +11,7 @@ describe('membership.service', () => {
     userId: sampleUserId,
     role: 'collaborator' as const,
     status: 'active' as const,
+    removedAt: null,
     joinedAt: '2026-10-15T12:00:00.000Z',
     updatedAt: '2026-10-15T12:00:00.000Z',
   };
@@ -145,9 +146,44 @@ describe('membership.service', () => {
   });
 
   describe('removeMember', () => {
+    it('rejects mismatched confirmations and malformed membership IDs', async () => {
+      await expect(removeMember(sampleProjectId, sampleUserId, 'text-id')).rejects.toThrow();
+      expect(fetch).not.toHaveBeenCalled();
+      for (const response of [
+        { ...sampleMembership },
+        {
+          ...sampleMembership,
+          status: 'removed',
+          removedAt: sampleMembership.updatedAt,
+          id: sampleProjectId,
+        },
+        {
+          ...sampleMembership,
+          status: 'removed',
+          removedAt: sampleMembership.updatedAt,
+          projectId: sampleUserId,
+        },
+        {
+          ...sampleMembership,
+          status: 'removed',
+          removedAt: sampleMembership.updatedAt,
+          userId: sampleProjectId,
+        },
+      ]) {
+        vi.mocked(fetch).mockResolvedValueOnce({
+          ok: true,
+          json: async () => response,
+        } as Response);
+        await expect(
+          removeMember(sampleProjectId, sampleUserId, sampleMembership.id),
+        ).rejects.toThrow();
+      }
+    });
+
     const removedMembership = {
       ...sampleMembership,
       status: 'removed' as const,
+      removedAt: sampleMembership.updatedAt,
     };
 
     it('debe retirar un miembro exitosamente cuando la respuesta es 200', async () => {
@@ -156,14 +192,19 @@ describe('membership.service', () => {
         json: async () => removedMembership,
       } as Response);
 
-      const result = await removeMember(sampleProjectId, sampleUserId, {
-        userId: '11111111-1111-4111-8111-111111111111',
-        role: 'student',
-      });
+      const result = await removeMember(
+        sampleProjectId,
+        sampleUserId,
+        '33333333-3333-4333-8333-333333333333',
+        {
+          userId: '11111111-1111-4111-8111-111111111111',
+          role: 'student',
+        },
+      );
 
       expect(result).toEqual(removedMembership);
       expect(fetch).toHaveBeenCalledWith(
-        `/api/projects/${sampleProjectId}/members/${sampleUserId}`,
+        `/api/projects/${sampleProjectId}/members/${sampleUserId}?membershipId=33333333-3333-4333-8333-333333333333`,
         {
           method: 'DELETE',
           headers: expect.objectContaining({
@@ -181,9 +222,9 @@ describe('membership.service', () => {
         json: async () => ({ message: 'No es posible retirar al propietario del proyecto' }),
       } as Response);
 
-      await expect(removeMember(sampleProjectId, sampleUserId)).rejects.toThrow(
-        /No es posible retirar al propietario del proyecto/i,
-      );
+      await expect(
+        removeMember(sampleProjectId, sampleUserId, '33333333-3333-4333-8333-333333333333'),
+      ).rejects.toThrow(/No es posible retirar al propietario del proyecto/i);
     });
 
     it('debe manejar error 404 cuando la membresía a retirar no existe', async () => {
@@ -194,9 +235,9 @@ describe('membership.service', () => {
         json: async () => ({ message: 'Membresía no encontrada' }),
       } as Response);
 
-      await expect(removeMember(sampleProjectId, sampleUserId)).rejects.toThrow(
-        /Membresía no encontrada/i,
-      );
+      await expect(
+        removeMember(sampleProjectId, sampleUserId, '33333333-3333-4333-8333-333333333333'),
+      ).rejects.toThrow(/Membresía no encontrada/i);
     });
 
     it('debe manejar error con objeto details', async () => {
@@ -210,9 +251,9 @@ describe('membership.service', () => {
         }),
       } as Response);
 
-      await expect(removeMember(sampleProjectId, sampleUserId)).rejects.toThrow(
-        /Detalle de fallo/i,
-      );
+      await expect(
+        removeMember(sampleProjectId, sampleUserId, '33333333-3333-4333-8333-333333333333'),
+      ).rejects.toThrow(/Detalle de fallo/i);
     });
   });
 

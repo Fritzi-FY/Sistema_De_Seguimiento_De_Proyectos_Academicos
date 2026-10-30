@@ -1,3 +1,4 @@
+import type { RemoveMembershipCondition } from '@is488/shared';
 import { describe, it, expect, beforeEach } from 'vitest';
 import type {
   Project,
@@ -5,7 +6,7 @@ import type {
   ProjectRepositoryPort,
   MembershipRepositoryPort,
 } from '@is488/shared';
-import { DuplicateMembershipError, MembershipNotFoundError } from '@is488/shared';
+import { DuplicateMembershipError } from '@is488/shared';
 import { ListProjectsUseCase, GetProjectByIdUseCase } from './list-projects.use-case.js';
 
 const NOW = '2026-10-11T12:00:00.000Z';
@@ -50,10 +51,20 @@ class FakeMembershipRepository implements MembershipRepositoryPort {
     return { ...membership };
   }
 
-  async removeMember(id: string): Promise<void> {
-    const m = this.memberships.find((m) => m.id === id);
-    if (!m) throw new MembershipNotFoundError(id);
+  async removeMember(condition: RemoveMembershipCondition): Promise<ProjectMembership> {
+    const m = this.memberships.find(
+      (m) =>
+        m.id === condition.membershipId &&
+        m.projectId === condition.projectId &&
+        m.userId === condition.userId &&
+        m.status === 'active' &&
+        m.role === 'collaborator',
+    );
+    if (!m) throw new Error('Membership not found');
     m.status = 'removed';
+    m.updatedAt = condition.removedAt;
+    m.removedAt = condition.removedAt;
+    return { ...m };
   }
 
   async findByProject(projectId: string): Promise<ProjectMembership[]> {
@@ -120,6 +131,7 @@ const membershipA_in_P2: ProjectMembership = {
   userId: 'student-A',
   role: 'collaborator',
   status: 'active',
+  removedAt: null,
   joinedAt: NOW,
   updatedAt: NOW,
 };
@@ -131,6 +143,7 @@ const membershipA_owner_P1: ProjectMembership = {
   userId: 'student-A',
   role: 'owner',
   status: 'active',
+  removedAt: null,
   joinedAt: NOW,
   updatedAt: NOW,
 };
@@ -197,11 +210,11 @@ describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ
       expect(results[0]?.creatorId).toBe('student-B');
     });
 
-    it('debe retornar todos los proyectos si el rol es teacher o admin', async () => {
+    it('teacher has no global access; existing administrative permission is separate', async () => {
       const teacherResults = await listUseCase.execute({
         user: { userId: 'teacher-01', role: 'teacher' },
       });
-      expect(teacherResults).toHaveLength(3);
+      expect(teacherResults).toHaveLength(0);
 
       const adminResults = await listUseCase.execute({
         user: { userId: 'admin-01', role: 'admin' },
@@ -272,14 +285,13 @@ describe('ListProjectsUseCase & GetProjectByIdUseCase (Aislamiento y AutorizaciÃ
       expect(result?.id).toBe(P1_ID);
     });
 
-    it('debe permitir a un docente consultar proyectos de cualquier estudiante', async () => {
+    it('teacher without relationship cannot read an unrelated project', async () => {
       const result = await getByIdUseCase.execute({
         id: P3_ID,
         user: { userId: 'teacher-01', role: 'teacher' },
       });
 
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe(P3_ID);
+      expect(result).toBeNull();
     });
   });
 });

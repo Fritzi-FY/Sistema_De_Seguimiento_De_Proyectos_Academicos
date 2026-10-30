@@ -15,3 +15,5 @@ export * from './ports/task-creation.port.js';
 export * from './ports/task-move.port.js';
 export * from './ports/task-update.port.js';
 export * from './ports/task-list.port.js';
+
+export * from './ports/teacher-project-scope.port.js';

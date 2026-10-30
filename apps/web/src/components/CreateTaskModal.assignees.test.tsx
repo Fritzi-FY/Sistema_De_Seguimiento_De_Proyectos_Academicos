@@ -20,6 +20,7 @@ const member = (userId: string): MembershipResponse => ({
   projectId: id,
   role: 'collaborator',
   status: 'active',
+  removedAt: null,
   joinedAt: stamp,
   updatedAt: stamp,
 });

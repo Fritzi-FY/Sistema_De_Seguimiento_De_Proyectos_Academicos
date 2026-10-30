@@ -99,3 +99,7 @@ npx openspec validate --specs --strict
 ## Regla de mantenimiento
 
 No se necesita reescribir toda la documentación ante cada cambio. Si cambia el comportamiento del sistema, crear un cambio OpenSpec, actualizar la especificación afectada y registrar ADR si cambia una decisión arquitectónica. Las especificaciones representan el comportamiento aprobado; el código y las pruebas deben demostrarlo.
+
+## Desarrollo integrado con PostgreSQL local
+
+El entorno reutilizable y aislado se inicia con `npm.cmd run dev:local`. Consulta [inicio, parada, datos sintéticos y límites de persistencia](docs/development-local.md). En modo postgres, tablero, tareas e historial persisten en SQL; Maps permanece como alternativa para pruebas.

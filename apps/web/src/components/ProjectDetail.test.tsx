@@ -27,6 +27,7 @@ describe('ProjectDetail Component', () => {
       userId: '11111111-1111-4111-8111-111111111111',
       role: 'owner',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-15T10:00:00.000Z',
       updatedAt: '2026-10-15T10:00:00.000Z',
     },
@@ -36,6 +37,7 @@ describe('ProjectDetail Component', () => {
       userId: '22222222-2222-4222-8222-222222222222',
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-16T14:30:00.000Z',
       updatedAt: '2026-10-16T14:30:00.000Z',
     },
@@ -84,6 +86,7 @@ describe('ProjectDetail Component', () => {
       userId: '550e8400-e29b-41d4-a716-446655440000',
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-17T10:00:00.000Z',
       updatedAt: '2026-10-17T10:00:00.000Z',
     };
@@ -147,6 +150,7 @@ describe('ProjectDetail Component', () => {
     const memberRemoverMock = vi.fn().mockResolvedValue({
       ...sampleMembers[1],
       status: 'removed',
+      removedAt: sampleMembers[1]!.updatedAt,
     });
 
     render(
@@ -171,6 +175,7 @@ describe('ProjectDetail Component', () => {
       expect(memberRemoverMock).toHaveBeenCalledWith(
         sampleProject.id,
         '22222222-2222-4222-8222-222222222222',
+        sampleMembers[1]!.id,
       );
       expect(screen.queryByText('22222222-2222-4222-8222-222222222222')).not.toBeInTheDocument();
     });

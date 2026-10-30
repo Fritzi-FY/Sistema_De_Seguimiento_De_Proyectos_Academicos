@@ -32,6 +32,7 @@ function makeOwnerMembership(
     userId: 'user-creator-01',
     role: 'owner',
     status: 'active',
+    removedAt: null,
     joinedAt: NOW,
     updatedAt: NOW,
     ...overrides,

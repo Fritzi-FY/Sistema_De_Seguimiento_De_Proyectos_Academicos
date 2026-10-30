@@ -1,0 +1,123 @@
+{
+  "at": "2026-10-29T00:56:22.191Z",
+  "database": "is488_dev",
+  "otherDatabasesModified": false,
+  "priorMigrationHashesVerified": true,
+  "beforeHash": "9207150cd3cdc18c976215a2b3d2d9ed1b5655babf19a393784b10f9ff432964",
+  "rows": {
+    "projects": 35,
+    "project_memberships": 68,
+    "teacher_project_assignments": 0,
+    "boards": 35,
+    "board_columns": 111,
+    "tasks": 35,
+    "task_assignees": 23,
+    "task_activity": 57
+  },
+  "planBefore": {
+    "outcome": "planned",
+    "applied": [],
+    "pending": [
+      {
+        "version": 4,
+        "checksum": "915bf68ed69e54e0fb86704e1a680b2947a897e2111d9bfe51c84275ab4db059"
+      }
+    ],
+    "observed": [1, 2, 3],
+    "closeConfirmed": true,
+    "transactionOutcome": "not_started",
+    "timings": {
+      "auditMs": 5.223000000001775,
+      "phases": [
+        {
+          "stage": "connect",
+          "startedAt": "2026-10-29T00:56:22.354Z",
+          "elapsedMs": 80.41890000000058
+        }
+      ]
+    }
+  },
+  "apply": {
+    "outcome": "committed",
+    "applied": [4],
+    "pending": [],
+    "observed": [1, 2, 3],
+    "closeConfirmed": true,
+    "transactionOutcome": "committed",
+    "timings": {
+      "auditMs": 3.5918000000019674,
+      "phases": [
+        {
+          "stage": "begin",
+          "startedAt": "2026-10-29T00:56:22.711Z",
+          "elapsedMs": 0.507499999999709
+        },
+        {
+          "stage": "transaction_timeout",
+          "startedAt": "2026-10-29T00:56:22.712Z",
+          "elapsedMs": 0.7621999999973923
+        },
+        {
+          "stage": "migration_sql",
+          "startedAt": "2026-10-29T00:56:22.712Z",
+          "elapsedMs": 37.616100000002916
+        },
+        {
+          "stage": "grant_runtime",
+          "startedAt": "2026-10-29T00:56:22.750Z",
+          "elapsedMs": 17.35910000000149
+        },
+        {
+          "stage": "validate_runtime",
+          "startedAt": "2026-10-29T00:56:22.767Z",
+          "elapsedMs": 4.01759999999922
+        },
+        {
+          "stage": "catalog_fingerprint",
+          "startedAt": "2026-10-29T00:56:22.771Z",
+          "elapsedMs": 7.326499999999214
+        },
+        {
+          "stage": "ledger_insert",
+          "startedAt": "2026-10-29T00:56:22.779Z",
+          "elapsedMs": 1.1941999999980908
+        },
+        {
+          "stage": "commit",
+          "startedAt": "2026-10-29T00:56:22.781Z",
+          "elapsedMs": 8.69629999999961
+        }
+      ],
+      "beginDispatchedAt": "2026-10-29T00:56:22.711Z",
+      "beginConfirmedAt": "2026-10-29T00:56:22.712Z",
+      "preparationStartedAt": "2026-10-29T00:56:22.712Z",
+      "preparationFinishedAt": "2026-10-29T00:56:22.780Z",
+      "preparationMs": 68.34009999999762,
+      "commitDispatchedAt": "2026-10-29T00:56:22.781Z",
+      "commitMs": 8.72609999999986,
+      "commitConfirmedAt": "2026-10-29T00:56:22.790Z",
+      "transactionMs": 79.42989999999918
+    }
+  },
+  "afterHash": "9207150cd3cdc18c976215a2b3d2d9ed1b5655babf19a393784b10f9ff432964",
+  "allExistingRowsPreserved": true,
+  "planAfter": {
+    "outcome": "planned",
+    "applied": [],
+    "pending": [],
+    "observed": [1, 2, 3, 4],
+    "closeConfirmed": true,
+    "transactionOutcome": "not_started",
+    "timings": {
+      "auditMs": 3.314699999995355,
+      "phases": [
+        {
+          "stage": "connect",
+          "startedAt": "2026-10-29T00:56:22.825Z",
+          "elapsedMs": 54.74430000000211
+        }
+      ]
+    }
+  },
+  "connectionClosed": true
+}

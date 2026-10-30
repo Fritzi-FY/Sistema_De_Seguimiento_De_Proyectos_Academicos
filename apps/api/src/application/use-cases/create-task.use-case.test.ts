@@ -67,6 +67,7 @@ describe('CreateTaskUseCase', () => {
       userId: creatorId,
       role: 'owner',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-01T00:00:00.000Z',
       updatedAt: '2026-10-01T00:00:00.000Z',
     });
@@ -76,6 +77,7 @@ describe('CreateTaskUseCase', () => {
       userId: memberId,
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-01T00:00:00.000Z',
       updatedAt: '2026-10-01T00:00:00.000Z',
     });
@@ -85,6 +87,7 @@ describe('CreateTaskUseCase', () => {
       userId: inactiveMemberId,
       role: 'collaborator',
       status: 'removed',
+      removedAt: '2026-10-01T00:00:00.000Z',
       joinedAt: '2026-10-01T00:00:00.000Z',
       updatedAt: '2026-10-01T00:00:00.000Z',
     });

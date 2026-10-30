@@ -1,3 +1,4 @@
+import type { AuthMiddleware } from '../middleware/auth.middleware.js';
 import { Hono, type Context } from 'hono';
 import { ZodError } from 'zod';
 import type {
@@ -5,7 +6,7 @@ import type {
   MembershipRepositoryPort,
   SystemClockPort,
 } from '@is488/shared';
-import { AddMemberRequestSchema } from '@is488/shared';
+import { AddMemberRequestSchema, RemoveMemberQuerySchema } from '@is488/shared';
 import { AddMemberUseCase } from '../../../application/use-cases/add-member.use-case.js';
 import { RemoveMemberUseCase } from '../../../application/use-cases/remove-member.use-case.js';
 import { ListMembersUseCase } from '../../../application/use-cases/list-members.use-case.js';
@@ -13,6 +14,7 @@ import { createDevAuthMiddleware } from '../middleware/dev-auth.middleware.js';
 
 export interface ProjectMembersRouterOptions {
   nodeEnv?: string;
+  authentication?: AuthMiddleware;
 }
 
 /**
@@ -39,7 +41,7 @@ export function createProjectMembersRouter(
   const listMembersUseCase = new ListMembersUseCase(projectRepository, membershipRepository);
 
   // Aplicar middleware de autenticación de desarrollo a todas las rutas
-  router.use('*', createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
+  router.use('*', options.authentication ?? createDevAuthMiddleware({ nodeEnv: options.nodeEnv }));
 
   /**
    * POST /:projectId/members — Agregar un colaborador al proyecto
@@ -91,6 +93,9 @@ export function createProjectMembersRouter(
   router.delete('/:projectId/members/:userId', async (c) => {
     const projectId = c.req.param('projectId');
     const targetUserId = c.req.param('userId');
+    const query = RemoveMemberQuerySchema.safeParse(c.req.query());
+    if (!query.success)
+      return c.json({ error: 'Bad Request', message: 'membershipId UUID requerido' }, 400);
     const user = c.get('user');
 
     try {
@@ -98,6 +103,7 @@ export function createProjectMembersRouter(
         projectId,
         requesterId: user.userId,
         targetUserId,
+        membershipId: query.data.membershipId,
       });
       return c.json(membership, 200);
     } catch (err) {

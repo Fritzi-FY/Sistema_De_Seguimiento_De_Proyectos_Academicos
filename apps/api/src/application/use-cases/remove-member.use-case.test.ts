@@ -1,3 +1,4 @@
+import type { RemoveMembershipCondition } from '@is488/shared';
 import { describe, it, expect, beforeEach } from 'vitest';
 import type {
   Project,
@@ -6,7 +7,7 @@ import type {
   MembershipRepositoryPort,
   SystemClockPort,
 } from '@is488/shared';
-import { DuplicateMembershipError, MembershipNotFoundError } from '@is488/shared';
+import { DuplicateMembershipError } from '@is488/shared';
 import { RemoveMemberUseCase } from './remove-member.use-case.js';
 
 const NOW = '2026-10-12T12:00:00.000Z';
@@ -33,6 +34,7 @@ const fakeCollaboratorMembership: ProjectMembership = {
   userId: COLLABORATOR_ID,
   role: 'collaborator',
   status: 'active',
+  removedAt: null,
   joinedAt: NOW,
   updatedAt: NOW,
 };
@@ -43,6 +45,7 @@ const fakeOwnerMembership: ProjectMembership = {
   userId: CREATOR_ID,
   role: 'owner',
   status: 'active',
+  removedAt: null,
   joinedAt: NOW,
   updatedAt: NOW,
 };
@@ -92,10 +95,20 @@ class FakeMembershipRepo implements MembershipRepositoryPort {
     return { ...membership };
   }
 
-  async removeMember(id: string): Promise<void> {
-    const m = this.memberships.find((m) => m.id === id);
-    if (!m) throw new MembershipNotFoundError(id);
+  async removeMember(condition: RemoveMembershipCondition): Promise<ProjectMembership> {
+    const m = this.memberships.find(
+      (m) =>
+        m.id === condition.membershipId &&
+        m.projectId === condition.projectId &&
+        m.userId === condition.userId &&
+        m.status === 'active' &&
+        m.role === 'collaborator',
+    );
+    if (!m) throw new Error('Membership not found');
     m.status = 'removed';
+    m.updatedAt = condition.removedAt;
+    m.removedAt = condition.removedAt;
+    return { ...m };
   }
 
   async findByProject(projectId: string): Promise<ProjectMembership[]> {
@@ -133,6 +146,7 @@ describe('RemoveMemberUseCase', () => {
       projectId: PROJECT_ID,
       requesterId: CREATOR_ID,
       targetUserId: COLLABORATOR_ID,
+      membershipId: fakeCollaboratorMembership.id,
     });
     expect(result.status).toBe('removed');
     expect(result.userId).toBe(COLLABORATOR_ID);
@@ -144,6 +158,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: PROJECT_ID,
         requesterId: OTHER_USER,
         targetUserId: COLLABORATOR_ID,
+        membershipId: fakeCollaboratorMembership.id,
       }),
     ).rejects.toMatchObject({ statusCode: 403 });
   });
@@ -154,6 +169,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: 'proyecto-inexistente',
         requesterId: CREATOR_ID,
         targetUserId: COLLABORATOR_ID,
+        membershipId: fakeCollaboratorMembership.id,
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
@@ -164,6 +180,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: PROJECT_ID,
         requesterId: CREATOR_ID,
         targetUserId: 'usuario-sin-membresia',
+        membershipId: fakeCollaboratorMembership.id,
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
@@ -174,6 +191,7 @@ describe('RemoveMemberUseCase', () => {
         projectId: PROJECT_ID,
         requesterId: CREATOR_ID,
         targetUserId: CREATOR_ID,
+        membershipId: fakeOwnerMembership.id,
       }),
     ).rejects.toMatchObject({ statusCode: 422 });
   });
