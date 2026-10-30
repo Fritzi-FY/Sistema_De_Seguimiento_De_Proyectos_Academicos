@@ -1,3 +1,4 @@
+import type { RemoveMembershipCondition } from '@is488/shared';
 import { describe, it, expect, beforeEach } from 'vitest';
 import type {
   Project,
@@ -68,9 +69,20 @@ class FakeMembershipRepo implements MembershipRepositoryPort {
     return { ...membership };
   }
 
-  async removeMember(id: string): Promise<void> {
-    const m = this.memberships.find((m) => m.id === id);
-    if (m) m.status = 'removed';
+  async removeMember(condition: RemoveMembershipCondition): Promise<ProjectMembership> {
+    const m = this.memberships.find(
+      (m) =>
+        m.id === condition.membershipId &&
+        m.projectId === condition.projectId &&
+        m.userId === condition.userId &&
+        m.status === 'active' &&
+        m.role === 'collaborator',
+    );
+    if (!m) throw new Error('Membership not found');
+    m.status = 'removed';
+    m.updatedAt = condition.removedAt;
+    m.removedAt = condition.removedAt;
+    return { ...m };
   }
 
   async findByProject(projectId: string): Promise<ProjectMembership[]> {

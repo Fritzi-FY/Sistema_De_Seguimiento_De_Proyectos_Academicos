@@ -1,3 +1,10 @@
+import type { ClientConfig } from 'pg';
+import { SqlSession, sqlRequestScope } from '../postgresql/session.js';
+import {
+  PostgresqlProjectRepository,
+  PostgresqlMembershipRepository,
+  PostgresqlProjectCreationAdapter,
+} from '../postgresql/repositories.js';
 import { Hono } from 'hono';
 import type {
   SystemClockPort,
@@ -37,6 +44,8 @@ import { GetTaskActivityUseCase } from '../../application/use-cases/get-task-act
 import { createTaskActivityRouter } from './routes/task-activity.route.js';
 
 export interface AppOptions {
+  persistence?: { mode: 'memory' } | { mode: 'postgres'; connection: ClientConfig };
+  persistenceFromEnvironment?: boolean;
   clock?: SystemClockPort;
   projectRepository?: ProjectRepositoryPort;
   membershipRepository?: MembershipRepositoryPort;
@@ -80,14 +89,38 @@ export function createApp(options: AppOptions = {}) {
   const membershipMap = new Map<string, ProjectMembership>();
 
   // ── Repositorios individuales: reciben la misma referencia de Map ─────────────────────
-  const projectRepository = options.projectRepository ?? new InMemoryProjectRepository(projectMap);
+  if (
+    (options.persistence?.mode === 'postgres' || options.persistenceFromEnvironment) &&
+    (options.projectRepository || options.membershipRepository || options.projectCreationPort)
+  ) {
+    throw new Error('SQL persistence requires joint composition of all three ports');
+  }
+  function selectPort<T extends object>(memory: T, sql: T): T {
+    return new Proxy(memory, {
+      get(_target, property) {
+        const scope = sqlRequestScope.getStore();
+        if (scope === undefined) throw new Error('Persistence request scope required');
+        const target = scope ? sql : memory;
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+  }
+  const projectRepository = selectPort<ProjectRepositoryPort>(
+    options.projectRepository ?? new InMemoryProjectRepository(projectMap),
+    new PostgresqlProjectRepository(),
+  );
 
-  const membershipRepository =
-    options.membershipRepository ?? new InMemoryMembershipRepository(membershipMap);
+  const membershipRepository = selectPort<MembershipRepositoryPort>(
+    options.membershipRepository ?? new InMemoryMembershipRepository(membershipMap),
+    new PostgresqlMembershipRepository(),
+  );
 
   // ── Adaptador de creación coordinada: recibe las mismas referencias de Map ────────────
-  const projectCreationPort =
-    options.projectCreationPort ?? new InMemoryProjectCreationAdapter(projectMap, membershipMap);
+  const projectCreationPort = selectPort<ProjectCreationPort>(
+    options.projectCreationPort ?? new InMemoryProjectCreationAdapter(projectMap, membershipMap),
+    new PostgresqlProjectCreationAdapter(),
+  );
 
   // ── Dominio Kanban: UNA SOLA instancia compartida por app (Patrón B.2) ────────────────
   const kanbanStorage = options.kanbanStorage ?? new InMemoryKanbanProjectStorage();
@@ -101,6 +134,38 @@ export function createApp(options: AppOptions = {}) {
   const taskListPort = options.taskListPort ?? new InMemoryTaskListAdapter(kanbanStorage);
 
   const app = new Hono();
+  app.use('*', async (c, next) => {
+    const env = (c.env ?? {}) as {
+      PERSISTENCE_MODE?: string;
+      DATABASE_URL?: string;
+      HYPERDRIVE?: { connectionString: string };
+    };
+    const mode =
+      options.persistence?.mode ??
+      (options.persistenceFromEnvironment ? (env.PERSISTENCE_MODE ?? 'memory') : 'memory');
+    if (mode === 'memory') return sqlRequestScope.run(null, next);
+    if (mode !== 'postgres') throw new Error('Invalid persistence mode');
+    let connection: ClientConfig;
+    if (options.persistence?.mode === 'postgres') connection = options.persistence.connection;
+    else if (env.HYPERDRIVE?.connectionString)
+      connection = { connectionString: env.HYPERDRIVE.connectionString };
+    else {
+      if (!env.DATABASE_URL || !['development', 'test'].includes(nodeEnv ?? ''))
+        throw new Error('SQL configuration required');
+      const url = new URL(env.DATABASE_URL);
+      if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
+        throw new Error('Local SQL connection required');
+      connection = { connectionString: env.DATABASE_URL };
+    }
+    const session = new SqlSession(connection);
+    return sqlRequestScope.run(session, async () => {
+      try {
+        await next();
+      } finally {
+        if (!(await session.close())) c.header('X-Persistence-Close', 'unconfirmed');
+      }
+    });
+  });
 
   // Manejo de errores global: nunca divulga stack traces internos ni variables de entorno
   app.onError((_err, c) => {
@@ -121,7 +186,9 @@ export function createApp(options: AppOptions = {}) {
   // Montar enrutador de miembros bajo /api/projects
   app.route(
     '/api/projects',
-    createProjectMembersRouter(membershipRepository, projectRepository, clock, { nodeEnv }),
+    createProjectMembersRouter(membershipRepository, projectRepository, clock, {
+      nodeEnv,
+    }),
   );
 
   // Montar enrutador de tablero y columnas bajo /api/projects
@@ -176,4 +243,4 @@ export function createApp(options: AppOptions = {}) {
 /**
  * Instancia predeterminada de la aplicación Hono con dependencias de producción.
  */
-export const app = createApp();
+export const app = createApp({ persistenceFromEnvironment: true });

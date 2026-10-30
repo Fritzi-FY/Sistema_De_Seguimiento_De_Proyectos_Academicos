@@ -14,6 +14,7 @@ describe('ProjectMembersList Component', () => {
       userId: 'dev-student-01',
       role: 'owner',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-15T10:00:00.000Z',
       updatedAt: '2026-10-15T10:00:00.000Z',
     },
@@ -23,6 +24,7 @@ describe('ProjectMembersList Component', () => {
       userId: 'dev-student-02',
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-16T14:30:00.000Z',
       updatedAt: '2026-10-16T14:30:00.000Z',
     },
@@ -110,6 +112,6 @@ describe('ProjectMembersList Component', () => {
     expect(removeBtn).toBeInTheDocument();
 
     fireEvent.click(removeBtn);
-    expect(onRemoveMock).toHaveBeenCalledWith('dev-student-02');
+    expect(onRemoveMock).toHaveBeenCalledWith('dev-student-02', sampleMembers[1]!.id);
   });
 });

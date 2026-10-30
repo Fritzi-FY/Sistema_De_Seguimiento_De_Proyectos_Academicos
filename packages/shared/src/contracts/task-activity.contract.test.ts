@@ -23,6 +23,7 @@ describe('Activity list contract and identity boundary', () => {
         userId: 'dev-student-01',
         role: 'owner',
         status: 'active',
+        removedAt: null,
         joinedAt: stamp,
         updatedAt: stamp,
       }).success,

@@ -1,3 +1,5 @@
+> Estado D local (sesión 2026-10-26–27): D-P y D-S autorizados posteriormente por el usuario e implementados/verificados en el worktree existente, sin crear ramas, mover cambios ni Git de escritura. La evidencia de preparación y SQL local no acepta cloud ni cierra EPIC-002. Recursos/SQL remoto/E siguen pendientes. Los textos de C anteriores se conservan como historial de planificación.
+> Formalización C aprobada el 2026-10-26: los apartados R definen preparación y validación remota del producto. Se conserva el alcance experimental anterior como WIP histórico, sin autorización de ejecución ni aceptación R1–R7/H1/H2. SEC-01 se formaliza independientemente en ../teacher-project-scope-enforcement/. C no concede D, SQL, instalaciones, despliegue ni Git de escritura.
 ## Context
 
 Ver proposal.md para motivación. Base `9ce870e`: tres workspaces npm; casos de uso dependen de ProjectRepositoryPort, MembershipRepositoryPort y ProjectCreationPort. createApp comparte Maps para mantener visibilidad entre adaptadores; la creación coordina compensaciones sin ACID. No existen tablas de usuarios/cursos ni autenticación real. docs/04-data-model.md se aclara exclusivamente respecto a unicidad activa.
@@ -271,7 +273,7 @@ Secuencia y aceptación D1:
 
 ### Cambio independiente propuesto: teacher-project-scope-enforcement
 
-No se crea otro cambio OpenSpec formal ni rama de implementación en esta entrega. Propuesta para autorización posterior: aplicar Teacher scope a listados/detalle y consultas de revisión/reportes; docente fuera de ámbito no obtiene recursos ni metadatos; administrador conserva únicamente permisos explícitos. Casos mínimos: docente asignado, no asignado, sin asignaciones y admin; filtros en servidor y tests negativos HTTP. Decidir fuente de asignaciones (curso/proyecto), política exacta 403/404 y permisos administrativos antes de redactar diseño/delta definitivo; no inventar esas reglas aquí. Planificarlo prioritariamente y bloquear exposición de datos reales hasta su verificación.
+Nota histórica actualizada por C del 2026-10-26: se formaliza ../teacher-project-scope-enforcement/ sin crear rama; su política aprobada consta en sus cuatro artefactos. Implementación pendiente. Contexto histórico: aplicar Teacher scope a listados/detalle y consultas de revisión/reportes; docente fuera de ámbito no obtiene recursos ni metadatos; administrador conserva únicamente permisos explícitos. Casos mínimos: docente asignado, no asignado, sin asignaciones y admin; filtros en servidor y tests negativos HTTP. Decidir fuente de asignaciones (curso/proyecto), política exacta 403/404 y permisos administrativos antes de redactar diseño/delta definitivo; no inventar esas reglas aquí. Planificarlo prioritariamente y bloquear exposición de datos reales hasta su verificación.
 
 ## Migration Plan
 
@@ -291,3 +293,19 @@ No se crea otro cambio OpenSpec formal ni rama de implementación en esta entreg
 - Entorno disponible, credenciales de prueba, presupuesto y permisos para evidencia real Hyperdrive; no crear recursos por inferencia.
 - Aprobación independiente de teacher-project-scope-enforcement con reglas de asignación; no bloquea redactar persistencia, sí exposición de datos reales.
 - `removedAt`, retiro condicional por `membershipId`, 404 del segundo retiro y aclaración de COMMIT incierto están decididos en Nivel C; materializarlos exige Nivel D. Cualquier ajuste adicional de identidad, permisos o contratos vuelve a revisión.
+
+## Incremento local de producto — 2026-10-26
+
+Los tres puertos SQL se componen conjuntamente. AsyncLocalStorage de infraestructura conserva una sesión perezosa por petición, cerrada al finalizar; no se crean aplicaciones ni storages Kanban por petición. El contexto memory es explícito y no hereda sesiones SQL de otras peticiones. Configuración ausente o inválida en postgres falla sin fallback.
+
+Selección: `PERSISTENCE_MODE=memory` es el predeterminado; `postgres` exige conexión explícita. En desarrollo/test se admite DATABASE_URL solo hacia localhost; el binding HYPERDRIVE queda preparado pero no configurado ni probado remotamente. No hay migración automática de Maps ni de bases existentes. Cambiar de modo exige reinicio; el contenido Kanban se pierde al reiniciar.
+
+Dependencias del producto: pg 8.23.1 y @types/pg 8.23.1 (desarrollo), fijadas en el manifiesto API y lockfile raíz. Se usa SQL parametrizado sin adoptar Drizzle ni importar spikes. Cloudflare documenta pg >=8.16.3 y AsyncLocalStorage bajo nodejs_compat: [pg](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/), [AsyncLocalStorage](https://developers.cloudflare.com/workers/runtime-apis/nodejs/asynclocalstorage/). Compatibilidad remota Workers/Hyperdrive pendiente.
+
+La creación usa BEGIN, ambas inserciones y COMMIT en una sola conexión. `PersistenceTransactionError.outcome` distingue `rolled_back` confirmado de `unknown`. COMMIT sin confirmación no provoca ROLLBACK, retry ni compensación SQL. Un cierre fallido no cambia un COMMIT confirmado; se comunica por separado mediante X-Persistence-Close: unconfirmed. Conexión 5 s, sentencia 5 s, lock 2 s, transacción 10 s (transaction_timeout exige PostgreSQL 17+; probado en 18.6), espera del driver 6 s y cierre acotado a 1 s. Un timeout de espera/cierre no demuestra cancelación remota.
+
+DELETE exige membershipId UUID en query y conserva projectId/userId de ruta. El UPDATE exige identidad completa, active y collaborator, devuelve la fila persistida y cero filas significa 404. removedAt obligatorio nullable es null al alta e igual a updatedAt al retiro. Un único timestamp del reloj por operación. La petición antigua no afecta una reincorporación. Maps, casos de uso, HTTP/OpenAPI y frontend comparten este contrato.
+
+Esquema inicial de producto: apps/api/src/infrastructure/postgresql/schema.sql, independiente de los spikes. No se ejecuta automáticamente ni contra bases existentes. La prueba crea una base y rol nuevos en cluster exclusivo localhost:55489, verifica su data_directory y limpia únicamente esos recursos. Rol runtime sin DDL, DELETE ni privilegios de administración. Los índices parciales conservan historia y restringen par activo/owner. No se ha implementado un migrador de producción/ledger ni se ha aceptado persistencia remota.
+
+Pruebas SQL reales separadas de simulaciones de transporte/sesión; ninguna certifica Neon, TLS o Hyperdrive. Se conservan SEC-01, R1–R7, H1/H2 y los spikes WIP.

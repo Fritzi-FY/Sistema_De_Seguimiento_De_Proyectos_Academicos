@@ -53,6 +53,7 @@ export class AddMemberUseCase {
         userId: command.userId,
         role: 'collaborator',
         status: 'active',
+        removedAt: null,
         joinedAt: now,
         updatedAt: now,
       });

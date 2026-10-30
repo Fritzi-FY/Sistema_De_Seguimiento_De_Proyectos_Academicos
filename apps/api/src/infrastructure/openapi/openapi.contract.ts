@@ -421,6 +421,12 @@ export const openApiSpec = {
         operationId: 'removeProjectMember',
         parameters: [
           {
+            name: 'membershipId',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+          {
             name: 'projectId',
             in: 'path',
             required: true,
@@ -436,6 +442,7 @@ export const openApiSpec = {
           },
         ],
         responses: {
+          '400': { description: 'membershipId UUID requerido o inv?lido.' },
           '200': {
             description:
               'Colaborador retirado exitosamente. Retorna la membresía actualizada con status "removed".',
@@ -1304,10 +1311,20 @@ export const openApiSpec = {
           userId: { type: 'string', minLength: 1 },
           role: { type: 'string', enum: ['owner', 'collaborator'] },
           status: { type: 'string', enum: ['active', 'removed'] },
+          removedAt: { type: ['string', 'null'], format: 'date-time' },
           joinedAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
         },
-        required: ['id', 'projectId', 'userId', 'role', 'status', 'joinedAt', 'updatedAt'],
+        required: [
+          'id',
+          'projectId',
+          'userId',
+          'role',
+          'status',
+          'joinedAt',
+          'updatedAt',
+          'removedAt',
+        ],
       },
       MemberListResponse: {
         type: 'array',

@@ -59,6 +59,7 @@ const member: MembershipResponse = {
   projectId: id,
   role: 'collaborator',
   status: 'active',
+  removedAt: null,
   joinedAt: stamp,
   updatedAt: stamp,
 };

@@ -1,3 +1,4 @@
+import type { RemoveMembershipCondition } from '@is488/shared';
 import { describe, it, expect, beforeEach } from 'vitest';
 import type {
   Project,
@@ -5,7 +6,7 @@ import type {
   ProjectRepositoryPort,
   MembershipRepositoryPort,
 } from '@is488/shared';
-import { DuplicateMembershipError, MembershipNotFoundError } from '@is488/shared';
+import { DuplicateMembershipError } from '@is488/shared';
 import { ListMembersUseCase } from './list-members.use-case.js';
 
 const NOW = '2026-10-12T12:00:00.000Z';
@@ -32,6 +33,7 @@ const ownerMembership: ProjectMembership = {
   userId: CREATOR_ID,
   role: 'owner',
   status: 'active',
+  removedAt: null,
   joinedAt: NOW,
   updatedAt: NOW,
 };
@@ -42,6 +44,7 @@ const collaboratorMembership: ProjectMembership = {
   userId: COLLABORATOR_ID,
   role: 'collaborator',
   status: 'active',
+  removedAt: null,
   joinedAt: NOW,
   updatedAt: NOW,
 };
@@ -81,10 +84,20 @@ class FakeMembershipRepo implements MembershipRepositoryPort {
     return { ...membership };
   }
 
-  async removeMember(id: string): Promise<void> {
-    const m = this.memberships.find((m) => m.id === id);
-    if (!m) throw new MembershipNotFoundError(id);
+  async removeMember(condition: RemoveMembershipCondition): Promise<ProjectMembership> {
+    const m = this.memberships.find(
+      (m) =>
+        m.id === condition.membershipId &&
+        m.projectId === condition.projectId &&
+        m.userId === condition.userId &&
+        m.status === 'active' &&
+        m.role === 'collaborator',
+    );
+    if (!m) throw new Error('Membership not found');
     m.status = 'removed';
+    m.updatedAt = condition.removedAt;
+    m.removedAt = condition.removedAt;
+    return { ...m };
   }
 
   async findByProject(projectId: string): Promise<ProjectMembership[]> {

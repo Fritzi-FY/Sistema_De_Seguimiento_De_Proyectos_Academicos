@@ -5,7 +5,7 @@ import type {
   MembershipRepositoryPort,
   SystemClockPort,
 } from '@is488/shared';
-import { AddMemberRequestSchema } from '@is488/shared';
+import { AddMemberRequestSchema, RemoveMemberQuerySchema } from '@is488/shared';
 import { AddMemberUseCase } from '../../../application/use-cases/add-member.use-case.js';
 import { RemoveMemberUseCase } from '../../../application/use-cases/remove-member.use-case.js';
 import { ListMembersUseCase } from '../../../application/use-cases/list-members.use-case.js';
@@ -91,6 +91,9 @@ export function createProjectMembersRouter(
   router.delete('/:projectId/members/:userId', async (c) => {
     const projectId = c.req.param('projectId');
     const targetUserId = c.req.param('userId');
+    const query = RemoveMemberQuerySchema.safeParse(c.req.query());
+    if (!query.success)
+      return c.json({ error: 'Bad Request', message: 'membershipId UUID requerido' }, 400);
     const user = c.get('user');
 
     try {
@@ -98,6 +101,7 @@ export function createProjectMembersRouter(
         projectId,
         requesterId: user.userId,
         targetUserId,
+        membershipId: query.data.membershipId,
       });
       return c.json(membership, 200);
     } catch (err) {

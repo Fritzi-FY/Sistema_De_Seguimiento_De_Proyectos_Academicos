@@ -25,6 +25,7 @@ export interface ProjectMembership {
   joinedAt: string;
   /** Marca de tiempo ISO-8601 UTC de la última actualización de estado. */
   updatedAt: string;
+  removedAt: string | null;
 }
 
 /**
@@ -70,7 +71,7 @@ export interface MembershipRepositoryPort {
    * Cambia el estado de una membresía a 'removed'.
    * @throws {MembershipNotFoundError} Si la membresía no existe en el almacén.
    */
-  removeMember(membershipId: string): Promise<void>;
+  removeMember(condition: RemoveMembershipCondition): Promise<ProjectMembership>;
 
   /**
    * Retorna la lista de membresías activas (status === 'active') del proyecto especificado.
@@ -88,4 +89,11 @@ export interface MembershipRepositoryPort {
    * Retorna la membresía activa para el par (projectId, userId), o null si no existe.
    */
   findByProjectAndUser(projectId: string, userId: string): Promise<ProjectMembership | null>;
+}
+
+export interface RemoveMembershipCondition {
+  membershipId: string;
+  projectId: string;
+  userId: string;
+  removedAt: string;
 }

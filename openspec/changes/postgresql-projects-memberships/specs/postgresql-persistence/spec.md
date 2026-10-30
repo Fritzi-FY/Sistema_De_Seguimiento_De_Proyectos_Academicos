@@ -414,3 +414,25 @@ H1/H2 SHALL be traced from requirements through implementation and specific test
 - **WHEN** the current phase ends
 - **THEN** the agent SHALL stop before code, evidence-file creation, SQL or cloud operations and request independent D with concrete files and resolved contract/dependency decisions
 - **AND** local integration, remote migration, deployment and resource operations SHALL retain their separate scoped authorizations
+
+### Requirement: Incremento local mantiene composición y contratos de retiro
+
+El producto SHALL permitir selección explícita memory/postgres, con memory predeterminado y los tres puertos SQL compuestos conjuntamente sin fallback. Kanban SHALL conservar un storage volátil compartido por aplicación.
+
+#### Scenario: Retiro obsoleto tras reincorporación
+
+- **GIVEN** una membresía retirada y otra nueva activa para el mismo usuario/proyecto
+- **WHEN** llega DELETE con membershipId anterior
+- **THEN** responde 404 sin modificar la membresía nueva
+
+#### Scenario: Timestamp único y respuesta confirmada
+
+- **GIVEN** un colaborador activo identificado por membershipId, projectId y userId
+- **WHEN** se retira por esa identidad completa
+- **THEN** removedAt y updatedAt coinciden con el único timestamp de la operación y la respuesta proviene de la fila persistida
+
+#### Scenario: COMMIT sin confirmación
+
+- **GIVEN** ambas inserciones despachadas en una transacción
+- **WHEN** COMMIT no recibe confirmación
+- **THEN** se distingue resultado incierto de rollback confirmado sin éxito, retry ni compensación SQL

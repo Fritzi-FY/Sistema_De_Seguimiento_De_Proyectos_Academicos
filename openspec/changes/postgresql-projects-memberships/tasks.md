@@ -1,3 +1,5 @@
+> Estado D local (sesión 2026-10-26–27): D-P y D-S autorizados posteriormente por el usuario e implementados/verificados en el worktree existente, sin crear ramas, mover cambios ni Git de escritura. La evidencia de preparación y SQL local no acepta cloud ni cierra EPIC-002. Recursos/SQL remoto/E siguen pendientes. Los textos de C anteriores se conservan como historial de planificación.
+> Formalización C aprobada el 2026-10-26: los apartados R definen preparación y validación remota del producto. Se conserva el alcance experimental anterior como WIP histórico, sin autorización de ejecución ni aceptación R1–R7/H1/H2. SEC-01 se formaliza independientemente en ../teacher-project-scope-enforcement/. C no concede D, SQL, instalaciones, despliegue ni Git de escritura.
 ## 1. Autorizaciones y spike obligatorio
 
 Las tareas de implementación y ejecución remota siguen pendientes. Evidencia local previa: `spikes/postgresql-projects-memberships/README.md` registra 11 pruebas SQL y 1 Worker aprobadas; no repetir ese spike ni atribuirle validación cloud. Esta actualización Nivel C del 2026-10-15 no marca tareas de implementación como completadas. No instalar dependencias, escribir código ni configurar servicios durante C. La autorización local previa no concede D remoto; C, D, permisos de recursos y E son independientes.
@@ -66,3 +68,15 @@ Las tareas H1/H2 no autorizan cambios en 001-is488-spike.sql, migration.json, mi
 - [ ] 5.4 Ejecutar openspec validate postgresql-projects-memberships --strict y openspec validate --all --strict; revisar trazabilidad de cada escenario a pruebas reales antes de marcar tareas.
 - [ ] 5.5 Documentar SEC-01 y solicitar autorización para formalizar teacher-project-scope-enforcement con fuente de asignaciones y política de denegación acordadas; impedir exposición de datos reales mientras ese riesgo siga abierto.
 - [ ] 5.6 Preparar PR según docs/08-git-and-openspec-workflow.md y verificar CI. Sincronizar/archivar specs solo tras implementación verificada y autorización aplicable; aprobación, integración y despliegue requieren Nivel E. Esta planificación no autoriza commit, push ni PR.
+
+## L. Incremento local de producto autorizado (2026-10-26)
+
+Estas tareas son independientes de la aceptación remota de spikes. El usuario concedió Nivel D, las dos dependencias mínimas y recursos de pruebas exclusivos en localhost. Ningún resultado histórico completa estas tareas.
+
+- [x] L.1 Actualizar y validar los cuatro artefactos; confirmar rama, dependencias y PostgreSQL local.
+- [x] L.2 Implementar removedAt y retiro condicionado por membershipId en puertos, Maps, casos de uso, HTTP/OpenAPI y frontend; probar timestamp único y reincorporación.
+- [x] L.3 Implementar esquema completo y tres adaptadores SQL, transacción única, estados de confirmación y composición explícita sin fallback; conservar Kanban compartido.
+- [x] L.4 Probar SQL real: atomicidad, concurrencia, aislamiento, restricciones, retiro antiguo y revocación Kanban; distinguir simulaciones.
+- [x] L.5 Verificar pruebas afectadas, typecheck, lint, formato, contratos OpenAPI y builds; registrar resultados y límites sin aceptar spikes ni cerrar SEC-01.
+
+Evidencia del incremento local: [guía e informe](../../../docs/epic-002-postgresql-local.md). 358 pruebas afectadas aprobadas, incluyendo SQL real exclusivo en localhost y simulaciones identificadas por separado. Builds y tipos aprobados; no completa las tareas remotas/históricas anteriores ni cierra el EPIC.

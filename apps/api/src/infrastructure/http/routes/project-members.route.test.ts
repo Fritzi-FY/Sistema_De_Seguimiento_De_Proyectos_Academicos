@@ -47,6 +47,13 @@ const OTHER_USER = 'other-user-01';
 describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/members)', () => {
   let testApp: ReturnType<typeof createApp>;
   let projectId: string;
+  async function membershipId(userId: string) {
+    const res = await testApp.request(`/api/projects/${projectId}/members`, {
+      headers: { 'X-Dev-User-Id': CREATOR_ID },
+    });
+    const rows = (await res.json()) as ProjectMembership[];
+    return rows.find((m) => m.userId === userId)?.id ?? '99999999-9999-4999-8999-999999999999';
+  }
 
   beforeEach(async () => {
     const { app } = createTestApp();
@@ -162,10 +169,13 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('éxito 200: retira al colaborador y responde con la membresía actualizada (status removed)', async () => {
-      const res = await testApp.request(`/api/projects/${projectId}/members/${COLLABORATOR_ID}`, {
-        method: 'DELETE',
-        headers: { 'X-Dev-User-Id': CREATOR_ID },
-      });
+      const res = await testApp.request(
+        `/api/projects/${projectId}/members/${COLLABORATOR_ID}?membershipId=${await membershipId(COLLABORATOR_ID)}`,
+        {
+          method: 'DELETE',
+          headers: { 'X-Dev-User-Id': CREATOR_ID },
+        },
+      );
 
       expect(res.status).toBe(200);
       const json = (await res.json()) as { status: string; userId: string };
@@ -174,10 +184,13 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('422: intento de retirar al propietario del proyecto', async () => {
-      const res = await testApp.request(`/api/projects/${projectId}/members/${CREATOR_ID}`, {
-        method: 'DELETE',
-        headers: { 'X-Dev-User-Id': CREATOR_ID },
-      });
+      const res = await testApp.request(
+        `/api/projects/${projectId}/members/${CREATOR_ID}?membershipId=${await membershipId(CREATOR_ID)}`,
+        {
+          method: 'DELETE',
+          headers: { 'X-Dev-User-Id': CREATOR_ID },
+        },
+      );
 
       expect(res.status).toBe(422);
       const json = (await res.json()) as { error: string };
@@ -185,17 +198,20 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('403: solicitante no es el creador del proyecto', async () => {
-      const res = await testApp.request(`/api/projects/${projectId}/members/${COLLABORATOR_ID}`, {
-        method: 'DELETE',
-        headers: { 'X-Dev-User-Id': OTHER_USER },
-      });
+      const res = await testApp.request(
+        `/api/projects/${projectId}/members/${COLLABORATOR_ID}?membershipId=${await membershipId(COLLABORATOR_ID)}`,
+        {
+          method: 'DELETE',
+          headers: { 'X-Dev-User-Id': OTHER_USER },
+        },
+      );
 
       expect(res.status).toBe(403);
     });
 
     it('404: proyecto inexistente', async () => {
       const res = await testApp.request(
-        '/api/projects/99999999-9999-4999-8999-999999999999/members/some-user',
+        '/api/projects/99999999-9999-4999-8999-999999999999/members/some-user?membershipId=99999999-9999-4999-8999-999999999999',
         {
           method: 'DELETE',
           headers: { 'X-Dev-User-Id': CREATOR_ID },
@@ -206,18 +222,24 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('404: usuario sin membresía activa en el proyecto', async () => {
-      const res = await testApp.request(`/api/projects/${projectId}/members/user-sin-membresia`, {
-        method: 'DELETE',
-        headers: { 'X-Dev-User-Id': CREATOR_ID },
-      });
+      const res = await testApp.request(
+        `/api/projects/${projectId}/members/user-sin-membresia?membershipId=99999999-9999-4999-8999-999999999999`,
+        {
+          method: 'DELETE',
+          headers: { 'X-Dev-User-Id': CREATOR_ID },
+        },
+      );
 
       expect(res.status).toBe(404);
     });
 
     it('401: sin cabecera de autenticación', async () => {
-      const res = await testApp.request(`/api/projects/${projectId}/members/${COLLABORATOR_ID}`, {
-        method: 'DELETE',
-      });
+      const res = await testApp.request(
+        `/api/projects/${projectId}/members/${COLLABORATOR_ID}?membershipId=${await membershipId(COLLABORATOR_ID)}`,
+        {
+          method: 'DELETE',
+        },
+      );
 
       expect(res.status).toBe(401);
     });
@@ -281,11 +303,14 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
     });
 
     it('POST en /:id/members/:userId retorna 405 con Allow: DELETE', async () => {
-      const res = await testApp.request(`/api/projects/${projectId}/members/${COLLABORATOR_ID}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Dev-User-Id': CREATOR_ID },
-        body: '{}',
-      });
+      const res = await testApp.request(
+        `/api/projects/${projectId}/members/${COLLABORATOR_ID}?membershipId=${await membershipId(COLLABORATOR_ID)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Dev-User-Id': CREATOR_ID },
+          body: '{}',
+        },
+      );
       expect(res.status).toBe(405);
       expect(res.headers.get('Allow')).toBe('DELETE');
     });
@@ -303,7 +328,7 @@ describe('Pruebas de integración HTTP — Membresías (/api/projects/:id/member
 
       // 2. DELETE: retirar collaborador → 200
       const deleteRes = await testApp.request(
-        `/api/projects/${projectId}/members/${COLLABORATOR_ID}`,
+        `/api/projects/${projectId}/members/${COLLABORATOR_ID}?membershipId=${await membershipId(COLLABORATOR_ID)}`,
         {
           method: 'DELETE',
           headers: { 'X-Dev-User-Id': CREATOR_ID },

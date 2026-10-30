@@ -7,7 +7,7 @@ export interface ProjectMembersListProps {
   loading: boolean;
   error?: string | null;
   isCreator: boolean;
-  onRemoveMember?: (userId: string) => Promise<void>;
+  onRemoveMember?: (userId: string, membershipId: string) => Promise<void>;
   removingUserId?: string | null;
   onRetry?: () => void;
 }
@@ -143,7 +143,7 @@ export const ProjectMembersList: React.FC<ProjectMembersListProps> = ({
                 {isCreator && !isOwner && onRemoveMember && (
                   <button
                     type="button"
-                    onClick={() => void onRemoveMember(member.userId)}
+                    onClick={() => void onRemoveMember(member.userId, member.id)}
                     disabled={isRemoving}
                     data-testid={`remove-member-btn-${member.userId}`}
                     className="inline-flex items-center rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-50"

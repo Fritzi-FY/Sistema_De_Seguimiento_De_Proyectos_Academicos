@@ -102,6 +102,7 @@ describe('MoveTaskUseCase', () => {
       userId: creatorId,
       role: 'owner',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-01T00:00:00.000Z',
       updatedAt: '2026-10-01T00:00:00.000Z',
     });
@@ -110,6 +111,7 @@ describe('MoveTaskUseCase', () => {
       userId: memberId,
       role: 'collaborator',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-01T00:00:00.000Z',
       updatedAt: '2026-10-01T00:00:00.000Z',
     });
@@ -139,6 +141,7 @@ describe('MoveTaskUseCase', () => {
       userId: otherCreatorId,
       role: 'owner',
       status: 'active',
+      removedAt: null,
       joinedAt: '2026-10-01T00:00:00.000Z',
       updatedAt: '2026-10-01T00:00:00.000Z',
     });

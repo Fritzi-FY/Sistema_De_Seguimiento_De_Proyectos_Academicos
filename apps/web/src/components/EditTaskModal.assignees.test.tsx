@@ -26,6 +26,7 @@ const member = (userId: string, changes: Partial<MembershipResponse> = {}): Memb
   projectId: id,
   role: 'collaborator',
   status: 'active',
+  removedAt: changes.status === 'removed' ? stamp : null,
   joinedAt: stamp,
   updatedAt: stamp,
   ...changes,
