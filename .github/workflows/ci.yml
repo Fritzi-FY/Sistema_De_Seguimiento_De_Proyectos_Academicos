@@ -81,7 +81,7 @@ jobs:
       NODE_OPTIONS: --experimental-transform-types
     steps:
       - name: Install checkout tools in the ephemeral container
-        run: apt-get update && apt-get install -y --no-install-recommends git
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Node.js
