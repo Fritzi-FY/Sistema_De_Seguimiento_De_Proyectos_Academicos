@@ -57,7 +57,7 @@ Las tareas H1/H2 no autorizan cambios en 001-is488-spike.sql, migration.json, mi
 - [ ] 4.1 Actualizar validación HTTP/OpenAPI y consumidores existentes del retiro: DELETE mantiene ruta por usuario y exige query membershipId UUID; respuesta de membresía añade removedAt nullable. Ejecutar pruebas unitarias de esquema y de contrato/integración HTTP contra PostgreSQL: crear, listar/detalle, membresías, 400/401/403/404/409/422 y protección del owner. Verificar 400 por membershipId ausente/inválido sin escritura, 404 por ID antiguo/ajeno y segundo retiro, y 200 con removedAt persistido; ningún consumidor debe retirar solo por userId. IDs de proyecto malformados deben conservar comportamiento HTTP sin filtrar errores SQL.
 - [ ] 4.2 Ejecutar aislamiento P1/P2/P3 para owner/collaborator y no miembro, más lectura desde otra instancia y reinicio de aplicación; verificar datos y timestamps originales.
 - [ ] 4.3 Ejecutar alta/lectura inmediata y retiro/denegación inmediata para usuario sin otros permisos desde otra conexión mediante Hyperdrive sin caché; verificar no-store HTTP y ausencia de divulgación de credenciales ante errores. No interpretar la retirada de membresía como revocación de permisos independientes ni como corrección de SEC-01.
-- [ ] 4.4 Incorporar PostgreSQL efímero en CI, dataset sintético por ejecución y limpieza confinada; probar que la suite no apunta a datos reales ni requiere secretos externos para integración ordinaria.
+- [x] 4.4 Incorporar PostgreSQL efímero en CI, dataset sintético por ejecución y limpieza confinada; probar que la suite no apunta a datos reales ni requiere secretos externos para integración ordinaria.
 - [ ] 4.5 Ejecutar E2E crítico crear/agregar/recargar/retirar con membershipId/revocar acceso de colaborador sin otros permisos. Registrar resultados sin afirmar que el riesgo SEC-01 docente está corregido; su implementación corresponde al cambio independiente.
 
 ## 5. Recuperación y cierre futuro
@@ -112,3 +112,7 @@ Formalización: cuatro artefactos actualizados; el resultado de CLI se entrega d
 
 ## Correcci?n TLS Neon acotada autorizada, 2026-10-27
 - [x] Inspeccionar socket TLS real antes de SQL y limitar el perfil de proxy al destino autorizado; conservar guardas gen?ricas. Cinco pruebas afectadas y typecheck acotado aprobados. Los handshakes reales con hostname incorrecto y CA no confiable fueron rechazados sin SQL; ausencia de TLS verificada en prueba unitaria. El canal externo positivo negoci? TLS 1.3 con cadena autorizada y hostname v?lido. pg_stat_ssl=false se conserva como observaci?n del backend. Acumulado dos sentencias SQL, cero mutaciones; R.8?R.12 permanecen pendientes.
+
+## Evidencia CI SQL, 2026-10-30
+
+La tarea 4.4 se verificó en [CI Baseline #18](https://github.com/Fritzi-FY/Sistema_De_Seguimiento_De_Proyectos_Academicos/actions/runs/41132590916), commit `eec3a38`: PostgreSQL 18 efímero dentro del job, conexión loopback y marca de ejecución, autenticación por contraseña, roles limitados y migraciones 0001–0004. Los 25 casos antes omitidos y una prueba unitaria adicional pasaron (26/26, cero omisiones); se comprobó preservación del dataset inicial y detención/eliminación del contenedor. El job general conserva las guardas opt-in y sus 25 omisiones se cubren en el job SQL obligatorio. Esto no completa E2E, recuperación ni aceptación remota.
