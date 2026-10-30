@@ -86,9 +86,9 @@ jobs:
       IS488_CI_SQL: '1'
       IS488_CI_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
       IS488_CI_ADMIN_PASSWORD: ci-only-${{ github.run_id }}-${{ github.run_attempt }}
-      IS488_CI_EVIDENCE: ${{ runner.temp }}/is488-sql-ci
-      IS488_MIGRATION_TEST_EVIDENCE: ${{ runner.temp }}/is488-sql-ci
-      IS488_SCOPE_EVIDENCE: ${{ runner.temp }}/is488-sql-ci
+      IS488_CI_EVIDENCE: /tmp/is488-sql-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      IS488_MIGRATION_TEST_EVIDENCE: /tmp/is488-sql-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      IS488_SCOPE_EVIDENCE: /tmp/is488-sql-ci-${{ github.run_id }}-${{ github.run_attempt }}
       IS488_SQL_TEST: '1'
       IS488_KANBAN_SQL_TEST: '1'
       IS488_TEACHER_SQL_TEST: '1'
