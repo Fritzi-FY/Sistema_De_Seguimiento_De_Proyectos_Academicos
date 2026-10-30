@@ -88,7 +88,7 @@ it.skipIf(process.env.IS488_TEACHER_SQL_TEST !== '1')(
           env: {
             ...process.env,
             IS488_MIGRATION_HOST: '127.0.0.1',
-            IS488_MIGRATION_PORT: '55490',
+            IS488_MIGRATION_PORT: String(base.port),
             IS488_MIGRATION_DATABASE: db,
             IS488_MIGRATION_USER: m,
             IS488_MIGRATION_PASSWORD: ci?.rolePassword ?? '',

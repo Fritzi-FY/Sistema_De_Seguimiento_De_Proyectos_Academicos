@@ -66,22 +66,7 @@ jobs:
     name: PostgreSQL ephemeral integration (25 SQL cases)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: is488_ci_admin
-          POSTGRES_PASSWORD: ci-only-${{ github.run_id }}-${{ github.run_attempt }}
-          POSTGRES_DB: postgres
-          PGDATA: /var/lib/postgresql/18/ci
-        ports:
-          - 55489:5432
-          - 55490:5432
-        options: >-
-          --health-cmd "pg_isready -U is488_ci_admin -d postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
+    container: postgres:18
     env:
       IS488_CI_SQL: '1'
       IS488_CI_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
@@ -95,6 +80,8 @@ jobs:
       IS488_MIGRATOR_TEST: '1'
       NODE_OPTIONS: --experimental-transform-types
     steps:
+      - name: Install checkout tools in the ephemeral container
+        run: apt-get update && apt-get install -y --no-install-recommends git
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Node.js
@@ -107,7 +94,20 @@ jobs:
       - name: Generate credentials exclusive to this CI service
         run: |
           node --input-type=module -e "import { randomBytes } from 'node:crypto'; import { appendFileSync } from 'node:fs'; const password = randomBytes(32).toString('hex'); console.log('::add-mask::' + password); appendFileSync(process.env.GITHUB_ENV, 'IS488_CI_ROLE_PASSWORD=' + password + '\n');"
+      - name: Start fresh PostgreSQL on loopback with password authentication
+        shell: bash
+        run: |
+          install -d -o postgres -g postgres /var/lib/postgresql/18/ci
+          gosu postgres bash -c 'initdb -D /var/lib/postgresql/18/ci -U is488_ci_admin --auth-host=scram-sha-256 --auth-local=peer --pwfile=<(printf "%s\n" "$IS488_CI_ADMIN_PASSWORD")'
+          gosu postgres pg_ctl -D /var/lib/postgresql/18/ci -l /tmp/is488-postgresql.log -o "-h 127.0.0.1 -p 5432" -w start
       - name: Verify fresh service and prepare migrated synthetic fixtures
         run: node apps/api/testing/prepare-sql-ci.ts
       - name: Run all SQL cases and reject omissions
         run: node scripts/run-sql-ci.mjs
+      - name: Stop only the ephemeral PostgreSQL service
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /var/lib/postgresql/18/ci/postmaster.pid ]; then
+            gosu postgres pg_ctl -D /var/lib/postgresql/18/ci -m fast -t 30 -w stop
+          fi

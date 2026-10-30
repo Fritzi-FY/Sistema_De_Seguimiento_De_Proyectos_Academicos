@@ -37,7 +37,7 @@ import {
 
 const enabled = process.env.IS488_SQL_TEST === '1';
 const ci = ciSqlProfile();
-const base: ClientConfig = ciAdminConnection(55489) ?? {
+const base: ClientConfig = ciAdminConnection() ?? {
   host: '127.0.0.1',
   port: 55489,
   user: 'is488_test_admin',
@@ -132,7 +132,7 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
         env: {
           ...process.env,
           IS488_MIGRATION_HOST: '127.0.0.1',
-          IS488_MIGRATION_PORT: '55489',
+          IS488_MIGRATION_PORT: String(base.port),
           IS488_MIGRATION_DATABASE: database,
           IS488_MIGRATION_USER: migrationRole,
           IS488_MIGRATION_PASSWORD: ci?.rolePassword ?? '',
@@ -469,7 +469,7 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     const sockets = new Set<Socket>();
     let commits = 0;
     const proxy = createServer((downstream) => {
-      const upstream = connect({ host: '127.0.0.1', port: 55489 });
+      const upstream = connect({ host: '127.0.0.1', port: base.port });
       sockets.add(downstream);
       sockets.add(upstream);
       let armed = false;

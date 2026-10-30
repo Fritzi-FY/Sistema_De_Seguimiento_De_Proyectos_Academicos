@@ -27,7 +27,7 @@ const enabled = process.env.IS488_KANBAN_SQL_TEST === '1';
 const ci = ciSqlProfile();
 const config: ClientConfig = {
   host: '127.0.0.1',
-  port: 55490,
+  port: ci ? 5432 : 55490,
   database: ci?.database ?? 'is488_dev',
   user: ci?.runtime ?? 'is488_dev_runtime',
   password: ci?.rolePassword,
@@ -547,7 +547,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => 
         dropped = false,
         commands = Buffer.alloc(0);
       const proxy = createServer((peer) => {
-        const backend = connect({ host: '127.0.0.1', port: 55490 });
+        const backend = connect({ host: '127.0.0.1', port: config.port });
         sockets.add(peer);
         sockets.add(backend);
         peer.on('data', (b) => {

@@ -8,7 +8,7 @@ export function ciSqlProfile() {
   const run = process.env.IS488_CI_RUN ?? '';
   assert.match(run, /^\d+-\d+$/);
   const rolePassword = process.env.IS488_CI_ROLE_PASSWORD ?? '';
-  assert.match(rolePassword, /^[a-f0-9]{64}$/);
+  assert.ok(/^[a-f0-9]{64}$/.test(rolePassword), 'Invalid CI role credential format');
   const adminPassword = process.env.IS488_CI_ADMIN_PASSWORD;
   assert.ok(adminPassword);
   return {
@@ -23,12 +23,12 @@ export function ciSqlProfile() {
   };
 }
 
-export function ciAdminConnection(port = 55490): ClientConfig | undefined {
+export function ciAdminConnection(): ClientConfig | undefined {
   const ci = ciSqlProfile();
   return (
     ci && {
       host: '127.0.0.1',
-      port,
+      port: 5432,
       user: ci.admin,
       database: 'postgres',
       password: ci.adminPassword,
@@ -56,7 +56,7 @@ export async function assertCiSqlTarget(client: Client, requireMarker = true) {
   assert.equal(row.directory, ci.directory);
   assert.ok(row.version >= 180000 && row.version < 190000);
   assert.equal(row.port, 5432);
-  assert.ok(row.address && !['0.0.0.0', '::'].includes(row.address));
+  assert.equal(row.address, '127.0.0.1');
   if (requireMarker) assert.equal(row.marker, 'is488-ci:' + ci.run);
   else assert.equal(row.marker, null, 'Service must be fresh for this job');
 }

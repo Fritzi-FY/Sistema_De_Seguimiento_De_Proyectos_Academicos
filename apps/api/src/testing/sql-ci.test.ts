@@ -36,7 +36,7 @@ describe('CI SQL target guard (simulated, no database)', () => {
       directory: '/var/lib/postgresql/18/ci',
       version: 180000,
       port: 5432,
-      address: '172.18.0.2',
+      address: '127.0.0.1',
       marker: 'is488-ci:123-1',
     };
     const client = (overrides = {}) =>
@@ -48,6 +48,7 @@ describe('CI SQL target guard (simulated, no database)', () => {
       { version: 170000 },
       { port: 55490 },
       { address: '0.0.0.0' },
+      { address: '172.18.0.2' },
       { marker: 'is488-ci:122-1' },
     ])
       await expect(assertCiSqlTarget(client(invalid))).rejects.toThrow();
@@ -55,7 +56,7 @@ describe('CI SQL target guard (simulated, no database)', () => {
     await expect(assertCiSqlTarget(client({ marker: null }), false)).resolves.toBeUndefined();
     expect(ciAdminConnection()).toMatchObject({
       host: '127.0.0.1',
-      port: 55490,
+      port: 5432,
       user: 'is488_ci_admin',
     });
   });
