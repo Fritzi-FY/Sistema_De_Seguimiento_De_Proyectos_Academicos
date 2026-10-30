@@ -49,7 +49,7 @@ export async function assertCiSqlTarget(client: Client, requireMarker = true) {
     await client.query(`SELECT current_user AS actor,
     current_setting('data_directory') AS directory,
     current_setting('server_version_num')::int AS version,
-    inet_server_addr()::text AS address, inet_server_port() AS port,
+    host(inet_server_addr()) AS address, inet_server_port() AS port,
     (SELECT shobj_description(oid,'pg_database') FROM pg_database WHERE datname='is488_ci_control') AS marker`)
   ).rows[0];
   assert.equal(row.actor, ci.admin);
