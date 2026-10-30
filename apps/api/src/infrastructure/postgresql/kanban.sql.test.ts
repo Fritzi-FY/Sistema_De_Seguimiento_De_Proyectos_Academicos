@@ -120,7 +120,7 @@ function scoped<T>(work: () => Promise<T>, override: ClientConfig = {}, actor = 
     }
   });
 }
-describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => {
+describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () => {
   beforeAll(async () => {
     admin = new Client({
       ...config,
@@ -513,7 +513,8 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, only authorized is488_dev', () => 
       for (let i = 0; i < 60; i++) {
         const n = (
           await admin.query(
-            "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname='is488_dev' AND wait_event_type='Lock'",
+            "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=$1 AND usename=$2 AND wait_event_type='Lock'",
+            [config.database, config.user],
           )
         ).rows[0].n;
         if (n) {
