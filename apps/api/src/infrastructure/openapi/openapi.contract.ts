@@ -1,3 +1,4 @@
+import { identityPaths } from './identity.openapi.js';
 /**
  * Especificación OpenAPI 3.1 declarada para el contrato de la API del sistema IS488.
  * Garantiza total coincidencia con los esquemas Zod de @is488/shared.
@@ -10,14 +11,16 @@ export const openApiSpec = {
     description:
       'API técnica y de negocio del Sistema de Seguimiento de Proyectos Académicos (UNSCH IS488).',
   },
+  security: [{ SessionCookie: [] }],
   paths: {
+    ...identityPaths,
     '/api/projects/{projectId}/tasks/{taskId}/activity': {
       get: {
         operationId: 'getTaskActivity',
         summary: 'Historial real de una tarea',
         description:
           'Autenticación existente y acceso contextual. 404 uniforme para recursos inexistentes o ajenos. Orden createdAt descendente, id ascendente. Lectura sin efectos.',
-        security: [{ DevAuthUserId: [] }],
+        security: [{ SessionCookie: [] }],
         parameters: [
           {
             name: 'projectId',
@@ -1226,6 +1229,12 @@ export const openApiSpec = {
   },
   components: {
     securitySchemes: {
+      SessionCookie: {
+        type: 'apiKey',
+        in: 'cookie',
+        name: '__Secure-better-auth.session_token',
+        description: 'Authoritative server session. Dev headers never substitute a session.',
+      },
       DevAuthUserId: {
         type: 'apiKey',
         in: 'header',
