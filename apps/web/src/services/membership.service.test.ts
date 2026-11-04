@@ -39,6 +39,7 @@ describe('membership.service', () => {
       expect(result).toEqual([sampleMembership]);
       expect(fetch).toHaveBeenCalledWith(`/api/projects/${sampleProjectId}/members`, {
         method: 'GET',
+        credentials: 'same-origin',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -91,6 +92,7 @@ describe('membership.service', () => {
         `/api/projects/${sampleProjectId}/members`,
         expect.objectContaining({
           method: 'POST',
+          credentials: 'same-origin',
           body: JSON.stringify(validAddRequest),
         }),
       );
@@ -207,6 +209,7 @@ describe('membership.service', () => {
         `/api/projects/${sampleProjectId}/members/${sampleUserId}?membershipId=33333333-3333-4333-8333-333333333333`,
         {
           method: 'DELETE',
+          credentials: 'same-origin',
           headers: expect.objectContaining({
             'X-Dev-User-Id': '11111111-1111-4111-8111-111111111111',
           }),

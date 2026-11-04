@@ -12,25 +12,13 @@ export interface DevUserHeaders {
   role?: string;
 }
 
-import { DEFAULT_DEV_IDENTITY } from './dev-identity.js';
-
-const DEFAULT_DEV_HEADERS: DevUserHeaders = DEFAULT_DEV_IDENTITY;
-
-function buildHeaders(userHeaders?: DevUserHeaders): HeadersInit {
-  const current = { ...DEFAULT_DEV_HEADERS, ...userHeaders };
-  return {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-    'X-Dev-User-Id': current.userId ?? DEFAULT_DEV_IDENTITY.userId,
-    'X-Dev-User-Role': current.role ?? DEFAULT_DEV_IDENTITY.role,
-  };
-}
+import { buildHeaders, apiFetch } from './api-client.js';
 
 /**
  * Consulta la lista de proyectos académicos autorizados para el usuario.
  */
 export async function fetchProjects(userHeaders?: DevUserHeaders): Promise<ProjectListResponse> {
-  const response = await fetch('/api/projects', {
+  const response = await apiFetch('/api/projects', {
     method: 'GET',
     headers: buildHeaders(userHeaders),
   });
@@ -68,7 +56,7 @@ export async function createProject(
     throw new Error(message);
   }
 
-  const response = await fetch('/api/projects', {
+  const response = await apiFetch('/api/projects', {
     method: 'POST',
     headers: buildHeaders(userHeaders),
     body: JSON.stringify(validation.data),

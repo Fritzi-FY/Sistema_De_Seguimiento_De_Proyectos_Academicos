@@ -53,6 +53,7 @@ describe('board.service', () => {
     expect(result).toEqual(sampleBoard);
     expect(fetch).toHaveBeenCalledWith(`/api/projects/${sampleProjectId}/board`, {
       method: 'GET',
+      credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -74,6 +75,7 @@ describe('board.service', () => {
 
     expect(fetch).toHaveBeenCalledWith(`/api/projects/${sampleProjectId}/board`, {
       method: 'GET',
+      credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',

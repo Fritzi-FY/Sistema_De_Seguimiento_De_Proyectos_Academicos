@@ -15,19 +15,7 @@ import {
 } from '@is488/shared';
 import type { DevUserHeaders } from './project.service.js';
 
-import { DEFAULT_DEV_IDENTITY } from './dev-identity.js';
-
-const DEFAULT_DEV_HEADERS: DevUserHeaders = DEFAULT_DEV_IDENTITY;
-
-function buildHeaders(userHeaders?: DevUserHeaders): HeadersInit {
-  const current = { ...DEFAULT_DEV_HEADERS, ...userHeaders };
-  return {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-    'X-Dev-User-Id': current.userId ?? DEFAULT_DEV_IDENTITY.userId,
-    'X-Dev-User-Role': current.role ?? DEFAULT_DEV_IDENTITY.role,
-  };
-}
+import { buildHeaders, apiFetch } from './api-client.js';
 
 export interface RequestOptions {
   signal?: AbortSignal;
@@ -56,7 +44,7 @@ export async function getTasks(
   const queryString = params.toString();
   const url = `/api/projects/${projectId}/tasks${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     method: 'GET',
     headers: buildHeaders(userHeaders),
     signal: options?.signal,
@@ -96,7 +84,7 @@ export async function createTask(
     throw new Error(`Datos inválidos para crear la tarea: ${issues}`);
   }
 
-  const response = await fetch(`/api/projects/${projectId}/tasks`, {
+  const response = await apiFetch(`/api/projects/${projectId}/tasks`, {
     method: 'POST',
     headers: buildHeaders(userHeaders),
     body: JSON.stringify(validation.data),
@@ -133,7 +121,7 @@ export async function updateTask(
     throw new Error(`Datos inválidos para actualizar la tarea: ${issues}`);
   }
 
-  const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+  const response = await apiFetch(`/api/projects/${projectId}/tasks/${taskId}`, {
     method: 'PATCH',
     headers: buildHeaders(userHeaders),
     body: JSON.stringify(validation.data),
@@ -175,7 +163,7 @@ export async function moveTask(
     throw new Error(`Datos inválidos para mover la tarea: ${issues}`);
   }
 
-  const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}/move`, {
+  const response = await apiFetch(`/api/projects/${projectId}/tasks/${taskId}/move`, {
     method: 'POST',
     headers: buildHeaders(userHeaders),
     body: JSON.stringify(validation.data),
@@ -254,7 +242,7 @@ export async function getTaskActivity(
   userHeaders?: DevUserHeaders,
   options?: RequestOptions,
 ): Promise<TaskActivityListResponse> {
-  const response = await fetch(`/api/projects/${projectId}/tasks/${taskId}/activity`, {
+  const response = await apiFetch(`/api/projects/${projectId}/tasks/${taskId}/activity`, {
     method: 'GET',
     headers: buildHeaders(userHeaders),
     signal: options?.signal,
