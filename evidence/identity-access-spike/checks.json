@@ -1,0 +1,11 @@
+{
+  "lint": "passed",
+  "strictSpikeTypecheck": "passed",
+  "reactBuild": "passed: 29 modules",
+  "workerDryRun": "passed: 3032.75 KiB, gzip 501.74 KiB",
+  "openSpec": "12 passed, 0 failed",
+  "relativeLinks": "18 checked, 0 broken",
+  "existingLockVersionsAndIntegrity": "unchanged",
+  "postgresAndWorkerAndBrowser": "stopped; no listeners on 55510/8791/9291",
+  "scope": "local synthetic spike only"
+}

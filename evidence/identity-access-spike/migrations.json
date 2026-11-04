@@ -1,0 +1,340 @@
+{
+  "applied": [
+    {
+      "version": 1,
+      "time": "2026-10-31T01:59:19.815Z",
+      "timings": {
+        "auditMs": 151.8091999999997,
+        "phases": [
+          {
+            "stage": "begin",
+            "startedAt": "2026-10-31T01:59:19.583Z",
+            "elapsedMs": 0.4267999999992753
+          },
+          {
+            "stage": "transaction_timeout",
+            "startedAt": "2026-10-31T01:59:19.584Z",
+            "elapsedMs": 0.22699999999895226
+          },
+          {
+            "stage": "migration_sql",
+            "startedAt": "2026-10-31T01:59:19.601Z",
+            "elapsedMs": 63.58729999999923
+          },
+          {
+            "stage": "grant_runtime",
+            "startedAt": "2026-10-31T01:59:19.665Z",
+            "elapsedMs": 3.658400000000256
+          },
+          {
+            "stage": "validate_runtime",
+            "startedAt": "2026-10-31T01:59:19.669Z",
+            "elapsedMs": 5.5218000000004395
+          },
+          {
+            "stage": "catalog_fingerprint",
+            "startedAt": "2026-10-31T01:59:19.674Z",
+            "elapsedMs": 14.640400000000227
+          },
+          {
+            "stage": "ledger_insert",
+            "startedAt": "2026-10-31T01:59:19.689Z",
+            "elapsedMs": 4.137500000000728
+          },
+          {
+            "stage": "commit",
+            "startedAt": "2026-10-31T01:59:19.805Z",
+            "elapsedMs": 9.953499999999622
+          }
+        ],
+        "beginDispatchedAt": "2026-10-31T01:59:19.583Z",
+        "beginConfirmedAt": "2026-10-31T01:59:19.584Z",
+        "preparationStartedAt": "2026-10-31T01:59:19.584Z",
+        "preparationFinishedAt": "2026-10-31T01:59:19.693Z",
+        "preparationMs": 109.53990000000158,
+        "commitDispatchedAt": "2026-10-31T01:59:19.805Z",
+        "commitMs": 9.96600000000035,
+        "commitConfirmedAt": "2026-10-31T01:59:19.815Z"
+      }
+    },
+    {
+      "version": 2,
+      "time": "2026-10-31T01:59:19.904Z",
+      "timings": {
+        "auditMs": 54.477100000000064,
+        "phases": [
+          {
+            "stage": "begin",
+            "startedAt": "2026-10-31T01:59:19.866Z",
+            "elapsedMs": 1.076100000000224
+          },
+          {
+            "stage": "transaction_timeout",
+            "startedAt": "2026-10-31T01:59:19.868Z",
+            "elapsedMs": 0.522899999999936
+          },
+          {
+            "stage": "migration_sql",
+            "startedAt": "2026-10-31T01:59:19.868Z",
+            "elapsedMs": 6.366299999999683
+          },
+          {
+            "stage": "grant_runtime",
+            "startedAt": "2026-10-31T01:59:19.874Z",
+            "elapsedMs": 3.7598999999991065
+          },
+          {
+            "stage": "validate_runtime",
+            "startedAt": "2026-10-31T01:59:19.878Z",
+            "elapsedMs": 4.140999999999622
+          },
+          {
+            "stage": "catalog_fingerprint",
+            "startedAt": "2026-10-31T01:59:19.882Z",
+            "elapsedMs": 3.6489999999994325
+          },
+          {
+            "stage": "ledger_insert",
+            "startedAt": "2026-10-31T01:59:19.886Z",
+            "elapsedMs": 2.155000000000655
+          },
+          {
+            "stage": "commit",
+            "startedAt": "2026-10-31T01:59:19.904Z",
+            "elapsedMs": 0.8395999999993364
+          }
+        ],
+        "beginDispatchedAt": "2026-10-31T01:59:19.866Z",
+        "beginConfirmedAt": "2026-10-31T01:59:19.867Z",
+        "preparationStartedAt": "2026-10-31T01:59:19.867Z",
+        "preparationFinishedAt": "2026-10-31T01:59:19.888Z",
+        "preparationMs": 20.653700000000754,
+        "commitDispatchedAt": "2026-10-31T01:59:19.904Z",
+        "commitMs": 0.8499999999985448,
+        "commitConfirmedAt": "2026-10-31T01:59:19.904Z"
+      }
+    },
+    {
+      "version": 3,
+      "time": "2026-10-31T01:59:20.077Z",
+      "timings": {
+        "auditMs": 64.67789999999877,
+        "phases": [
+          {
+            "stage": "begin",
+            "startedAt": "2026-10-31T01:59:19.944Z",
+            "elapsedMs": 0.4102999999995518
+          },
+          {
+            "stage": "transaction_timeout",
+            "startedAt": "2026-10-31T01:59:19.945Z",
+            "elapsedMs": 0.26480000000083237
+          },
+          {
+            "stage": "migration_sql",
+            "startedAt": "2026-10-31T01:59:19.945Z",
+            "elapsedMs": 60.30320000000029
+          },
+          {
+            "stage": "grant_runtime",
+            "startedAt": "2026-10-31T01:59:20.005Z",
+            "elapsedMs": 9.070200000000114
+          },
+          {
+            "stage": "validate_runtime",
+            "startedAt": "2026-10-31T01:59:20.014Z",
+            "elapsedMs": 6.126899999999296
+          },
+          {
+            "stage": "catalog_fingerprint",
+            "startedAt": "2026-10-31T01:59:20.021Z",
+            "elapsedMs": 4.935299999999188
+          },
+          {
+            "stage": "ledger_insert",
+            "startedAt": "2026-10-31T01:59:20.025Z",
+            "elapsedMs": 0.49690000000009604
+          },
+          {
+            "stage": "commit",
+            "startedAt": "2026-10-31T01:59:20.071Z",
+            "elapsedMs": 6.5666999999994005
+          }
+        ],
+        "beginDispatchedAt": "2026-10-31T01:59:19.944Z",
+        "beginConfirmedAt": "2026-10-31T01:59:19.945Z",
+        "preparationStartedAt": "2026-10-31T01:59:19.945Z",
+        "preparationFinishedAt": "2026-10-31T01:59:20.026Z",
+        "preparationMs": 81.24829999999929,
+        "commitDispatchedAt": "2026-10-31T01:59:20.071Z",
+        "commitMs": 6.577199999999721,
+        "commitConfirmedAt": "2026-10-31T01:59:20.077Z"
+      }
+    },
+    {
+      "version": 4,
+      "time": "2026-10-31T01:59:20.191Z",
+      "timings": {
+        "auditMs": 25.41150000000016,
+        "phases": [
+          {
+            "stage": "begin",
+            "startedAt": "2026-10-31T01:59:20.150Z",
+            "elapsedMs": 0.47369999999864376
+          },
+          {
+            "stage": "transaction_timeout",
+            "startedAt": "2026-10-31T01:59:20.150Z",
+            "elapsedMs": 0.2566999999999098
+          },
+          {
+            "stage": "migration_sql",
+            "startedAt": "2026-10-31T01:59:20.150Z",
+            "elapsedMs": 3.6362000000008265
+          },
+          {
+            "stage": "grant_runtime",
+            "startedAt": "2026-10-31T01:59:20.154Z",
+            "elapsedMs": 9.996200000001409
+          },
+          {
+            "stage": "validate_runtime",
+            "startedAt": "2026-10-31T01:59:20.164Z",
+            "elapsedMs": 4.839799999999741
+          },
+          {
+            "stage": "catalog_fingerprint",
+            "startedAt": "2026-10-31T01:59:20.169Z",
+            "elapsedMs": 5.132499999999709
+          },
+          {
+            "stage": "ledger_insert",
+            "startedAt": "2026-10-31T01:59:20.174Z",
+            "elapsedMs": 0.5143000000007305
+          },
+          {
+            "stage": "commit",
+            "startedAt": "2026-10-31T01:59:20.182Z",
+            "elapsedMs": 9.213599999999133
+          }
+        ],
+        "beginDispatchedAt": "2026-10-31T01:59:20.150Z",
+        "beginConfirmedAt": "2026-10-31T01:59:20.150Z",
+        "preparationStartedAt": "2026-10-31T01:59:20.150Z",
+        "preparationFinishedAt": "2026-10-31T01:59:20.175Z",
+        "preparationMs": 24.421400000001086,
+        "commitDispatchedAt": "2026-10-31T01:59:20.182Z",
+        "commitMs": 9.22309999999925,
+        "commitConfirmedAt": "2026-10-31T01:59:20.191Z"
+      }
+    },
+    {
+      "version": 5,
+      "time": "2026-10-31T01:59:20.362Z",
+      "timings": {
+        "auditMs": 76.58500000000095,
+        "phases": [
+          {
+            "stage": "begin",
+            "startedAt": "2026-10-31T01:59:20.224Z",
+            "elapsedMs": 0.5098999999991065
+          },
+          {
+            "stage": "transaction_timeout",
+            "startedAt": "2026-10-31T01:59:20.225Z",
+            "elapsedMs": 0.3099999999994907
+          },
+          {
+            "stage": "migration_sql",
+            "startedAt": "2026-10-31T01:59:20.225Z",
+            "elapsedMs": 50.20269999999982
+          },
+          {
+            "stage": "grant_runtime",
+            "startedAt": "2026-10-31T01:59:20.275Z",
+            "elapsedMs": 8.197900000001027
+          },
+          {
+            "stage": "validate_runtime",
+            "startedAt": "2026-10-31T01:59:20.284Z",
+            "elapsedMs": 3.4849000000012893
+          },
+          {
+            "stage": "catalog_fingerprint",
+            "startedAt": "2026-10-31T01:59:20.287Z",
+            "elapsedMs": 6.17200000000048
+          },
+          {
+            "stage": "ledger_insert",
+            "startedAt": "2026-10-31T01:59:20.293Z",
+            "elapsedMs": 0.5858000000007451
+          },
+          {
+            "stage": "commit",
+            "startedAt": "2026-10-31T01:59:20.357Z",
+            "elapsedMs": 4.851200000000972
+          }
+        ],
+        "beginDispatchedAt": "2026-10-31T01:59:20.224Z",
+        "beginConfirmedAt": "2026-10-31T01:59:20.225Z",
+        "preparationStartedAt": "2026-10-31T01:59:20.225Z",
+        "preparationFinishedAt": "2026-10-31T01:59:20.294Z",
+        "preparationMs": 69.0046999999995,
+        "commitDispatchedAt": "2026-10-31T01:59:20.357Z",
+        "commitMs": 4.860199999999168,
+        "commitConfirmedAt": "2026-10-31T01:59:20.362Z"
+      }
+    }
+  ],
+  "closed": [
+    {
+      "outcome": "committed",
+      "confirmed": true
+    }
+  ],
+  "originalFailure": {
+    "diagnostic": {
+      "stage": "migration_sql",
+      "errorType": "DatabaseError",
+      "sqlState": "42501",
+      "at": "2026-10-31T01:55:23.108Z"
+    },
+    "timings": {
+      "auditMs": 10.693999999988591,
+      "phases": [
+        {
+          "stage": "begin",
+          "startedAt": "2026-10-31T01:55:23.096Z",
+          "elapsedMs": 0.371000000013737
+        },
+        {
+          "stage": "transaction_timeout",
+          "startedAt": "2026-10-31T01:55:23.096Z",
+          "elapsedMs": 0.19779999999445863
+        },
+        {
+          "stage": "migration_sql",
+          "startedAt": "2026-10-31T01:55:23.096Z",
+          "elapsedMs": 11.463799999997718
+        },
+        {
+          "stage": "rollback",
+          "startedAt": "2026-10-31T01:55:23.108Z",
+          "elapsedMs": 0.33129999999073334
+        }
+      ],
+      "beginDispatchedAt": "2026-10-31T01:55:23.096Z",
+      "beginConfirmedAt": "2026-10-31T01:55:23.096Z",
+      "preparationStartedAt": "2026-10-31T01:55:23.096Z",
+      "preparationMs": 11.794300000008661,
+      "transactionMs": 17.970900000014808
+    },
+    "rollbackConfirmed": true,
+    "closeConfirmed": true
+  },
+  "secondAttempt": {
+    "outcome": "unsupported_migration_sql",
+    "transactionOutcome": "not_started",
+    "reason": "Generated CREATE SCHEMA excluded from reviewed public-schema DDL"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "at": "2026-11-01T23:24:54.754Z",
+  "library": "better-auth@1.7.14",
+  "runtime": "Wrangler local workerd; existing nodejs_compat 2024-09-23",
+  "browser": "Chrome headless, isolated profile, local certificate SPKI pin",
+  "maxSessionSeconds": 28800,
+  "google": "planned, not configured or contacted",
+  "externalServicesUsed": false,
+  "cases": [
+    {
+      "name": "Anonymous API and frontend rejected",
+      "result": "passed"
+    },
+    {
+      "name": "Unverified preauthorized user rejected",
+      "result": "passed"
+    },
+    {
+      "name": "Synthetic mailbox verifies provisioned identity",
+      "result": "passed"
+    },
+    {
+      "name": "Public registration disabled",
+      "result": "passed"
+    },
+    {
+      "name": "Internal UUID and role come from server; token absent from DTO",
+      "result": "passed"
+    },
+    {
+      "name": "Eight-hour absolute limit without refresh or remember-me",
+      "result": "passed"
+    },
+    {
+      "name": "Client and runtime cannot self-grant roles or issue DDL",
+      "result": "passed"
+    },
+    {
+      "name": "Cross-origin mutation rejected without revoking session",
+      "result": "passed"
+    },
+    {
+      "name": "Expired session rejected by server",
+      "result": "passed"
+    },
+    {
+      "name": "Real product creation, CSRF and cross-user isolation",
+      "result": "passed"
+    },
+    {
+      "name": "Chrome: login opens protected React application and real project API",
+      "result": "passed"
+    },
+    {
+      "name": "Chrome: secure HttpOnly session cookie; no browser-storage token",
+      "result": "passed"
+    },
+    {
+      "name": "Chrome: reload retains the same authenticated UUID",
+      "result": "passed"
+    },
+    {
+      "name": "Development identity headers cannot override session authority",
+      "result": "passed"
+    },
+    {
+      "name": "Chrome: logout revokes server session; replay and private page denied",
+      "result": "passed"
+    },
+    {
+      "name": "Logout is idempotent and isolated from other users",
+      "result": "passed"
+    }
+  ]
+}
