@@ -40,9 +40,15 @@ export function SessionGate() {
       setMessage('La sesión terminó. Vuelve a iniciar sesión.');
     };
     window.addEventListener('identity:unauthorized', denied);
-    const focus = () => { void check(); };
+    const focus = () => {
+      void check();
+    };
     window.addEventListener('focus', focus);
-    return () => { generation.current++; window.removeEventListener('identity:unauthorized', denied); window.removeEventListener('focus', focus); };
+    return () => {
+      generation.current++;
+      window.removeEventListener('identity:unauthorized', denied);
+      window.removeEventListener('focus', focus);
+    };
   }, []);
   useEffect(() => {
     if (!user) return;

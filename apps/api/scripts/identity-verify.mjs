@@ -124,7 +124,9 @@ async function waitUntil(work, timeout = 30000) {
     }
     await delay(100);
   }
-  throw new Error('Local wait deadline: ' + (last ? `${last.name}: ${last.message}` : 'condition not met'));
+  throw new Error(
+    'Local wait deadline: ' + (last ? `${last.name}: ${last.message}` : 'condition not met'),
+  );
 }
 async function cdpConnect(url) {
   ws = new WebSocket(url);
@@ -455,6 +457,79 @@ try {
     404,
     'cross-user project isolation',
   );
+
+  const boardRes = await http(
+    'GET',
+    '/api/projects/' + state.project + '/board',
+    undefined,
+    ownerCookie,
+  );
+  assertStatus(boardRes, 200, 'owner get board');
+  const board = boardRes.json();
+  assert.ok(board.columns.length >= 3, 'default columns created');
+  const columnId = board.columns[0].id;
+
+  const memberRes = await http(
+    'POST',
+    '/api/projects/' + state.project + '/members',
+    { userId: second.userId, role: 'collaborator' },
+    ownerCookie,
+  );
+  assertStatus(memberRes, 201, 'add collaborator membership');
+
+  const taskRes = await http(
+    'POST',
+    '/api/projects/' + state.project + '/tasks',
+    {
+      title: 'Synthetic authenticated task',
+      description: 'Task created under session',
+      columnId,
+      priority: 'HIGH',
+      assigneeIds: [second.userId],
+    },
+    ownerCookie,
+  );
+  assertStatus(taskRes, 201, 'create task');
+  state.task = taskRes.json().id;
+
+  const activityRes = await http(
+    'GET',
+    '/api/projects/' + state.project + '/tasks/' + state.task + '/activity',
+    undefined,
+    ownerCookie,
+  );
+  assertStatus(activityRes, 200, 'task activity history');
+  assert.ok(activityRes.json().length >= 1, 'activity history recorded');
+  assert.equal(activityRes.json()[0].action, 'CREATED');
+
+  const secondProjects = await http('GET', '/api/projects', undefined, otherCookie);
+  assertStatus(secondProjects, 200, 'collaborator projects list');
+  assert.equal(secondProjects.json().length, 1);
+  assert.equal(secondProjects.json()[0].id, state.project);
+
+  const memberRows = (
+    await sql.query(
+      'SELECT user_id, role, status FROM public.project_memberships WHERE project_id=$1',
+      [state.project],
+    )
+  ).rows;
+  assert.equal(memberRows.length, 2);
+
+  const taskRows = (
+    await sql.query('SELECT id, title, column_id FROM public.tasks WHERE id=$1', [state.task])
+  ).rows;
+  assert.equal(taskRows.length, 1);
+  assert.equal(taskRows[0].title, 'Synthetic authenticated task');
+
+  const activityRows = (
+    await sql.query('SELECT action, actor_id FROM public.task_activity WHERE task_id=$1', [
+      state.task,
+    ])
+  ).rows;
+  assert.equal(activityRows.length, 1);
+  assert.equal(activityRows[0].action, 'CREATED');
+  assert.equal(activityRows[0].actor_id, student.userId);
+
   assertStatus(
     await http(
       'POST',
@@ -539,13 +614,44 @@ try {
     await evaluate('document.querySelector("[data-testid=session-user]").dataset.role'),
     'student',
   );
-  await waitUntil(() => evaluate('document.querySelector("main")?.textContent.includes("Synthetic authentication project")'));
+  await waitUntil(() =>
+    evaluate(
+      'document.querySelector("main")?.textContent.includes("Synthetic authentication project")',
+    ),
+  );
   assert.ok(
     (await evaluate('document.querySelector("main").textContent')).includes(
       'Synthetic authentication project',
     ),
   );
   check('Chrome: login opens protected React application and real project API');
+
+  await evaluate(
+    'document.querySelector("[data-testid=view-project-btn-' + state.project + ']").click();true',
+  );
+  await waitUntil(() => evaluate('Boolean(document.querySelector("[data-testid=kanban-board]"))'));
+  await waitUntil(() =>
+    evaluate('Boolean(document.querySelector("[data-testid=task-card-' + state.task + ']"))'),
+  );
+  assert.ok(
+    (
+      await evaluate(
+        'document.querySelector("[data-testid=task-card-' + state.task + ']").textContent',
+      )
+    ).includes('Synthetic authenticated task'),
+  );
+  await evaluate(
+    'document.querySelector("[data-testid=task-card-' + state.task + '] button").click();true',
+  );
+  await waitUntil(() => evaluate('Boolean(document.querySelector("[role=dialog]"))'));
+  await waitUntil(() =>
+    evaluate('Boolean(document.querySelector("[role=dialog]")?.textContent.includes("Creación"))'),
+  );
+  await evaluate(
+    'document.querySelector("[role=dialog] button[aria-label*=\'Cerrar\']")?.click();true',
+  );
+  await waitUntil(() => evaluate('!document.querySelector("[role=dialog]")'));
+  check('Chrome: project detail renders Kanban board, task and activity history');
   const cookies = (await cdp('Network.getCookies', { urls: [state.origin] })).cookies;
   const browserSession = cookies.find((c) => c.name.includes('session_token'));
   assert.ok(browserSession);
@@ -591,8 +697,12 @@ try {
   assertStatus(await http('GET', '/app', undefined, stolen), 303, 'revoked cookie page');
   check('Chrome: logout revokes server session; replay and private page denied');
   assert.equal(
-    (await sql.query('SELECT count(*)::int AS n FROM public.auth_session WHERE "userId"=$1 AND "expiresAt">now()', [student.userId]))
-      .rows[0].n,
+    (
+      await sql.query(
+        'SELECT count(*)::int AS n FROM public.auth_session WHERE "userId"=$1 AND "expiresAt">now()',
+        [student.userId],
+      )
+    ).rows[0].n,
     0,
   );
   assertStatus(await http('POST', '/api/auth/sign-out', {}, stolen), 200, 'idempotent logout');
@@ -603,8 +713,12 @@ try {
   );
   assertStatus(await http('POST', '/api/auth/sign-out', {}, otherCookie), 200, 'second logout');
   assert.equal(
-    (await sql.query('SELECT count(*)::int AS n FROM public.auth_session WHERE "userId"=$1 AND "expiresAt">now()', [second.userId]))
-      .rows[0].n,
+    (
+      await sql.query(
+        'SELECT count(*)::int AS n FROM public.auth_session WHERE "userId"=$1 AND "expiresAt">now()',
+        [second.userId],
+      )
+    ).rows[0].n,
     0,
   );
   check('Logout is idempotent and isolated from other users');
@@ -649,4 +763,3 @@ try {
   );
   if (stopped.status !== 0) console.error('Exclusive spike cluster stop requires inspection.');
 }
-

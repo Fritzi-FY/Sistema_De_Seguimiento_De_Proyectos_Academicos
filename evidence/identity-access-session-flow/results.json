@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-01T23:24:54.754Z",
+  "at": "2026-11-04T12:28:15.011Z",
   "library": "better-auth@1.7.14",
   "runtime": "Wrangler local workerd; existing nodejs_compat 2024-09-23",
   "browser": "Chrome headless, isolated profile, local certificate SPKI pin",
@@ -49,6 +49,10 @@
     },
     {
       "name": "Chrome: login opens protected React application and real project API",
+      "result": "passed"
+    },
+    {
+      "name": "Chrome: project detail renders Kanban board, task and activity history",
       "result": "passed"
     },
     {
