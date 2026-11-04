@@ -2,7 +2,7 @@ import { Client } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { run } from '../migrations/runner.ts';
+import { catalog, run } from '../migrations/runner.ts';
 import {
   ciSqlProfile,
   ciAdminConnection,
@@ -41,7 +41,12 @@ try {
     runtimeRole: ci.runtime,
     auditFile: join(evidence, 'kanban-migrations.jsonl'),
   });
-  if (result.transactionOutcome !== 'committed' || result.applied.join(',') !== '1,2,3,4')
+  const expectedVersions = catalog().map((m) => m.version);
+  if (
+    result.transactionOutcome !== 'committed' ||
+    result.applied.length !== expectedVersions.length ||
+    !expectedVersions.every((v) => result.applied.includes(v))
+  )
     throw new Error('Full migration catalog was not confirmed');
   const seed = new Client(connection);
   await seed.connect();
@@ -61,7 +66,7 @@ try {
     await seed.end();
   }
   console.log(
-    'Fresh CI service verified; migrations 0001-0004 and synthetic preservation seed confirmed.',
+    'Fresh CI service verified; migration catalog and synthetic preservation seed confirmed.',
   );
 } finally {
   await admin.end();
