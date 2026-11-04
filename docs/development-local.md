@@ -99,3 +99,44 @@ Aplica 0001–0004 con el migrador, conserva un proyecto y membresía sintético
 La validación de CI SQL no sustituye aceptación remota, E2E de navegador, backup/restore ni recuperación forward-fix. El resultado real se registra en el PR; no se considera aprobado por estar configurado.
 
 Evidencia ejecutada: [CI Baseline #18, commit eec3a38](https://github.com/Fritzi-FY/Sistema_De_Seguimiento_De_Proyectos_Academicos/actions/runs/41132590916). Los cuatro archivos aprobaron: proyectos/membresías 7, Kanban 16, adaptador docente 2 (uno SQL y uno unitario), adaptadores migrados 1. Total 26 aprobadas, cero omitidas en el job SQL; las 25 antes omitidas quedan cubiertas. Se confirmaron migraciones 0001–0004, preservación de datos sintéticos iniciales y limpieza del servicio/contenedor. Los controles anteriores también aprobaron.
+
+
+## Flujo de autenticación e identidad local (Better Auth + PostgreSQL)
+
+El flujo definitivo de identidad y sesiones integra Better Auth (1.7.14) con PostgreSQL (migraciones 0001–0005) y Cloudflare Workers en un clúster y runtime locales aislados.
+
+### Decisiones de seguridad y gobernanza aplicadas
+- **Sin registro público:** Solo pueden ingresar cuentas sintéticas preautorizadas administrativamente.
+- **Roles autoritativos desde el servidor:** Los roles (`student`, `teacher`, `admin`) se gestionan en `public.auth_role_grants` y el runtime solo tiene permisos de lectura (`SELECT`). Ni el cliente ni el cuerpo HTTP pueden alterar roles.
+- **Sesiones acotadas:** Duración máxima de 8 horas (28 800 segundos), sin renovación automática ni opción "recordarme". Cookies seguras `HttpOnly`, `Secure`, `SameSite=Lax`.
+- **Aislamiento de Dev-Auth:** En modo sesión (`AUTH_MODE=session`), cualquier cabecera `X-Dev-*` o `CF-Access-*` es rechazada de inmediato (`401 Unauthorized`), impidiendo eludir la autenticación real.
+- **Google OAuth:** Permanece planificado y pendiente de validación institucional con credenciales reales UNSCH (no se declara completado).
+
+### Comandos del flujo de identidad
+
+```powershell
+# 1. Inicializar el clúster exclusivo (puerto 55511) y aplicar migraciones 0001 a 0005
+npm.cmd run identity:init
+
+# 2. Provisionar una cuenta sintética administrativa (solicita contraseña oculta en consola)
+npm.cmd run identity:provision -- --email alumno@synthetic.example.test --role student --name "Alumno Prueba"
+
+# 3. Compilar artefactos compartidos y el frontend
+npm.cmd run identity:build
+
+# 4. Iniciar el clúster PostgreSQL y el Worker HTTPS local (Wrangler/Workerd en https://localhost:8792)
+npm.cmd run identity:start
+
+# 5. Consultar estado del entorno
+npm.cmd run identity:status
+
+# 6. Inspeccionar enlaces de verificación en el buzón sintético local
+npm.cmd run identity:mail
+# Abre .local-dev/identity-session/mailbox.html en el navegador
+
+# 7. Ejecutar la suite integral de verificación automatizada (16 comprobaciones en PostgreSQL y Chrome headless)
+npm.cmd run identity:verify
+
+# 8. Detener el entorno exclusivo preservando datos
+npm.cmd run identity:stop
+```
