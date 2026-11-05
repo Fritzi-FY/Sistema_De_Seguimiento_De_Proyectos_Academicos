@@ -18,5 +18,10 @@
     "version": 4,
     "name": "0004_kanban_assignee_positions.sql",
     "sha256": "915bf68ed69e54e0fb86704e1a680b2947a897e2111d9bfe51c84275ab4db059"
+  },
+  {
+    "version": 5,
+    "name": "0005_identity_access.sql",
+    "sha256": "848e8cbcfd23dcb4be72bf0906ee6dcd3e58d20747b7c20c6528c6df76256985"
   }
 ]

@@ -35,6 +35,7 @@ describe('project.service', () => {
       expect(result).toEqual([sampleProject]);
       expect(fetch).toHaveBeenCalledWith('/api/projects', {
         method: 'GET',
+        credentials: 'same-origin',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -90,6 +91,7 @@ describe('project.service', () => {
         '/api/projects',
         expect.objectContaining({
           method: 'POST',
+          credentials: 'same-origin',
           body: JSON.stringify(validCreateRequest),
         }),
       );

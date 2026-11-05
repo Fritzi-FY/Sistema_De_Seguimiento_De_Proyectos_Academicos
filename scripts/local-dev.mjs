@@ -345,7 +345,7 @@ async function start() {
     join(root, 'node_modules/vite/bin/vite.js'),
     ['--host', '127.0.0.1', '--port', '5173', '--strictPort'],
     join(root, 'apps/web'),
-    { IS488_LOCAL_API_ORIGIN: apiOrigin },
+    { IS488_LOCAL_API_ORIGIN: apiOrigin, VITE_AUTH_MODE: 'dev' },
   );
   process.on('SIGINT', () => void shutdown());
   process.on('SIGTERM', () => void shutdown());

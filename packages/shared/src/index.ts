@@ -17,3 +17,6 @@ export * from './ports/task-update.port.js';
 export * from './ports/task-list.port.js';
 
 export * from './ports/teacher-project-scope.port.js';
+
+export * from './contracts/identity-access.contract.js';
+export * from './ports/identity-session.port.js';

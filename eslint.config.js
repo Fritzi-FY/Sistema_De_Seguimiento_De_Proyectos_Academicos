@@ -9,6 +9,7 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.wrangler/**',
       '**/coverage/**',
+      '**/.local-dev/**',
     ],
   },
   js.configs.recommended,

@@ -9,19 +9,7 @@ import {
 } from '@is488/shared';
 import type { DevUserHeaders } from './project.service.js';
 
-import { DEFAULT_DEV_IDENTITY } from './dev-identity.js';
-
-const DEFAULT_DEV_HEADERS: DevUserHeaders = DEFAULT_DEV_IDENTITY;
-
-function buildHeaders(userHeaders?: DevUserHeaders): HeadersInit {
-  const current = { ...DEFAULT_DEV_HEADERS, ...userHeaders };
-  return {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-    'X-Dev-User-Id': current.userId ?? DEFAULT_DEV_IDENTITY.userId,
-    'X-Dev-User-Role': current.role ?? DEFAULT_DEV_IDENTITY.role,
-  };
-}
+import { buildHeaders, apiFetch } from './api-client.js';
 
 /**
  * Consulta la lista de miembros activos de un proyecto académico.
@@ -30,7 +18,7 @@ export async function getMembers(
   projectId: string,
   userHeaders?: DevUserHeaders,
 ): Promise<MemberListResponse> {
-  const response = await fetch(`/api/projects/${projectId}/members`, {
+  const response = await apiFetch(`/api/projects/${projectId}/members`, {
     method: 'GET',
     headers: buildHeaders(userHeaders),
   });
@@ -68,7 +56,7 @@ export async function addMember(
     throw new Error(message);
   }
 
-  const response = await fetch(`/api/projects/${projectId}/members`, {
+  const response = await apiFetch(`/api/projects/${projectId}/members`, {
     method: 'POST',
     headers: buildHeaders(userHeaders),
     body: JSON.stringify(validation.data),
@@ -115,7 +103,7 @@ export async function removeMember(
   userHeaders?: DevUserHeaders,
 ): Promise<MembershipResponse> {
   const query = RemoveMemberQuerySchema.parse({ membershipId });
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/projects/${projectId}/members/${userId}?membershipId=${encodeURIComponent(query.membershipId)}`,
     {
       method: 'DELETE',

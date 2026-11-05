@@ -1,3 +1,2 @@
-import { app } from './infrastructure/http/app.js';
-
-export default app;
+import { sessionFetch } from './infrastructure/auth/session-worker.js';
+export default { fetch: sessionFetch };

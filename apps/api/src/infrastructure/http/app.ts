@@ -180,7 +180,11 @@ export function createApp(options: AppOptions = {}) {
   const app = new Hono();
   const localAuth = createDevAuthMiddleware({ nodeEnv });
   const routerAuth: AuthMiddleware = async (c, next) =>
-    c.get('user') ? next() : localAuth(c, next);
+    c.get('user')
+      ? next()
+      : options.authentication
+        ? c.json({ error: 'Unauthorized' }, 401)
+        : localAuth(c, next);
   let accessCache: { key: string; auth: AuthMiddleware } | undefined;
   app.use('*', async (c, next) => {
     const env = c.env as Record<string, unknown> | undefined;

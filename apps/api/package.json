@@ -20,8 +20,10 @@
   },
   "dependencies": {
     "@is488/shared": "^0.1.0",
+    "better-auth": "1.7.14",
     "hono": "^4.13.13",
     "jose": "6.2.13",
+    "kysely": "0.29.7",
     "pg": "8.23.1"
   },
   "devDependencies": {

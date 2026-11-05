@@ -3,6 +3,16 @@ export interface QueryClient {
   query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
 }
 export const runtimePolicy: { table: string; grants: string[]; since?: number }[] = [
+  ...['auth_user', 'auth_account', 'auth_session', 'auth_verification', 'auth_rate_limit'].map(
+    (table) => ({
+      table: 'public.' + table,
+      grants: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+      since: 5,
+    }),
+  ),
+  { table: 'public.auth_role_grants', grants: ['SELECT'], since: 5 },
+  { table: 'public.auth_local_mail', grants: ['INSERT'], since: 5 },
+  { table: 'public.auth_verification_consumptions', grants: ['SELECT', 'INSERT'], since: 5 },
   { table: 'public.projects', grants: ['SELECT', 'INSERT', 'UPDATE'] },
   { table: 'public.project_memberships', grants: ['SELECT', 'INSERT', 'UPDATE'] },
   { table: 'public.teacher_project_assignments', grants: ['SELECT'] },

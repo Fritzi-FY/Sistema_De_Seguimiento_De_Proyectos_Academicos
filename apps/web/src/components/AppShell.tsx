@@ -1,3 +1,4 @@
+import type { CurrentUser } from '@is488/shared';
 import React, { useEffect, useState, useCallback } from 'react';
 import { DEFAULT_DEV_IDENTITY } from '../services/dev-identity.js';
 import type { HealthResponse, ProjectResponse, CreateProjectRequest } from '@is488/shared';
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export interface AppShellProps {
+  user?: CurrentUser;
   healthFetcher?: () => Promise<HealthResponse>;
   projectsFetcher?: () => Promise<ProjectResponse[]>;
   projectCreator?: (data: CreateProjectRequest) => Promise<ProjectResponse>;
@@ -39,6 +41,7 @@ const defaultProjectCreator = (data: CreateProjectRequest) => createProject(data
  * el estado operativo del backend (/api/health) y el gestor de proyectos académicos.
  */
 export const AppShell: React.FC<AppShellProps> = ({
+  user,
   healthFetcher = fetchSystemHealth,
   projectsFetcher = defaultProjectsFetcher,
   projectCreator = defaultProjectCreator,
@@ -111,7 +114,9 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="flex items-center space-x-3">
             <span className="hidden items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 border border-amber-200 sm:inline-flex">
               <UserCheck className="mr-1.5 h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
-              Sesión Dev: {DEFAULT_DEV_IDENTITY.userId} (Estudiante)
+              {user
+                ? `Sesión: ${user.name} (${user.role})`
+                : `Sesión Dev: ${DEFAULT_DEV_IDENTITY.userId} (Estudiante)`}
             </span>
             <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               <Layers className="mr-1.5 h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
@@ -128,7 +133,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           {selectedProject ? (
             <ProjectDetail
               project={selectedProject}
-              currentUserId={DEFAULT_DEV_IDENTITY.userId}
+              currentUserId={user?.userId ?? DEFAULT_DEV_IDENTITY.userId}
               onBack={() => setSelectedProject(null)}
             />
           ) : (
@@ -153,7 +158,11 @@ export const AppShell: React.FC<AppShellProps> = ({
                 {/* Aviso de persistencia volátil en memoria */}
                 <div className="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1.5 text-xs text-blue-800 border border-blue-200">
                   <Info className="mr-1.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
-                  <span>Modo desarrollo: almacenamiento volátil en memoria RAM (ADR-003).</span>
+                  <span>
+                    {user
+                      ? 'Datos persistidos en PostgreSQL.'
+                      : 'Modo desarrollo: almacenamiento volátil en memoria RAM (ADR-003).'}
+                  </span>
                 </div>
               </div>
 
@@ -285,7 +294,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               @is488/shared
             </code>
             . Las consultas de proyectos aplican aislamiento estricto en el servidor y operan sobre
-            un repositorio en memoria antes de evaluar el spike técnico de PostgreSQL (ADR-003).
+            el adaptador de persistencia configurado en el servidor.
           </p>
         </section>
       </main>

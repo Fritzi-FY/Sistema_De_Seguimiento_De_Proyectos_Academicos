@@ -1,9 +1,10 @@
 import { ciSqlProfile, assertCiSqlTarget } from '../../testing/sql-ci.js';
+import { fileURLToPath } from 'node:url';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { Client, type ClientConfig } from 'pg';
 import { createServer, connect, type Socket } from 'node:net';
 import { once } from 'node:events';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../http/app.js';
 import { SqlSession, sqlRequestScope, PersistenceTransactionError } from './session.js';
@@ -146,7 +147,18 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () 
       (
         await admin.query('SELECT version FROM is488_migrations.versions ORDER BY version')
       ).rows.map((r) => r.version),
-    ).toEqual([1, 2, 3, 4]);
+    ).toEqual(
+      (
+        JSON.parse(
+          readFileSync(
+            fileURLToPath(new URL('../../../migrations/manifest.json', import.meta.url)),
+            'utf8',
+          ),
+        ) as { version: number }[]
+      )
+        .map((m) => m.version)
+        .sort((a, b) => a - b),
+    );
     originalProjects = (await admin.query('SELECT * FROM public.projects ORDER BY id')).rows;
     originalMemberships = (
       await admin.query('SELECT * FROM public.project_memberships ORDER BY id')
@@ -155,6 +167,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () 
   afterAll(async () => {
     if (!admin) return;
     try {
+      if (!originalProjects || !originalMemberships) return;
       expect(
         (
           await admin.query('SELECT * FROM public.projects WHERE id=ANY($1::uuid[]) ORDER BY id', [

@@ -11,19 +11,7 @@ import {
 } from '@is488/shared';
 import type { DevUserHeaders } from './project.service.js';
 
-import { DEFAULT_DEV_IDENTITY } from './dev-identity.js';
-
-const DEFAULT_DEV_HEADERS: DevUserHeaders = DEFAULT_DEV_IDENTITY;
-
-function buildHeaders(userHeaders?: DevUserHeaders): HeadersInit {
-  const current = { ...DEFAULT_DEV_HEADERS, ...userHeaders };
-  return {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-    'X-Dev-User-Id': current.userId ?? DEFAULT_DEV_IDENTITY.userId,
-    'X-Dev-User-Role': current.role ?? DEFAULT_DEV_IDENTITY.role,
-  };
-}
+import { buildHeaders, apiFetch } from './api-client.js';
 
 export interface RequestOptions {
   signal?: AbortSignal;
@@ -37,7 +25,7 @@ export async function getBoard(
   userHeaders?: DevUserHeaders,
   options?: RequestOptions,
 ): Promise<BoardResponse> {
-  const response = await fetch(`/api/projects/${projectId}/board`, {
+  const response = await apiFetch(`/api/projects/${projectId}/board`, {
     method: 'GET',
     headers: buildHeaders(userHeaders),
     signal: options?.signal,
@@ -76,7 +64,7 @@ async function columnRequest(
   userHeaders?: DevUserHeaders,
   options?: RequestOptions,
 ) {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/projects/${projectId}/board/columns${columnId ? `/${columnId}` : ''}`,
     {
       method,
@@ -149,7 +137,7 @@ export async function deleteBoardColumn(
   const suffix = parsed.targetColumnId
     ? `?${new URLSearchParams({ targetColumnId: parsed.targetColumnId })}`
     : '';
-  const response = await fetch(`/api/projects/${projectId}/board/columns/${columnId}${suffix}`, {
+  const response = await apiFetch(`/api/projects/${projectId}/board/columns/${columnId}${suffix}`, {
     method: 'DELETE',
     headers: buildHeaders(userHeaders),
     signal: options?.signal,
