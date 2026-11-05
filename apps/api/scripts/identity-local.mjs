@@ -1,9 +1,11 @@
 import process from 'node:process';
 import console from 'node:console';
 import assert from 'node:assert/strict';
-import { spawnSync, spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, openSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'node:fs';
+import { createConnection } from 'node:net';
+import { setTimeout } from 'node:timers';
 import { fileURLToPath, URL } from 'node:url';
 import { join, resolve } from 'node:path';
 import { Client } from 'pg';
@@ -17,7 +19,31 @@ const stateFile = join(dir, 'state.json');
 export const state = () => JSON.parse(readFileSync(stateFile, 'utf8'));
 export function pg(command) {
   const args = [command, '-D', join(dir, 'pgdata')];
-  if (command === 'start') args.push('-l', join(dir, 'postgres.log'), '-w', '-t', '30');
+  if (command === 'start') {
+    const psq = (s) => "'" + s.replaceAll("'", "''") + "'";
+    const cmd = `"${join(pgBin, 'pg_ctl.exe')}" start -D "${join(dir, 'pgdata')}" -l "${join(dir, 'postgres.log')}" -w -t 30`;
+    const script = [
+      `$res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ${psq(cmd)} }`,
+      'if ($res.ReturnValue -ne 0) { exit 1 }',
+    ].join('\r\n');
+    const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-'], {
+      input: script,
+      windowsHide: true,
+      encoding: 'utf8',
+      timeout: 35000,
+    });
+    let attempts = 0;
+    while (attempts < 20) {
+      const st = spawnSync(join(pgBin, 'pg_ctl.exe'), ['status', '-D', join(dir, 'pgdata')], {
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+      if (st.status === 0) return { status: 0 };
+      spawnSync('powershell.exe', ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 300']);
+      attempts++;
+    }
+    return { status: r.status };
+  }
   if (command === 'stop') args.push('-m', 'fast', '-w', '-t', '30');
   return spawnSync(join(pgBin, 'pg_ctl.exe'), args, {
     windowsHide: true,
@@ -29,10 +55,18 @@ export async function connect(config) {
   assert.equal(config.host, '127.0.0.1');
   assert.equal(config.port, 55511);
   assert.ok(['postgres', 'is488_identity_local'].includes(config.database));
-  const client = new Client({ ...config, connectionTimeoutMillis: 3000, query_timeout: 5000 });
-  client.on('error', () => {});
-  await client.connect();
-  return client;
+  const deadline = Date.now() + 15000;
+  while (true) {
+    try {
+      const client = new Client({ ...config, connectionTimeoutMillis: 3000, query_timeout: 5000 });
+      client.on('error', () => {});
+      await client.connect();
+      return client;
+    } catch (err) {
+      if (Date.now() >= deadline || !err?.message?.includes('starting up')) throw err;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
 }
 export async function checkTarget(s) {
   assert.equal(resolve(s.data).toLowerCase(), resolve(dir, 'pgdata').toLowerCase());
@@ -288,46 +322,67 @@ export async function start() {
     );
     assert.equal(cert.status, 0);
   }
-  const worker = spawn(
-    process.execPath,
-    [
-      join(root, 'node_modules/wrangler/bin/wrangler.js'),
-      'dev',
-      '--local',
-      '--config',
-      join(dir, 'wrangler.jsonc'),
-      '--ip',
-      'localhost',
-      '--port',
-      '8792',
-      '--inspector-port',
-      '9292',
-      '--local-protocol',
-      'https',
-      '--https-key-path',
-      key,
-      '--https-cert-path',
-      certificate,
-      '--show-interactive-dev-session=false',
-    ],
-    {
-      cwd: root,
-      windowsHide: true,
-      stdio: [
-        'ignore',
-        openSync(join(dir, 'worker.log'), 'a'),
-        openSync(join(dir, 'worker.log'), 'a'),
-      ],
-      env: { ...process.env, CI: 'true', WRANGLER_SEND_METRICS: 'false' },
-    },
-  );
+  const logPath = join(dir, 'worker.log');
+  const wranglerBin = join(root, 'node_modules/wrangler/bin/wrangler.js');
+  const wranglerConfig = join(dir, 'wrangler.jsonc');
+  const psq = (s) => "'" + s.replaceAll("'", "''") + "'";
+  const cmd = [
+    'cmd.exe /c',
+    'set CI=true&&',
+    'set WRANGLER_SEND_METRICS=false&&',
+    `"${process.execPath}"`,
+    `"${wranglerBin}" dev --local`,
+    `--config "${wranglerConfig}"`,
+    '--ip 127.0.0.1 --port 8792 --inspector-port 9292',
+    '--local-protocol https',
+    `--https-key-path "${key}"`,
+    `--https-cert-path "${certificate}"`,
+    '--show-interactive-dev-session=false',
+    `< NUL >> "${logPath}" 2>&1`,
+  ].join(' ');
+  const psScript = [
+    `$res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ${psq(cmd)}; CurrentDirectory = ${psq(root)} }`,
+    'if ($res.ReturnValue -ne 0) { exit 1 }',
+    'Write-Output $res.ProcessId',
+  ].join('\r\n');
+  const launch = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-'], {
+    input: psScript,
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 15000,
+  });
+  if (launch.status !== 0)
+    throw new Error(
+      'Worker launch failed: ' + (launch.stderr || launch.stdout || '').trim().slice(0, 300),
+    );
+  const workerPid = Number(launch.stdout.trim());
+  assert.ok(Number.isInteger(workerPid) && workerPid > 0, 'Worker PID not obtained');
   writeFileSync(
     join(dir, 'running.json'),
-    JSON.stringify({ pid: worker.pid, scope: 'identity-session', origin: s.origin }),
+    JSON.stringify({ pid: workerPid, scope: 'identity-session', origin: s.origin }),
   );
-  worker.unref();
-  console.log('Local session environment: ' + s.origin);
-  return worker;
+  // Wait up to 20 s for port 8792 to accept connections before announcing readiness.
+  await new Promise((resolve, reject) => {
+    const deadline = Date.now() + 20000;
+    function probe() {
+      const socket = createConnection({ host: '127.0.0.1', port: 8792 }, () => {
+        socket.destroy();
+        resolve();
+      });
+      socket.on('error', () => {
+        socket.destroy();
+        if (Date.now() >= deadline)
+          reject(
+            new Error(
+              'Worker did not listen on port 8792 within 20 s; check .local-dev/identity-session/worker.log',
+            ),
+          );
+        else setTimeout(probe, 500);
+      });
+    }
+    probe();
+  });
+  console.log('Worker ready. Local session environment: ' + s.origin);
 }
 export async function stop() {
   const running = join(dir, 'running.json');
@@ -367,8 +422,29 @@ async function main() {
   if (command === 'start') return start();
   if (command === 'stop') return stop();
   if (command === 'status') {
+    const pgRunning = pg('status').status === 0;
+    console.log('PostgreSQL: ' + (pgRunning ? 'running (port 55511)' : 'stopped'));
+    // Probe port 8792 to check whether the Worker is listening.
+    const workerOk = await new Promise((resolve) => {
+      if (!existsSync(join(dir, 'running.json'))) {
+        resolve(false);
+        return;
+      }
+      const socket = createConnection({ host: '127.0.0.1', port: 8792 }, () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+      socket.setTimeout(1500, () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
     console.log(
-      pg('status').status === 0 ? 'Identity cluster running' : 'Identity cluster stopped',
+      'Worker:     ' + (workerOk ? 'listening (port 8792)' : 'not responding on port 8792'),
     );
     return;
   }
