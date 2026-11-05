@@ -20,3 +20,7 @@ export * from './ports/teacher-project-scope.port.js';
 
 export * from './contracts/identity-access.contract.js';
 export * from './ports/identity-session.port.js';
+
+export * from './ports/review-repository.port.js';
+export * from './ports/review-notification.port.js';
+export * from './contracts/review.contract.js';

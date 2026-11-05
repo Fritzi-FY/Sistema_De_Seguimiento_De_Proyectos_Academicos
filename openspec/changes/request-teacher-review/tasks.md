@@ -1,13 +1,13 @@
 # Tasks: Implementación del Flujo de Revisión Docente a Nivel de Proyecto
 
-> Estado de Planificación (Nivel C): Todas las casillas permanecen pendientes (`- [ ]`). La aprobación de la propuesta o de las tareas autoriza únicamente la planificación formal; NO autoriza a escribir código ni a ejecutar `/opsx-apply`. La implementación requiere la concesión explícita e independiente de la Autorización Nivel D por parte de Fritz.
+> Estado de Implementación: Nivel D autorizado exclusivamente para el incremento 1 (dominio, contratos y pruebas en `@is488/shared`). Las autorizaciones de los bloques posteriores (casos de uso, persistencia/migración, HTTP y verificación final) permanecen pendientes (`- [ ]`).
 
 ## 1. Compuertas de Autorización y Modelado de Dominio (`@is488/shared`)
 
-- [ ] 1.1 Obtener de forma explícita la Autorización Nivel D para iniciar la implementación de código y migraciones de este cambio.
-- [ ] 1.2 Definir los tipos de dominio, enumeraciones `ReviewStatus` (`PENDING`, `CHANGES_REQUESTED`, `APPROVED`), `ReviewActionType` (`TEACHER_RESPONSE`, `STUDENT_RESUBMISSION`) y esquemas Zod en `packages/shared/src/contracts/review.contract.ts` (`CreateReviewRequestSchema`, `RespondReviewRequestSchema`, `ResubmitReviewRequestSchema`, `ReviewDetailResponseSchema`), incluyendo el campo `sequenceNumber` para orden determinista de acciones.
-- [ ] 1.3 Implementar pruebas unitarias para los esquemas Zod de contratos en `packages/shared/src/contracts/review.contract.test.ts` (validación de campos obligatorios, longitud de comentarios/ajustes 5-2000 chars, formato URL opcional, `sequenceNumber >= 1`, y rechazo de estados no permitidos).
-- [ ] 1.4 Definir los puertos de dominio en `packages/shared/src/ports/review-repository.port.ts` (`ReviewRepositoryPort`) y `packages/shared/src/ports/review-notification.port.ts` (`ReviewNotificationPort`), exportándolos desde el índice de paquetes compartidos.
+- [x] 1.1 Obtener de forma explícita la Autorización Nivel D exclusivamente para el incremento de dominio, contratos y sus pruebas (las autorizaciones para casos de uso, persistencia/migraciones, HTTP y verificación final permanecen pendientes).
+- [x] 1.2 Definir los tipos de dominio, enumeraciones `ReviewStatus` (`PENDING`, `CHANGES_REQUESTED`, `APPROVED`), `ReviewActionType` (`TEACHER_RESPONSE`, `STUDENT_RESUBMISSION`) y esquemas Zod en `packages/shared/src/contracts/review.contract.ts` (`CreateReviewRequestSchema`, `RespondReviewRequestSchema`, `ResubmitReviewRequestSchema`, `ReviewDetailResponseSchema`), incluyendo el campo `sequenceNumber` para orden determinista de acciones.
+- [x] 1.3 Implementar pruebas unitarias para los esquemas Zod de contratos en `packages/shared/src/contracts/review.contract.test.ts` (validación de campos obligatorios, longitud de comentarios/ajustes 5-2000 chars, formato URL opcional, `sequenceNumber >= 1`, y rechazo de estados no permitidos).
+- [x] 1.4 Definir los puertos de dominio en `packages/shared/src/ports/review-repository.port.ts` (`ReviewRepositoryPort`) y `packages/shared/src/ports/review-notification.port.ts` (`ReviewNotificationPort`), exportándolos desde el índice de paquetes compartidos.
 
 ## 2. Casos de Uso de Aplicación y Pruebas Unitarias (`apps/api`)
 
