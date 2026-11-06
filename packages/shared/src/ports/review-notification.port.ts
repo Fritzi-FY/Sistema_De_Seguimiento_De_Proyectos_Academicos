@@ -1,5 +1,3 @@
-import type { ReviewStatus } from './review-repository.port.js';
-
 /**
  * Carga de datos transmitida al emitir la notificación de conclusión de revisión docente.
  */
@@ -10,8 +8,8 @@ export interface ReviewNotificationPayload {
   reviewId: string;
   /** Identificador del docente evaluador. */
   reviewerId: string;
-  /** Estado de dictamen emitido ('APPROVED' o 'CHANGES_REQUESTED'). */
-  status: ReviewStatus;
+  /** Estado de dictamen emitido. Solo se notifica cuando el docente concluye una revisión. */
+  status: 'APPROVED' | 'CHANGES_REQUESTED';
   /** Lista de identificadores de miembros activos del proyecto que deben ser notificados. */
   recipientUserIds: readonly string[];
 }

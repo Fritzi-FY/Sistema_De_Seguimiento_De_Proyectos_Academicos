@@ -161,19 +161,32 @@ La especificación canónica establece:
 ### 5.2 Puerto de Dominio y Dobles de Prueba
 - Se define el puerto formal en el dominio:
   ```typescript
+  export interface ReviewNotificationPayload {
+    projectId: string;
+    reviewId: string;
+    reviewerId: string;
+    status: 'APPROVED' | 'CHANGES_REQUESTED';
+    recipientUserIds: readonly string[];
+  }
+
   export interface ReviewNotificationPort {
-    notifyReviewCompleted(payload: {
-      projectId: string;
-      reviewId: string;
-      reviewerId: string;
-      status: ReviewStatus;
-      recipientUserIds: string[];
-    }): Promise<void>;
+    notifyReviewCompleted(payload: ReviewNotificationPayload): Promise<void>;
   }
   ```
 - **Distinción entre emisión (EPIC-006) y entrega efectiva (EPIC-007):**
   - En **EPIC-006**, se valida empíricamente en la suite de pruebas que el caso de uso `RespondTeacherReviewUseCase` invoca `ReviewNotificationPort` con la carga esperada (`NotificationTestSpy`).
   - La **entrega efectiva según configuración y preferencias de los usuarios** depende de **EPIC-007 (`audit-reports-notifications`)**, que proporcionará el esquema de preferencias de notificación por usuario y el subsistema de despacho de notificaciones persistidas.
+
+### 5.3 Política ante Fallo del Puerto de Notificaciones Post-Escritura
+- **Persistencia prioritaria y atómica:** La actualización del estado y el registro de la acción en la base de datos se ejecutan y confirman atómicamente antes de intentar emitir cualquier notificación. Si la persistencia falla, el error se propaga de inmediato al llamador (HTTP 500) y **no se intenta notificar**.
+- **Resiliencia ante fallo de notificación:** Si la respuesta docente ya quedó guardada correctamente, el caso de uso devuelve el resultado exitoso (HTTP 200).
+- **Diagnóstico estructurado sin datos sensibles:** Los fallos arrojados por el puerto de notificaciones se capturan específicamente y se registran mediante el mecanismo de diagnóstico existente (`console.error` con JSON estructurado indicando `stage: 'review-notification'`, `outcome: 'failed'`, `projectId`, `reviewId` y tipo de error), **sin incluir observaciones, enlaces, comentarios ni datos sensibles**.
+- **Alcance acotado:** Este bloque **no garantiza entrega ni reintentos de notificaciones**, responsabilidades que quedan diferidas formalmente a **EPIC-007**.
+
+### 5.4 Destinatarios Autorizados y Permisos de Consulta
+- La notificación se restringe estrictamente a los usuarios con permiso de consulta activo sobre la revisión evaluada.
+- El único estudiante con permiso de consulta es el **solicitante original**, y únicamente si mantiene **membresía activa (`status: 'active'`)** en el proyecto en el momento de la respuesta.
+- Si la membresía del solicitante fue retirada (`status: 'removed'`) antes de la respuesta docente, `recipientUserIds` queda vacío y no se le despacha notificación, preservando el principio de menor privilegio.
 
 ## 6. Puertos y Casos de Uso
 

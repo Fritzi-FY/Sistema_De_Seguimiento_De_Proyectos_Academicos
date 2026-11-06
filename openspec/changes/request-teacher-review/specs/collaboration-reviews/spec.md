@@ -16,7 +16,7 @@ The system SHALL allow an authorized student with active project membership to s
 - **AND** the formal registration of deliverables (FR-011) SHALL remain deferred outside this increment
 
 #### Scenario: Currently assigned teacher responds to a review request
-- **GIVEN** an authenticated teacher who is currently assigned to project `P` in `teacher_project_assignments`
+- **GIVEN** an authenticated user with role `"teacher"` who is currently assigned to project `P` in `teacher_project_assignments`
 - **AND** an existing review request `R` in project `P` with status `"PENDING"`
 - **AND** a valid response payload containing `status` (`"APPROVED"` or `"CHANGES_REQUESTED"`) and `observation` text (5 to 2000 characters)
 - **WHEN** the teacher submits an HTTP `POST` to `/api/projects/:projectId/reviews/:reviewId/response`
@@ -25,7 +25,7 @@ The system SHALL allow an authorized student with active project membership to s
   - Updates the review request status to the evaluated status (`"APPROVED"` or `"CHANGES_REQUESTED"`)
   - Assigns the next monotonic sequence number for review `R`
   - Inserts an immutable action record with `actionType: "TEACHER_RESPONSE"`, `sequenceNumber`, `actorId` (teacher), `actorRole: "teacher"`, `status`, `comment` (observation), and current timestamp
-- **AND** SHALL emit a verifiable notification event via `ReviewNotificationPort` containing review details, teacher identity, and active project member IDs
+- **AND** SHALL emit a verifiable notification event via `ReviewNotificationPort` containing review details, teacher identity, and the requesting student ID only if they retain active membership and query permission
 - **AND** SHALL respond with HTTP status 200 OK and the updated review representation
 
 #### Scenario: Re-evaluation request after CHANGES_REQUESTED
@@ -103,9 +103,10 @@ The system SHALL allow an authorized student with active project membership to s
 - **AND** SHALL NOT disclose review existence, metadata, or permit any re-evaluation
 
 #### Scenario: Rejection — student attempts to submit teacher review response
-- **GIVEN** an authenticated student (even the project owner or requester)
+- **GIVEN** an authenticated user with role `"student"` (even the project owner or requester)
 - **WHEN** the student submits `POST /api/projects/:projectId/reviews/:reviewId/response`
-- **THEN** the system SHALL reject the request with HTTP status 403 Forbidden
+- **THEN** the system SHALL verify the role from the trusted identity context
+- **AND** SHALL reject the request with HTTP status 403 Forbidden
 - **AND** SHALL NOT permit evaluation submission by non-teacher roles
 
 #### Scenario: Rejection — unauthenticated access
@@ -123,5 +124,30 @@ The system SHALL allow an authorized student with active project membership to s
 #### Scenario: Verifiable notification event emission (EPIC-006) vs effective delivery according to preferences (EPIC-007)
 - **GIVEN** an assigned teacher submitting a review response
 - **WHEN** the response transaction commits successfully
-- **THEN** the system SHALL verify that the domain port `ReviewNotificationPort` was invoked with review ID, status, reviewer ID, and member recipients (verifiable via test spy in automated tests)
+- **THEN** the system SHALL verify that the domain port `ReviewNotificationPort` was invoked with review ID, status (`"APPROVED"` or `"CHANGES_REQUESTED"`), reviewer ID, and authorized recipients (verifiable via test spy in automated tests)
 - **AND** effective notification delivery according to individual recipient notification settings SHALL be formally recognized as dependent on EPIC-007 implementation
+
+#### Scenario: Post-persistence notification failure handling — diagnostic logging without sensitive data and successful response
+- **GIVEN** an assigned teacher submitting a valid review response
+- **AND** the database transaction commits the review status update and action record successfully
+- **AND** a failure occurs while querying recipient membership or invoking `ReviewNotificationPort`
+- **WHEN** the use case captures the post-persistence failure
+- **THEN** the system SHALL record a structured diagnostic event via existing diagnostic facilities without disclosing observations, adjustments, evidence links, or sensitive data
+- **AND** SHALL NOT dispatch notification if recipient permissions cannot be confirmed
+- **AND** SHALL respond with HTTP status 200 OK and the updated review representation
+- **AND** the review status and action record SHALL remain safely persisted exactly once
+- **AND** the system SHALL NOT guarantee retries or delivery persistence in this block (deferred to EPIC-007)
+
+#### Scenario: Persistence failure prevents notification emission
+- **GIVEN** an assigned teacher submitting a review response
+- **AND** an infrastructure failure occurs during database persistence
+- **WHEN** the persistence operation throws an exception
+- **THEN** the system SHALL propagate the persistence error to the caller (HTTP 500)
+- **AND** SHALL NOT invoke `ReviewNotificationPort`
+
+#### Scenario: Notification restricted to requester with active membership and query permission
+- **GIVEN** an existing review request `R` submitted by student `S` in project `P`
+- **AND** the assigned teacher submits a response to review `R`
+- **WHEN** the system resolves notification recipients
+- **THEN** student `S` SHALL be included in `recipientUserIds` ONLY IF student `S` retains active membership (`status: "active"`) in project `P`
+- **AND** student `S` SHALL NOT be notified if their membership has been set to `"removed"` or is inactive
