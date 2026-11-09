@@ -1,6 +1,6 @@
 # Tasks: Implementación del Flujo de Revisión Docente a Nivel de Proyecto
 
-> Estado de Implementación: Nivel D autorizado para los bloques 1 (dominio/contratos) y 2 (casos de uso, adaptador en memoria y pruebas en `apps/api`). Las autorizaciones de los bloques posteriores (persistencia/migración, HTTP y verificación final) permanecen pendientes (`- [ ]`).
+> Estado de Implementación: Nivel D autorizado para los bloques 1 (dominio/contratos), 2 (casos de uso, adaptador en memoria y pruebas en `apps/api`) y la continuación del bloque 3 (persistencia y configuración de suites PostgreSQL). HTTP y cierre final permanecen pendientes.
 
 ## 1. Compuertas de Autorización y Modelado de Dominio (`@is488/shared`)
 
@@ -24,12 +24,12 @@
 
 ## 3. Persistencia Relacional y Migración PostgreSQL (`apps/api`)
 
-- [ ] 3.1 Redactar el script SQL de migración aditiva `apps/api/migrations/sql/0006_collaboration_reviews.sql` creando las dos tablas relacionales `teacher_review_requests` y `teacher_review_actions` (con `sequence_number integer NOT NULL` y restricción `UNIQUE (review_request_id, sequence_number)`), con claves foráneas referenciando `public.projects(id)` y `teacher_review_requests(id)` con `ON DELETE RESTRICT` e índices de optimización temporal.
-- [ ] 3.2 Actualizar el catálogo de migraciones en `apps/api/migrations/manifest.json` y los privilegios de runtime en `apps/api/migrations/runtime-privileges.ts` con permisos estrictos de DML (`SELECT`, `INSERT`, `UPDATE`).
-- [ ] 3.3 Implementar el adaptador PostgreSQL `PostgresqlReviewRepository` en `apps/api/src/infrastructure/postgresql/review.repository.ts` utilizando transacciones atómicas `SqlSession.transaction` con bloqueo de fila `FOR UPDATE` para garantizar consistencia, asignación de secuencia monotónica y reversión total ante fallos.
+- [x] 3.1 Redactar el script SQL de migración aditiva `apps/api/migrations/sql/0006_collaboration_reviews.sql` creando las dos tablas relacionales `teacher_review_requests` y `teacher_review_actions` (con `sequence_number integer NOT NULL` y restricción `UNIQUE (review_request_id, sequence_number)`), con claves foráneas referenciando `public.projects(id)` y `teacher_review_requests(id)` con `ON DELETE RESTRICT` e índices de optimización temporal.
+- [x] 3.2 Actualizar el catálogo de migraciones en `apps/api/migrations/manifest.json` y los privilegios de runtime en `apps/api/migrations/runtime-privileges.ts` con permisos estrictos de DML (`SELECT`, `INSERT`, `UPDATE`).
+- [x] 3.3 Implementar el adaptador PostgreSQL `PostgresqlReviewRepository` en `apps/api/src/infrastructure/postgresql/review.repository.ts` utilizando transacciones atómicas `SqlSession.transaction` con bloqueo de fila `FOR UPDATE` para garantizar consistencia, asignación de secuencia monotónica y reversión total ante fallos.
 - [ ] 3.4 Escribir pruebas de integración con PostgreSQL en `apps/api/src/infrastructure/postgresql/review.sql.test.ts` verificando:
   - Flujo de dos ciclos de corrección completos (Solicitud ➔ Observación 1 ➔ Ajuste 1 ➔ Observación 2 ➔ Ajuste 2 ➔ Aprobación) y comprobación del orden exacto por `sequence_number ASC` incluso ante timestamps coincidentes.
-  - Ejecutar un **reinicio real de los procesos de la API y de PostgreSQL en el entorno de pruebas** (detención y levantamiento efectivo de instancias/servicios, no solo reinicios simulados en memoria) comprobando la supervivencia fidedigna del estado y del historial.
+  - Ejecutar un **reinicio real de los procesos de la API y de PostgreSQL en el entorno de pruebas** (detención y levantamiento efectivo de instancias/servicios, no solo reinicios simulados en memoria) comprobando la supervivencia fidedigna del estado y del historial. La verificación conjunta de reinicio real de API y PostgreSQL queda pendiente para el bloque 4; la tarea 3.4 permanece desmarcada.
   - Dos re-solicitudes concurrentes sobre el estado `CHANGES_REQUESTED`, verificando que una triunfa y la otra falla con 409 sin registrar acciones duplicadas.
   - Rollback estricto ante fallo intencionado en la inserción de la acción, verificando que el estado de la solicitud no cambia y no quedan filas huérfanas.
 

@@ -105,3 +105,26 @@ test('version 2 omits future Kanban tables while version 3 requires their comple
     /missing_policy_table/,
   );
 });
+
+test('version 5 omits collaboration review tables while version 6 enforces requests and append-only actions', async () => {
+  const targets: string[][] = [];
+  const inner = database();
+  const capture: QueryClient = {
+    async query(sql, values) {
+      if (sql.includes('WITH targets AS')) targets.push(values![1] as string[]);
+      return inner.query(sql, values);
+    },
+  };
+  await verifyRuntime(capture, 'runtime', 5);
+  assert.equal(targets[0]?.includes('public.teacher_review_requests'), false);
+  assert.equal(targets[0]?.includes('public.teacher_review_actions'), false);
+  await verifyRuntime(capture, 'runtime', 6);
+  assert.equal(targets[1]?.includes('public.teacher_review_requests'), true);
+  assert.equal(targets[1]?.includes('public.teacher_review_actions'), true);
+
+  const requestPolicy = runtimePolicy.find((p) => p.table === 'public.teacher_review_requests');
+  assert.deepEqual(requestPolicy?.grants, ['SELECT', 'INSERT', 'UPDATE']);
+
+  const actionPolicy = runtimePolicy.find((p) => p.table === 'public.teacher_review_actions');
+  assert.deepEqual(actionPolicy?.grants, ['SELECT', 'INSERT']);
+});

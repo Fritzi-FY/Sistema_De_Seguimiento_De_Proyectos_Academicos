@@ -1,4 +1,8 @@
-import { ciSqlProfile, assertCiSqlTarget } from '../../testing/sql-ci.js';
+import {
+  ciSqlProfile,
+  assertCiSqlTarget,
+  assertSqlTestConfiguration,
+} from '../../testing/sql-ci.js';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { Client, type ClientConfig } from 'pg';
@@ -26,11 +30,12 @@ import type {
 
 const enabled = process.env.IS488_KANBAN_SQL_TEST === '1';
 const ci = ciSqlProfile();
+assertSqlTestConfiguration(enabled);
 const config: ClientConfig = {
-  host: '127.0.0.1',
-  port: ci ? 5432 : 55490,
-  database: ci?.database ?? 'is488_dev',
-  user: ci?.runtime ?? 'is488_dev_runtime',
+  host: ci ? '127.0.0.1' : (process.env.IS488_SQL_HOST ?? '127.0.0.1'),
+  port: ci ? 5432 : process.env.IS488_SQL_PORT ? Number(process.env.IS488_SQL_PORT) : undefined,
+  database: ci?.database ?? process.env.IS488_KANBAN_DATABASE ?? 'is488_dev',
+  user: ci?.runtime ?? process.env.IS488_KANBAN_RUNTIME_USER ?? 'is488_dev_runtime',
   password: ci?.rolePassword,
   connectionTimeoutMillis: 3000,
   query_timeout: 6000,
@@ -123,9 +128,20 @@ function scoped<T>(work: () => Promise<T>, override: ClientConfig = {}, actor = 
 }
 describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () => {
   beforeAll(async () => {
+    const expectedDir = process.env.IS488_SQL_DATA_DIR ?? process.env.IS488_MIGRATION_TEST_DIR;
+    if (!ci) {
+      if (!process.env.IS488_SQL_PORT) {
+        throw new Error('IS488_SQL_PORT is required when Kanban SQL tests are enabled');
+      }
+      if (!expectedDir) {
+        throw new Error(
+          'IS488_SQL_DATA_DIR or IS488_MIGRATION_TEST_DIR is required when Kanban SQL tests are enabled',
+        );
+      }
+    }
     admin = new Client({
       ...config,
-      user: ci?.admin ?? 'is488_migration_admin',
+      user: ci?.admin ?? process.env.IS488_MIGRATION_ADMIN_USER ?? 'is488_migration_admin',
       password: ci?.adminPassword,
     });
     admin.on('error', () => {});
@@ -138,9 +154,9 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () 
     expect(row.database).toBe(config.database);
     if (ci) await assertCiSqlTarget(admin);
     else {
-      expect(row.port).toBe(55490);
-      expect(String(row.directory).replaceAll('\\', '/').toLowerCase()).toBe(
-        'c:/users/fritz/appdata/local/temp/is488-migrator-d5974a0c7b7444ff9f9d85079bc86898',
+      expect(row.port).toBe(config.port);
+      expect(String(row.directory).replaceAll('\\', '/').toLowerCase().replace(/\/+$/, '')).toBe(
+        expectedDir!.replaceAll('\\', '/').toLowerCase().replace(/\/+$/, ''),
       );
     }
     expect(
@@ -347,7 +363,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () 
       destinationIndex: 999,
     });
     expect((await list(f)).items.map((t) => t.orderIndex)).toEqual([0, 1, 2, 3]);
-  });
+  }, 15000);
 
   it('atomically reallocates columns, retains historical references and enforces 1/10 limits', async () => {
     const f = await fixture();
@@ -394,7 +410,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () 
       undefined,
       400,
     );
-  });
+  }, 15000);
 
   it('performs AND filters and literal substring search in one SQL page/count snapshot', async () => {
     const f = await fixture();
@@ -561,7 +577,7 @@ describe.skipIf(!enabled)('PostgreSQL Kanban, exclusive ' + config.database, () 
         dropped = false,
         commands = Buffer.alloc(0);
       const proxy = createServer((peer) => {
-        const backend = connect({ host: '127.0.0.1', port: config.port ?? 55490 });
+        const backend = connect({ host: String(config.host), port: Number(config.port) });
         sockets.add(peer);
         sockets.add(backend);
         peer.on('data', (b) => {

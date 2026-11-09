@@ -23,5 +23,10 @@
     "version": 5,
     "name": "0005_identity_access.sql",
     "sha256": "848e8cbcfd23dcb4be72bf0906ee6dcd3e58d20747b7c20c6528c6df76256985"
+  },
+  {
+    "version": 6,
+    "name": "0006_collaboration_reviews.sql",
+    "sha256": "8fcc1d9fce4289b72f21bb8fcfdd40548f3ca71530a5ab93ca66b0b1a26cb77f"
   }
 ]
