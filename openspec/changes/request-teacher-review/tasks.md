@@ -1,6 +1,6 @@
 # Tasks: Implementación del Flujo de Revisión Docente a Nivel de Proyecto
 
-> Estado de Implementación: Nivel D autorizado para los bloques 1 (dominio/contratos), 2 (casos de uso, adaptador en memoria y pruebas en `apps/api`) y la continuación del bloque 3 (persistencia y configuración de suites PostgreSQL). HTTP y cierre final permanecen pendientes.
+> Estado de Implementación: Nivel D autorizado para los bloques 1 (dominio/contratos), 2 (casos de uso, adaptador en memoria y pruebas en `apps/api`), 3 (persistencia y configuración de suites PostgreSQL) y 4 (API HTTP, OpenAPI y verificación integral de reinicio). El cierre final permanece pendiente.
 
 ## 1. Compuertas de Autorización y Modelado de Dominio (`@is488/shared`)
 
@@ -27,18 +27,18 @@
 - [x] 3.1 Redactar el script SQL de migración aditiva `apps/api/migrations/sql/0006_collaboration_reviews.sql` creando las dos tablas relacionales `teacher_review_requests` y `teacher_review_actions` (con `sequence_number integer NOT NULL` y restricción `UNIQUE (review_request_id, sequence_number)`), con claves foráneas referenciando `public.projects(id)` y `teacher_review_requests(id)` con `ON DELETE RESTRICT` e índices de optimización temporal.
 - [x] 3.2 Actualizar el catálogo de migraciones en `apps/api/migrations/manifest.json` y los privilegios de runtime en `apps/api/migrations/runtime-privileges.ts` con permisos estrictos de DML (`SELECT`, `INSERT`, `UPDATE`).
 - [x] 3.3 Implementar el adaptador PostgreSQL `PostgresqlReviewRepository` en `apps/api/src/infrastructure/postgresql/review.repository.ts` utilizando transacciones atómicas `SqlSession.transaction` con bloqueo de fila `FOR UPDATE` para garantizar consistencia, asignación de secuencia monotónica y reversión total ante fallos.
-- [ ] 3.4 Escribir pruebas de integración con PostgreSQL en `apps/api/src/infrastructure/postgresql/review.sql.test.ts` verificando:
+- [x] 3.4 Escribir pruebas de integración con PostgreSQL en `apps/api/src/infrastructure/postgresql/review.sql.test.ts` verificando:
   - Flujo de dos ciclos de corrección completos (Solicitud ➔ Observación 1 ➔ Ajuste 1 ➔ Observación 2 ➔ Ajuste 2 ➔ Aprobación) y comprobación del orden exacto por `sequence_number ASC` incluso ante timestamps coincidentes.
-  - Ejecutar un **reinicio real de los procesos de la API y de PostgreSQL en el entorno de pruebas** (detención y levantamiento efectivo de instancias/servicios, no solo reinicios simulados en memoria) comprobando la supervivencia fidedigna del estado y del historial. La verificación conjunta de reinicio real de API y PostgreSQL queda pendiente para el bloque 4; la tarea 3.4 permanece desmarcada.
+  - Ejecutar un **reinicio real de los procesos de la API y de PostgreSQL en el entorno de pruebas** (detención y levantamiento efectivo de instancias/servicios, no solo reinicios simulados en memoria) comprobando la supervivencia fidedigna del estado y del historial. Verificado localmente por HTTP: dos ciclos de corrección, aprobación, seis eventos, salida final exitosa de `pg_ctl`, nuevo proceso API y comparación completa del detalle antes/después. Evidencia en `apps/api/.local-dev/review-http-<id>/{before,after}.json`.
   - Dos re-solicitudes concurrentes sobre el estado `CHANGES_REQUESTED`, verificando que una triunfa y la otra falla con 409 sin registrar acciones duplicadas.
   - Rollback estricto ante fallo intencionado en la inserción de la acción, verificando que el estado de la solicitud no cambia y no quedan filas huérfanas.
 
 ## 4. Adaptador HTTP, Rutas y Contrato OpenAPI (`apps/api`)
 
-- [ ] 4.1 Implementar el enrutador HTTP Hono en `apps/api/src/infrastructure/http/routes/reviews.route.ts` exponiendo `POST /`, `POST /:reviewId/response`, `POST /:reviewId/re-submit` y `GET /:reviewId` con cabeceras `Cache-Control: no-store` y middleware de autenticación.
-- [ ] 4.2 Integrar el enrutador de revisiones en `apps/api/src/infrastructure/http/app.ts` montado bajo la ruta `/api/projects/:projectId/reviews`.
-- [ ] 4.3 Actualizar la especificación y contratos OpenAPI en `apps/api/src/infrastructure/openapi/openapi.contract.ts` documentando endpoints, esquemas de entrada/salida y códigos de estado HTTP (200, 201, 400, 401, 403, 404, 409, 500).
-- [ ] 4.4 Escribir pruebas de integración HTTP en `apps/api/src/infrastructure/http/routes/reviews.route.test.ts` cubriendo el ciclo completo: solicitud, respuesta docente, re-solicitud tras CHANGES_REQUESTED, aprobación, pérdida de acceso tras desasignación/retiro, y rechazo 404 ante otros miembros del equipo.
+- [x] 4.1 Implementar el enrutador HTTP Hono en `apps/api/src/infrastructure/http/routes/reviews.route.ts` exponiendo `POST /`, `POST /:reviewId/response`, `POST /:reviewId/re-submit` y `GET /:reviewId` con cabeceras `Cache-Control: no-store` y middleware de autenticación.
+- [x] 4.2 Integrar el enrutador de revisiones en `apps/api/src/infrastructure/http/app.ts` montado bajo la ruta `/api/projects/:projectId/reviews`.
+- [x] 4.3 Actualizar la especificación y contratos OpenAPI en `apps/api/src/infrastructure/openapi/openapi.contract.ts` documentando endpoints, esquemas de entrada/salida y códigos de estado HTTP (200, 201, 400, 401, 403, 404, 409, 500).
+- [x] 4.4 Escribir pruebas de integración HTTP en `apps/api/src/infrastructure/http/routes/reviews.route.test.ts` cubriendo el ciclo completo: solicitud, respuesta docente, re-solicitud tras CHANGES_REQUESTED, aprobación, pérdida de acceso tras desasignación/retiro, y rechazo 404 ante otros miembros del equipo.
 
 ## 5. Verificación Empírica y Cierre de Implementación
 

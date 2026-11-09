@@ -60,8 +60,18 @@ import { InMemoryTaskRepository } from '../adapters/repositories/in-memory-task.
 import { InMemoryTaskActivityRepository } from '../adapters/repositories/in-memory-task-activity.repository.js';
 import { GetTaskActivityUseCase } from '../../application/use-cases/get-task-activity.use-case.js';
 import { createTaskActivityRouter } from './routes/task-activity.route.js';
+import { createReviewsRouter } from './routes/reviews.route.js';
+import { InMemoryReviewRepository } from '../adapters/repositories/in-memory-review.repository.js';
+import { PostgresqlReviewRepository } from '../postgresql/review.repository.js';
+import type { ReviewRepositoryPort, ReviewNotificationPort } from '@is488/shared';
+import { RequestTeacherReviewUseCase } from '../../application/use-cases/request-teacher-review.use-case.js';
+import { RespondTeacherReviewUseCase } from '../../application/use-cases/respond-teacher-review.use-case.js';
+import { ResubmitTeacherReviewUseCase } from '../../application/use-cases/resubmit-teacher-review.use-case.js';
+import { GetTeacherReviewUseCase } from '../../application/use-cases/get-teacher-review.use-case.js';
 
 export interface AppOptions {
+  reviewRepository?: ReviewRepositoryPort;
+  reviewNotificationPort?: ReviewNotificationPort;
   authentication?: AuthMiddleware;
   remoteValidation?: 'A' | 'B';
   teacherProjectScope?: TeacherProjectScopePort;
@@ -115,6 +125,7 @@ export function createApp(options: AppOptions = {}) {
     (options.projectRepository ||
       options.membershipRepository ||
       options.projectCreationPort ||
+      options.reviewRepository ||
       options.teacherProjectScope)
   ) {
     throw new Error('SQL persistence requires joint composition of all three ports');
@@ -178,6 +189,15 @@ export function createApp(options: AppOptions = {}) {
     new PostgresqlTeacherProjectScopeAdapter(),
   );
   const app = new Hono();
+  const reviewRepository = selectPort<ReviewRepositoryPort>(
+    options.reviewRepository ?? new InMemoryReviewRepository(),
+    new PostgresqlReviewRepository(),
+  );
+  const reviewNotifications: ReviewNotificationPort = options.reviewNotificationPort ?? {
+    async notifyReviewCompleted() {
+      throw new Error('Review notification delivery deferred to EPIC-007');
+    },
+  };
   const localAuth = createDevAuthMiddleware({ nodeEnv });
   const routerAuth: AuthMiddleware = async (c, next) =>
     c.get('user')
@@ -187,6 +207,8 @@ export function createApp(options: AppOptions = {}) {
         : localAuth(c, next);
   let accessCache: { key: string; auth: AuthMiddleware } | undefined;
   app.use('*', async (c, next) => {
+    if (/^\/api\/projects\/[^/]+\/reviews(?:\/|$)/.test(c.req.path))
+      c.header('Cache-Control', 'no-store');
     const env = c.env as Record<string, unknown> | undefined;
     const deployment = options.remoteValidation ?? env?.VALIDATION_DEPLOYMENT;
     if (deployment) {
@@ -365,6 +387,22 @@ export function createApp(options: AppOptions = {}) {
   app.get('/api/openapi.json', (c) => {
     return c.json(openApiSpec, 200);
   });
+
+  app.route(
+    '/api/projects/:projectId/reviews',
+    createReviewsRouter(
+      new RequestTeacherReviewUseCase(membershipRepository, reviewRepository),
+      new RespondTeacherReviewUseCase(
+        teacherScope,
+        membershipRepository,
+        reviewRepository,
+        reviewNotifications,
+      ),
+      new ResubmitTeacherReviewUseCase(membershipRepository, reviewRepository),
+      new GetTeacherReviewUseCase(membershipRepository, teacherScope, reviewRepository),
+      routerAuth,
+    ),
+  );
 
   return app;
 }

@@ -5,17 +5,23 @@ import {
   assertCiSqlTarget,
   assertSqlTestConfiguration,
 } from '../../testing/sql-ci.js';
-import { execFile, spawnSync } from 'node:child_process';
+import { execFile, spawn, fork, type ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
+import { build } from 'esbuild';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { Client, type ClientConfig } from 'pg';
 import { SqlSession } from './session.js';
 import { PostgresqlReviewRepository } from './review.repository.js';
-import { deriveReviewTimeline } from '@is488/shared';
+import {
+  deriveReviewTimeline,
+  ReviewDetailResponseSchema,
+  ReviewRequestSummaryResponseSchema,
+} from '@is488/shared';
 
 const enabled = process.env.IS488_SQL_TEST === '1';
 assertSqlTestConfiguration(enabled);
@@ -27,10 +33,6 @@ const base: ClientConfig = ciAdminConnection() ?? {
   database: 'postgres',
   connectionTimeoutMillis: 5000,
 };
-
-function normalizeDataDir(dir: string): string {
-  return dir.replaceAll('\\', '/').toLowerCase().replace(/\/+$/, '');
-}
 
 const suffix = crypto.randomUUID().replaceAll('-', '');
 const database = 'is488_test_rev_' + suffix;
@@ -80,62 +82,36 @@ async function seedProjectFixtures(client: Client) {
 }
 
 async function restartPostgres(dataDir: string, adminClient: Client): Promise<void> {
-  // Close active sessions before restart
-  await Promise.all(sessions.map((s) => s.close().catch(() => {})));
+  const identity = (
+    await adminClient.query(
+      "SELECT host(inet_server_addr()) AS host, inet_server_port() AS port, current_setting('data_directory') AS dir",
+    )
+  ).rows[0];
+  expect(identity.host).toBe('127.0.0.1');
+  expect(identity.port).toBe(base.port);
+  expect(identity.dir).toBe(dataDir);
+  expect(dataDir).toBe(process.env.IS488_SQL_DATA_DIR ?? process.env.IS488_MIGRATION_TEST_DIR);
+  await Promise.all(sessions.map((session) => session.close()));
   sessions.length = 0;
-  await adminClient.end().catch(() => {});
-
-  if (process.platform === 'win32') {
-    const pgBin = 'C:/Program Files/PostgreSQL/18/bin';
-    const logFile = join(tmpdir(), 'is488-reviews-restart.log');
-
-    // Detener instancia de PostgreSQL
-    spawnSync(join(pgBin, 'pg_ctl.exe'), ['stop', '-D', dataDir, '-m', 'fast', '-w', '-t', '30'], {
-      windowsHide: true,
-      stdio: 'ignore',
-    });
-
-    // Iniciar mediante CIM para desacoplar del proceso padre
-    const cmd = `"${join(pgBin, 'pg_ctl.exe')}" start -D "${dataDir}" -l "${logFile}" -w -t 30`;
-    const script = `$res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = '${cmd.replaceAll("'", "''")}' }; if ($res.ReturnValue -ne 0) { exit 1 }`;
-    spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-'], {
-      input: script,
-      windowsHide: true,
-      encoding: 'utf8',
-      timeout: 35000,
-    });
-  } else {
-    // Entorno Linux / CI
-    spawnSync('pg_ctl', ['stop', '-D', dataDir, '-m', 'fast', '-w', '-t', '30'], {
-      stdio: 'ignore',
-    });
-    spawnSync(
-      'pg_ctl',
-      ['start', '-D', dataDir, '-l', '/tmp/is488-postgresql.log', '-w', '-t', '30'],
-      {
-        stdio: 'ignore',
-      },
-    );
+  await adminClient.end();
+  const executable =
+    process.platform === 'win32' ? 'C:/Program Files/PostgreSQL/18/bin/pg_ctl.exe' : 'pg_ctl';
+  for (const args of [
+    ['stop', '-D', dataDir, '-m', 'fast', '-w', '-t', '60'],
+    ['start', '-D', dataDir, '-l', join(tmpdir(), 'is488-reviews-restart.log'), '-w', '-t', '60'],
+  ]) {
+    const childProcess = spawn(executable, args, { windowsHide: true, stdio: 'ignore' });
+    const [code] = await once(childProcess, 'exit');
+    expect(code, 'pg_ctl ' + args[0] + ' final exit code').toBe(0);
   }
-
-  // Esperar a que el servidor vuelva a aceptar conexiones
-  const deadline = Date.now() + 15000;
-  while (Date.now() < deadline) {
-    try {
-      const probe = new Client({ ...config, connectionTimeoutMillis: 1000 });
-      await probe.connect();
-      await probe.query('SELECT 1');
-      await probe.end();
-
-      // Reconectar admin global
-      admin = new Client(base);
-      await admin.connect();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-  throw new Error('PostgreSQL failed to accept connections after restart');
+  admin = new Client(base);
+  await admin.connect();
+  const recovered = (
+    await admin.query(
+      "SELECT host(inet_server_addr()) AS host, inet_server_port() AS port, current_setting('data_directory') AS dir",
+    )
+  ).rows[0];
+  expect(recovered).toEqual(identity);
 }
 
 describe.skipIf(!enabled)(
@@ -166,7 +142,7 @@ describe.skipIf(!enabled)(
         await assertCiSqlTarget(admin);
       } else {
         expect(check.rows[0]!.actor).toBe(base.user);
-        expect(normalizeDataDir(check.rows[0]!.dir)).toBe(normalizeDataDir(expectedDir!));
+        expect(check.rows[0]!.dir).toBe(expectedDir);
       }
 
       await admin.query(
@@ -241,7 +217,7 @@ describe.skipIf(!enabled)(
         } else {
           expect(expectedDir).toBeDefined();
           expect(check.rows[0]!.actor).toBe(base.user);
-          expect(normalizeDataDir(check.rows[0]!.dir)).toBe(normalizeDataDir(expectedDir!));
+          expect(check.rows[0]!.dir).toBe(expectedDir);
         }
         if (databaseCreated) {
           await cleanupAdmin.query(
@@ -713,46 +689,231 @@ describe.skipIf(!enabled)(
       });
     });
 
-    it('supervivencia tras reinicio real de PostgreSQL (stop/start efectivo de instancia)', async () => {
-      const s1 = session();
-      const repo1 = new PostgresqlReviewRepository(() => s1);
-
-      const review = await repo1.createRequest({
-        projectId: projectIdA,
-        requesterId: studentUser,
-        title: 'Revisión persistente pre-reinicio',
-        description: 'Esta solicitud y su acción deben sobrevivir al reinicio real del motor.',
-        evidenceUrl: 'https://github.com/example/repo/commit/pre-restart',
-      });
-
-      await repo1.recordTeacherResponse(projectIdA, review.id, {
-        reviewerId: teacherUser,
-        status: 'CHANGES_REQUESTED',
-        observation: 'Observación registrada antes de detener PostgreSQL.',
-      });
-
-      // Ejecutar detención y levantamiento efectivo de PostgreSQL
-      await restartPostgres(clusterDataDir, admin);
-
-      // Tras el reinicio, abrir nueva sesión y verificar recuperación íntegra
-      const s2 = session();
-      const repo2 = new PostgresqlReviewRepository(() => s2);
-
-      const recovered = await repo2.findById(projectIdA, review.id);
-      expect(recovered).not.toBeNull();
-      expect(recovered!.id).toBe(review.id);
-      expect(recovered!.status).toBe('CHANGES_REQUESTED');
-      expect(recovered!.title).toBe('Revisión persistente pre-reinicio');
-      expect(recovered!.description).toBe(
-        'Esta solicitud y su acción deben sobrevivir al reinicio real del motor.',
-      );
-      expect(recovered!.evidenceUrl).toBe('https://github.com/example/repo/commit/pre-restart');
-      expect(recovered!.actions).toHaveLength(1);
-      expect(recovered!.actions[0]!.sequenceNumber).toBe(1);
-      expect(recovered!.actions[0]!.comment).toBe(
-        'Observación registrada antes de detener PostgreSQL.',
-      );
-    }, 25000);
+    it.skipIf(ci !== undefined)(
+      'HTTP: seis eventos sobreviven al reinicio real de API y PostgreSQL',
+      async () => {
+        const evidenceDirectory = join(process.cwd(), '.local-dev', 'review-http-' + suffix);
+        mkdirSync(evidenceDirectory, { recursive: true });
+        const executable = join(evidenceDirectory, 'server.cjs');
+        await build({
+          entryPoints: [
+            fileURLToPath(new URL('../../testing/reviews-http-server.ts', import.meta.url)),
+          ],
+          outfile: executable,
+          bundle: true,
+          external: ['pg', 'hono', 'hono/*', 'zod', 'jose'],
+          platform: 'node',
+          format: 'cjs',
+        });
+        let apiProcess: ChildProcess | undefined;
+        async function startApi() {
+          const child = fork(executable, [], {
+            windowsHide: true,
+            stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+            env: {
+              ...process.env,
+              IS488_REVIEW_HTTP_DATABASE: database,
+              IS488_REVIEW_HTTP_USER: role,
+              IS488_REVIEW_HTTP_PASSWORD: '',
+            },
+          });
+          apiProcess = child;
+          let diagnostic = '';
+          child.stderr?.on('data', (chunk) => {
+            diagnostic = (diagnostic + String(chunk)).slice(-4000);
+          });
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 10000);
+          try {
+            const [message] = await Promise.race([
+              once(child, 'message', { signal: controller.signal }),
+              once(child, 'exit', { signal: controller.signal }).then(([code]) => {
+                throw new Error('API exited before listening: ' + code + ' ' + diagnostic);
+              }),
+            ]);
+            return { port: Number(message.port), pid: Number(message.pid) };
+          } catch (error) {
+            if (child.exitCode === null) {
+              const exited = once(child, 'exit');
+              child.kill();
+              await exited;
+            }
+            apiProcess = undefined;
+            throw error;
+          } finally {
+            clearTimeout(timer);
+            controller.abort();
+          }
+        }
+        async function stopApi() {
+          const child = apiProcess;
+          if (!child) return;
+          if (child.exitCode !== null) {
+            apiProcess = undefined;
+            expect(child.exitCode).toBe(0);
+            return;
+          }
+          const exited = once(child, 'exit');
+          child.send('stop');
+          const [code] = await exited;
+          apiProcess = undefined;
+          expect(code).toBe(0);
+        }
+        let address = await startApi();
+        async function http(
+          path: string,
+          method = 'GET',
+          body?: unknown,
+          teacher = false,
+          expected = 200,
+          actor = teacher ? teacherUser : studentUser,
+        ) {
+          const response = await fetch(`http://127.0.0.1:${address.port}${path}`, {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Dev-User-Id': actor,
+              'X-Dev-User-Role': teacher ? 'teacher' : 'student',
+            },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+            signal: AbortSignal.timeout(10000),
+          });
+          expect(response.status).toBe(expected);
+          expect(response.headers.get('Cache-Control')).toBe('no-store');
+          return response.json();
+        }
+        try {
+          const path = `/api/projects/${projectIdA}/reviews`;
+          const review = ReviewRequestSummaryResponseSchema.parse(
+            await http(
+              path,
+              'POST',
+              {
+                title: 'Persistencia HTTP entre procesos',
+                description: 'Estado e historial íntegros tras reinicio real.',
+                evidenceUrl: 'https://example.org/initial',
+              },
+              false,
+              201,
+            ),
+          );
+          const url = path + '/' + review.id;
+          for (const cycle of [1, 2]) {
+            await http(
+              url + '/response',
+              'POST',
+              { status: 'CHANGES_REQUESTED', observation: 'Observación del ciclo ' + cycle },
+              true,
+            );
+            await http(url + '/re-submit', 'POST', {
+              description: 'Ajustes completos del ciclo ' + cycle,
+              evidenceUrl: 'https://example.org/cycle/' + cycle,
+            });
+          }
+          await http(
+            url + '/response',
+            'POST',
+            { status: 'APPROVED', observation: 'Aprobación final de los dos ciclos.' },
+            true,
+          );
+          const before = ReviewDetailResponseSchema.parse(await http(url));
+          expect(before.status).toBe('APPROVED');
+          expect(before.timeline.map((event) => event.sequenceNumber)).toEqual([0, 1, 2, 3, 4, 5]);
+          expect(before.timeline.map((event) => event.actorId)).toEqual([
+            studentUser,
+            teacherUser,
+            studentUser,
+            teacherUser,
+            studentUser,
+            teacherUser,
+          ]);
+          writeFileSync(join(evidenceDirectory, 'before.json'), JSON.stringify(before, null, 2));
+          const previousPid = address.pid;
+          await stopApi();
+          await restartPostgres(clusterDataDir, admin);
+          address = await startApi();
+          expect(address.pid).not.toBe(previousPid);
+          const after = ReviewDetailResponseSchema.parse(await http(url));
+          expect(after).toEqual(before);
+          expect(ReviewDetailResponseSchema.parse(await http(url, 'GET', undefined, true))).toEqual(
+            before,
+          );
+          writeFileSync(join(evidenceDirectory, 'after.json'), JSON.stringify(after, null, 2));
+          const pending = ReviewRequestSummaryResponseSchema.parse(
+            await http(
+              path,
+              'POST',
+              {
+                title: 'Reasignación y revocación HTTP',
+                description: 'Solicitud abierta para comprobar permisos persistidos.',
+              },
+              false,
+              201,
+            ),
+          );
+          const operator = new Client({ ...base, database });
+          await operator.connect();
+          try {
+            expect(
+              (await operator.query("SELECT current_setting('data_directory') AS dir")).rows[0].dir,
+            ).toBe(clusterDataDir);
+            await operator.query(
+              'DELETE FROM public.teacher_project_assignments WHERE project_id = $1 AND teacher_user_id = $2',
+              [projectIdA, teacherUser],
+            );
+            await operator.query(
+              'INSERT INTO public.teacher_project_assignments (project_id, teacher_user_id) VALUES ($1, $2)',
+              [projectIdA, outsiderUser],
+            );
+            await http(url, 'GET', undefined, true, 404);
+            await http(
+              url + '/response',
+              'POST',
+              { status: 'APPROVED', observation: 'Respuesta de docente desasignado.' },
+              true,
+              404,
+            );
+            expect(
+              ReviewDetailResponseSchema.parse(
+                await http(url, 'GET', undefined, true, 200, outsiderUser),
+              ),
+            ).toEqual(before);
+            await http(
+              path + '/' + pending.id + '/response',
+              'POST',
+              { status: 'CHANGES_REQUESTED', observation: 'Observación del nuevo docente.' },
+              true,
+              200,
+              outsiderUser,
+            );
+            await operator.query(
+              "UPDATE public.project_memberships SET status = 'removed', removed_at = clock_timestamp(), updated_at = clock_timestamp() WHERE project_id = $1 AND user_id = $2",
+              [projectIdA, studentUser],
+            );
+            await http(url, 'GET', undefined, false, 404);
+            await http(
+              path + '/' + pending.id + '/re-submit',
+              'POST',
+              { description: 'Ajustes tras retirar membresía.' },
+              false,
+              404,
+            );
+            await http(
+              path,
+              'POST',
+              { title: 'Sin acceso', description: 'No permite nueva solicitud sin membresía.' },
+              false,
+              404,
+            );
+          } finally {
+            await operator.end();
+          }
+        } finally {
+          await stopApi();
+        }
+      },
+      160000,
+    );
 
     it('findById obtiene solicitud y acciones desde una vista atómica consistente y sin mezcla de estados', async () => {
       const s = session();
@@ -789,9 +950,5 @@ describe.skipIf(!enabled)(
       // Se comprueba que no existe desfase entre el estado de la solicitud y las acciones retornadas
       expect(updated!.status).toBe(updated!.actions[updated!.actions.length - 1]!.status);
     });
-
-    it.todo(
-      'supervivencia tras reinicio del proceso API con rutas HTTP reales (/api/projects/:projectId/reviews) diferida al Bloque 4',
-    );
   },
 );
