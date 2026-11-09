@@ -42,7 +42,16 @@
 
 ## 5. Verificación Empírica y Cierre de Implementación
 
-- [ ] 5.1 Ejecutar linter y formateo (`npm run lint`), comprobando que no existan advertencias ni errores de estilo.
-- [ ] 5.2 Ejecutar verificación de tipos (`npm run typecheck` y `typecheck:preparation`), asegurando cero errores de compilación TypeScript.
-- [ ] 5.3 Ejecutar la suite completa de pruebas unitarias y de integración (`npm test`), verificando que todas las aserciones pasen de forma exitosa tras el reinicio real de servicios.
-- [ ] 5.4 Comprobar la salida limpia de `git status` y presentar evidencia empírica real de ejecución antes de solicitar la compuerta de revisión final.
+- [x] 5.1 Ejecutar linter y formateo (`npm run lint`), comprobando que no existan advertencias ni errores de estilo.
+- [x] 5.2 Ejecutar verificación de tipos (`npm run typecheck` y `typecheck:preparation`), asegurando cero errores de compilación TypeScript.
+- [x] 5.3 Ejecutar la suite completa de pruebas unitarias y de integración (`npm test`), verificando que todas las aserciones pasen de forma exitosa tras el reinicio real de servicios.
+- [x] 5.4 Comprobar la salida limpia de `git status` y presentar evidencia empírica real de ejecución antes de solicitar la compuerta de revisión final.
+
+### Evidencia de verificación del bloque 5 (2026-11-09)
+
+- Base comprobada: `HEAD`, referencia `origin` y rama remota en `2d4e84e21d0c8dd695c82c753cc996e8a5dcce0a`. Árbol limpio antes de ejecutar las verificaciones y nuevamente antes de actualizar este checklist (`git status --porcelain` vacío).
+- `lint`, `format:check` global, `typecheck` y `typecheck:preparation`: código de salida 0. OpenSpec estricto del cambio y global: código 0; 13 elementos válidos, 0 fallidos.
+- `npm test`: shared 122 aprobadas; API 416 aprobadas y 36 omitidas; web 216 aprobadas. Total: 754 aprobadas, 0 fallidas, 36 omitidas; código de salida 0.
+- Las 36 omisiones API son SQL por activación explícita: revisiones (11), Kanban (16), persistencia PostgreSQL (7), adaptador de migraciones (1) y adaptador de alcance docente (1). Las cuatro últimas suites se ejecutaron realmente en el bloque 3 con salida 0; la suite docente tuvo además una prueba unitaria aprobada. La suite independiente de migración de alcance docente también pasó sus 2 pruebas reales en dicho bloque.
+- Revisiones se ejecutó realmente en el bloque 4: 11 aprobadas, 0 fallidas y 0 omitidas, incluida la prueba HTTP de 3.4 con reinicio efectivo de API y PostgreSQL. Los snapshots completos antes/después conservan hashes idénticos, estado `APPROVED` y seis eventos con secuencias 0–5. Todas las ejecuciones SQL referidas usaron exclusivamente el clúster autorizado en `127.0.0.1:55491`.
+- Ambos `sql-tests.json` se trasladaron fuera del repositorio con nombres distintos y hashes SHA-256 verificados antes/después; ambos stashes se conservaron. Esta verificación no autoriza commit, publicación, PR, merge, archivo de OpenSpec ni despliegue.
