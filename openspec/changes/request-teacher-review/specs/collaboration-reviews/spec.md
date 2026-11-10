@@ -15,6 +15,14 @@ The system SHALL allow an authorized student with active project membership to s
 - **AND** SHALL respond with HTTP status 201 Created and the review request JSON representation
 - **AND** the formal registration of deliverables (FR-011) SHALL remain deferred outside this increment
 
+#### Scenario: Non-student session cannot request or resubmit a review
+- **GIVEN** an authenticated user whose trusted session role is not `student`
+- **AND** the user may hold active project membership or be the original requester
+- **WHEN** the user submits `POST /api/projects/:projectId/reviews` or `POST /api/projects/:projectId/reviews/:reviewId/re-submit`
+- **THEN** the corresponding use case SHALL reject the operation with HTTP status 403 Forbidden before accessing persistence
+- **AND** SHALL NOT create a request, change review state, or append an action
+- **AND** clients SHALL NOT override the session role through payloads or development identity headers
+
 #### Scenario: Currently assigned teacher responds to a review request
 - **GIVEN** an authenticated user with role `"teacher"` who is currently assigned to project `P` in `teacher_project_assignments`
 - **AND** an existing review request `R` in project `P` with status `"PENDING"`

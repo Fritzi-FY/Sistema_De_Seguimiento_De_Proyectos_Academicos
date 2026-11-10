@@ -60,6 +60,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Avance sprint 3',
@@ -82,6 +83,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Avance documentación',
@@ -103,6 +105,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Sprint final',
@@ -117,6 +120,7 @@ describe('GetTeacherReviewUseCase', () => {
       observation: 'Falta la sección de conclusiones en el informe final',
     });
     await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -166,6 +170,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Revisión directa',
@@ -195,6 +200,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Prueba de inmutabilidad',
@@ -226,6 +232,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Revisión con reasignación',
@@ -259,6 +266,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Acceso post-desasignación',
@@ -280,6 +288,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, COLLAB_ID, 'collaborator');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: COLLAB_ID,
       title: 'Revisión con membresía retirada',
@@ -307,6 +316,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, COLLAB_ID, 'collaborator');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Revisión privada',
@@ -322,6 +332,7 @@ describe('GetTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Revisión protegida',
@@ -351,6 +362,7 @@ describe('GetTeacherReviewUseCase', () => {
     f.grants.set(TEACHER_1, [PROJECT_A, PROJECT_B]);
 
     const reviewB = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_B,
       requesterId: OWNER_ID,
       title: 'Revisión en proyecto B',

@@ -9,6 +9,7 @@ export interface RequestTeacherReviewCommand {
   projectId: string;
   /** ID del usuario que formula la solicitud (obtenido del contexto autenticado). */
   requesterId: string;
+  role: string;
   /** Título sintético de la solicitud (3–120 caracteres). */
   title: string;
   /** Descripción del avance alcanzado (10–2000 caracteres). */
@@ -34,6 +35,9 @@ export class RequestTeacherReviewUseCase {
   ) {}
 
   async execute(command: RequestTeacherReviewCommand): Promise<TeacherReviewRequest> {
+    if (command.role !== 'student') {
+      throw Object.assign(new Error('Student role required'), { statusCode: 403 });
+    }
     // 1. Verificar membresía activa del solicitante en el proyecto
     //    Si el proyecto no existe, findByProjectAndUser devuelve null → mismo 404.
     const membership = await this.membershipRepository.findByProjectAndUser(

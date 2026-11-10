@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ResubmitTeacherReviewUseCase } from './resubmit-teacher-review.use-case.js';
 import { RequestTeacherReviewUseCase } from './request-teacher-review.use-case.js';
 import { RespondTeacherReviewUseCase } from './respond-teacher-review.use-case.js';
@@ -50,6 +50,7 @@ async function setupReviewAwaitingResubmit(f: ReturnType<typeof fixture>) {
   f.grants.set(TEACHER_1, [PROJECT_A]);
 
   const review = await f.requestUC.execute({
+    role: 'student',
     projectId: PROJECT_A,
     requesterId: OWNER_ID,
     title: 'Avance sprint 2',
@@ -68,6 +69,29 @@ async function setupReviewAwaitingResubmit(f: ReturnType<typeof fixture>) {
 }
 
 describe('ResubmitTeacherReviewUseCase', () => {
+  it.each(['teacher', 'admin'])(
+    'rejects original requester with session role %s without changing state or actions',
+    async (role) => {
+      const fixtureData = fixture();
+      const review = await setupReviewAwaitingResubmit(fixtureData);
+      const before = await fixtureData.reviews.findById(PROJECT_A, review.id);
+      const read = vi.spyOn(fixtureData.reviews, 'findById');
+      const persist = vi.spyOn(fixtureData.reviews, 'recordStudentResubmission');
+      await expect(
+        fixtureData.resubmitUC.execute({
+          role,
+          projectId: PROJECT_A,
+          reviewId: review.id,
+          studentId: OWNER_ID,
+          description: 'Ajustes que no deben registrarse con rol no estudiante.',
+        }),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(read).not.toHaveBeenCalled();
+      expect(persist).not.toHaveBeenCalled();
+      read.mockRestore();
+      expect(await fixtureData.reviews.findById(PROJECT_A, review.id)).toEqual(before);
+    },
+  );
   let f: ReturnType<typeof fixture>;
 
   beforeEach(() => {
@@ -80,6 +104,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     const review = await setupReviewAwaitingResubmit(f);
 
     const result = await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -94,6 +119,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     const review = await setupReviewAwaitingResubmit(f);
 
     await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -120,6 +146,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     f.grants.set(TEACHER_1, [PROJECT_A]);
 
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Implementación completa',
@@ -135,6 +162,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
       observation: 'Primer conjunto de observaciones del docente evaluador',
     });
     await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -150,6 +178,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
       observation: 'Segundo conjunto de observaciones del docente evaluador',
     });
     await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -188,6 +217,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
   it('preserva autores originales del historial tras múltiples ciclos', async () => {
     const review = await setupReviewAwaitingResubmit(f);
     await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -207,12 +237,14 @@ describe('ResubmitTeacherReviewUseCase', () => {
     // Lanzar dos re-solicitudes concurrentes
     const [r1, r2] = await Promise.allSettled([
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: OWNER_ID,
         description: 'Primera re-solicitud concurrente con ajustes del sprint completados',
       }),
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: OWNER_ID,
@@ -241,6 +273,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Estado PENDING',
@@ -250,6 +283,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     // Estado es PENDING, no CHANGES_REQUESTED
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: OWNER_ID,
@@ -262,6 +296,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Revisión aprobada',
@@ -277,6 +312,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
 
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: OWNER_ID,
@@ -293,6 +329,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
 
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: OTHER_ID, // no es el requesterId original
@@ -306,6 +343,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     f.grants.set(TEACHER_1, [PROJECT_A]);
 
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: COLLAB_ID,
       title: 'Avance colaborador',
@@ -331,6 +369,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
 
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: COLLAB_ID,
@@ -344,6 +383,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
 
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
         studentId: OWNER_ID,
@@ -358,6 +398,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     f.grants.set(TEACHER_1, [PROJECT_A, PROJECT_B]);
 
     const reviewB = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_B,
       requesterId: OWNER_ID,
       title: 'Revisión en proyecto B',
@@ -374,6 +415,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     // Usar reviewId de PROJECT_B con projectId de PROJECT_A → 404
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: reviewB.id,
         studentId: OWNER_ID,
@@ -386,6 +428,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     const review = await setupReviewAwaitingResubmit(f);
     // Primera re-solicitud exitosa
     await f.resubmitUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       reviewId: review.id,
       studentId: OWNER_ID,
@@ -394,6 +437,7 @@ describe('ResubmitTeacherReviewUseCase', () => {
     // Segunda re-solicitud → 409 (estado ya es PENDING)
     await expect(
       f.resubmitUC.execute({
+        role: 'student',
         projectId: PROJECT_A,
         reviewId: review.id,
         studentId: OWNER_ID,

@@ -60,6 +60,7 @@ export function createReviewsRouter(
         ...data.body,
         projectId: data.params.projectId,
         requesterId: context.get('user').userId,
+        role: context.get('user').role,
       });
       return context.json(ReviewRequestSummaryResponseSchema.parse(result), 201);
     }),
@@ -88,6 +89,7 @@ export function createReviewsRouter(
         projectId: data.params.projectId,
         reviewId: data.params.reviewId,
         studentId: context.get('user').userId,
+        role: context.get('user').role,
       });
       return context.json(ReviewRequestSummaryResponseSchema.parse(result), 200);
     }),

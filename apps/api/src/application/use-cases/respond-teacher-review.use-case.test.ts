@@ -49,6 +49,7 @@ async function createReview(
   requesterId = OWNER_ID,
 ) {
   return f.requestUC.execute({
+    role: 'student',
     projectId,
     requesterId,
     title: 'Avance sprint 1',
@@ -104,6 +105,7 @@ describe('RespondTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, STUDENT_ID, 'collaborator');
     f.grants.set(TEACHER_1, [PROJECT_A]);
     const review = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: STUDENT_ID,
       title: 'Solicitud del estudiante',
@@ -384,6 +386,7 @@ describe('RespondTeacherReviewUseCase', () => {
     f.grants.set(TEACHER_1, [PROJECT_A, PROJECT_B]);
 
     const reviewB = await f.requestUC.execute({
+      role: 'student',
       projectId: PROJECT_B,
       requesterId: OWNER_ID,
       title: 'Avance en proyecto B',

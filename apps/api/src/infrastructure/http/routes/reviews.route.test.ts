@@ -8,6 +8,7 @@ import {
 import { createApp } from '../app.js';
 import { InMemoryTeacherProjectScopeAdapter } from '../../adapters/repositories/in-memory-teacher-project-scope.adapter.js';
 import { InMemoryReviewRepository } from '../../adapters/repositories/in-memory-review.repository.js';
+import { InMemoryMembershipRepository } from '../../adapters/repositories/in-memory-membership.repository.js';
 import { NotificationTestSpy } from '../../../testing/notification-test-spy.js';
 import { openApiSpec } from '../../openapi/openapi.contract.js';
 
@@ -56,6 +57,30 @@ describe('Teacher reviews HTTP', () => {
     return ReviewRequestSummaryResponseSchema.parse(
       await send(path, 'POST', initial, student, 'student', 201),
     );
+  }
+  async function useTeacherSession(userId: string) {
+    const memberships = new InMemoryMembershipRepository();
+    await memberships.addMember({
+      projectId,
+      userId,
+      role: 'collaborator',
+      status: 'active',
+      joinedAt: '2026-11-09T00:00:00.000Z',
+      updatedAt: '2026-11-09T00:00:00.000Z',
+      removedAt: null,
+    });
+    expect(await memberships.findByProjectAndUser(projectId, userId)).not.toBeNull();
+    app = createApp({
+      nodeEnv: 'test',
+      membershipRepository: memberships,
+      reviewRepository: repository,
+      teacherProjectScope: new InMemoryTeacherProjectScopeAdapter(assignments),
+      reviewNotificationPort: notifications,
+      authentication: async (context, next) => {
+        context.set('user', { userId, role: 'teacher' });
+        await next();
+      },
+    });
   }
   beforeEach(async () => {
     assignments = new Map();
@@ -126,6 +151,40 @@ describe('Teacher reviews HTTP', () => {
     ).toEqual(detail);
     expect(notifications.calls).toHaveLength(3);
     expect(notifications.calls.every((call) => call.recipientUserIds[0] === student)).toBe(true);
+  });
+
+  it('rejects a teacher session with active project membership requesting a review without persistence', async () => {
+    const review = await create();
+    const before = await repository.findById(projectId, review.id);
+    await useTeacherSession(teacher);
+    const persist = vi.spyOn(repository, 'createRequest');
+    expect(await send(path, 'POST', initial, student, 'student', 403)).toEqual({
+      error: 'Forbidden',
+    });
+    expect(persist).not.toHaveBeenCalled();
+    expect(await repository.findById(projectId, review.id)).toEqual(before);
+  });
+
+  it('rejects an active original requester whose session role became teacher without state or history changes', async () => {
+    const review = await create();
+    const url = path + '/' + review.id;
+    await send(url + '/response', 'POST', changes, teacher, 'teacher');
+    const before = await repository.findById(projectId, review.id);
+    expect(before?.status).toBe('CHANGES_REQUESTED');
+    await useTeacherSession(student);
+    const persist = vi.spyOn(repository, 'recordStudentResubmission');
+    expect(
+      await send(
+        url + '/re-submit',
+        'POST',
+        { description: 'Ajustes completos que deben rechazarse.' },
+        student,
+        'student',
+        403,
+      ),
+    ).toEqual({ error: 'Forbidden' });
+    expect(persist).not.toHaveBeenCalled();
+    expect(await repository.findById(projectId, review.id)).toEqual(before);
   });
 
   it('requires authentication on all four endpoints, including error cache headers', async () => {

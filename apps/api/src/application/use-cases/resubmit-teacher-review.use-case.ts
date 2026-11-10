@@ -11,6 +11,7 @@ export interface ResubmitTeacherReviewCommand {
   reviewId: string;
   /** ID del estudiante que re-solicita (obtenido del contexto autenticado). */
   studentId: string;
+  role: string;
   /** Descripción de los ajustes realizados (10–2000 caracteres). */
   description: string;
   /** Enlace opcional actualizado de evidencia (máx. 500 caracteres, ADR-006). */
@@ -40,6 +41,9 @@ export class ResubmitTeacherReviewUseCase {
   ) {}
 
   async execute(command: ResubmitTeacherReviewCommand): Promise<TeacherReviewRequest> {
+    if (command.role !== 'student') {
+      throw Object.assign(new Error('Student role required'), { statusCode: 403 });
+    }
     // 1. Verificar que la revisión existe en el proyecto (projectId + reviewId conjuntos)
     const found = await this.reviewRepository.findById(command.projectId, command.reviewId);
     if (!found) {

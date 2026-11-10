@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RequestTeacherReviewUseCase } from './request-teacher-review.use-case.js';
 import { InMemoryMembershipRepository } from '../../infrastructure/adapters/repositories/in-memory-membership.repository.js';
 import { InMemoryReviewRepository } from '../../infrastructure/adapters/repositories/in-memory-review.repository.js';
@@ -53,6 +53,26 @@ async function seedRemovedMembership(
 }
 
 describe('RequestTeacherReviewUseCase', () => {
+  it.each(['teacher', 'admin'])(
+    'rejects %s with active membership before persistence access',
+    async (role) => {
+      const fixtureData = fixture();
+      await seedActiveMembership(fixtureData.memberships, PROJECT_A, OWNER_ID, 'owner');
+      const membershipRead = vi.spyOn(fixtureData.memberships, 'findByProjectAndUser');
+      const create = vi.spyOn(fixtureData.reviews, 'createRequest');
+      await expect(
+        fixtureData.useCase.execute({
+          role,
+          projectId: PROJECT_A,
+          requesterId: OWNER_ID,
+          title: 'Solicitud con rol incorrecto',
+          description: 'Una membresía activa no sustituye al rol de estudiante.',
+        }),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(membershipRead).not.toHaveBeenCalled();
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
   let f: ReturnType<typeof fixture>;
 
   beforeEach(() => {
@@ -65,6 +85,7 @@ describe('RequestTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
 
     const result = await f.useCase.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Avance sprint 1',
@@ -85,6 +106,7 @@ describe('RequestTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, COLLAB_ID, 'collaborator');
 
     const result = await f.useCase.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: COLLAB_ID,
       title: 'Implementación modulo reportes',
@@ -104,6 +126,7 @@ describe('RequestTeacherReviewUseCase', () => {
     const evidenceUrl = 'https://docs.example.com/requirements-v2.pdf';
 
     const result = await f.useCase.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Análisis completado',
@@ -121,6 +144,7 @@ describe('RequestTeacherReviewUseCase', () => {
     await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID, 'owner');
 
     const result = await f.useCase.execute({
+      role: 'student',
       projectId: PROJECT_A,
       requesterId: OWNER_ID,
       title: 'Validación de dominio',
@@ -141,6 +165,7 @@ describe('RequestTeacherReviewUseCase', () => {
 
     await expect(
       f.useCase.execute({
+        role: 'student',
         projectId: PROJECT_A,
         requesterId: OTHER_ID,
         title: 'Solicitud no autorizada',
@@ -154,6 +179,7 @@ describe('RequestTeacherReviewUseCase', () => {
 
     await expect(
       f.useCase.execute({
+        role: 'student',
         projectId: PROJECT_A,
         requesterId: REMOVED_ID,
         title: 'Solicitud de miembro retirado',
@@ -165,6 +191,7 @@ describe('RequestTeacherReviewUseCase', () => {
   it('rechaza con 404 para proyecto inexistente (mismo código que membresía ausente)', async () => {
     await expect(
       f.useCase.execute({
+        role: 'student',
         projectId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
         requesterId: OWNER_ID,
         title: 'Proyecto fantasma',
@@ -180,6 +207,7 @@ describe('RequestTeacherReviewUseCase', () => {
 
     await expect(
       f.useCase.execute({
+        role: 'student',
         projectId: PROJECT_B,
         requesterId: OWNER_ID,
         title: 'Solicitud en proyecto ajeno',
