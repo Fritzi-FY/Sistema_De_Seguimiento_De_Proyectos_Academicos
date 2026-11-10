@@ -7,7 +7,9 @@ The system SHALL allow an authorized student with active project membership to s
 
 #### Scenario: Review deliverable
 - **WHEN** the assigned teacher submits a review
-- **THEN** the system SHALL persist the review and notify relevant project members according to notification settings
+- **THEN** the system SHALL persist the review and its immutable action atomically
+- **AND** after persistence succeeds, the system SHALL emit a verifiable review-completed event through `ReviewNotificationPort` only for the original requester who retains active project membership and query permission
+- **AND** effective notification delivery according to user preferences SHALL remain deferred to EPIC-007; event emission in EPIC-006 SHALL NOT imply delivery or retry guarantees
 
 #### Scenario: Active student member requests a project-level teacher review
 - **GIVEN** an authenticated user who holds an active membership (`owner` or `collaborator`) in project `P`
