@@ -5,6 +5,7 @@ import type {
   ReviewNotificationPort,
   TeacherReviewRequest,
 } from '@is488/shared';
+import { ReviewNotificationStorageError } from '@is488/shared';
 
 export interface RespondTeacherReviewCommand {
   /** UUID del proyecto al que pertenece la revisión. */
@@ -90,7 +91,7 @@ export class RespondTeacherReviewUseCase {
     // 4. Registrar respuesta atómica (valida transición en el repo).
     //    Persistencia FUERA del try/catch de notificación: si falla, se propaga directamente
     //    sin intentar notificar ni capturar el error.
-    const updated = await this.reviewRepository.recordTeacherResponse(
+    const { responseActionId, ...updated } = await this.reviewRepository.recordTeacherResponse(
       command.projectId,
       command.reviewId,
       {
@@ -110,6 +111,7 @@ export class RespondTeacherReviewUseCase {
       );
       if (requesterMembership && requesterMembership.status === 'active') {
         await this.notificationPort.notifyReviewCompleted({
+          responseActionId,
           projectId: command.projectId,
           reviewId: command.reviewId,
           reviewerId: command.user.userId,
@@ -121,10 +123,11 @@ export class RespondTeacherReviewUseCase {
       console.error(
         JSON.stringify({
           stage: 'review-notification',
-          outcome: 'failed',
+          outcome: error instanceof ReviewNotificationStorageError ? error.outcome : 'failed',
           projectId: command.projectId,
           reviewId: command.reviewId,
           error: error instanceof Error ? error.name : 'UnknownError',
+          responseActionId,
         }),
       );
     }

@@ -5,6 +5,8 @@ import { InMemoryMembershipRepository } from '../../infrastructure/adapters/repo
 import { InMemoryReviewRepository } from '../../infrastructure/adapters/repositories/in-memory-review.repository.js';
 import { InMemoryTeacherProjectScopeAdapter } from '../../infrastructure/adapters/repositories/in-memory-teacher-project-scope.adapter.js';
 import { NotificationTestSpy } from '../../testing/notification-test-spy.js';
+import { ReviewNotificationStorageError } from '@is488/shared';
+import { PersistReviewNotificationUseCase } from './persist-review-notification.use-case.js';
 
 const NOW = '2026-11-05T00:00:00.000Z';
 const PROJECT_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -81,6 +83,36 @@ describe('RespondTeacherReviewUseCase', () => {
 
     expect(result.status).toBe('APPROVED');
     expect(result.id).toBe(review.id);
+    expect(result).not.toHaveProperty('responseActionId');
+    const detail = await f.reviews.findById(PROJECT_A, review.id);
+    expect(f.spy.lastCall?.responseActionId).toBe(detail?.actions[0]?.id);
+  });
+
+  it('emite identidades confirmadas distintas en dos ciclos del mismo estado sin releer la última acción', async () => {
+    await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID);
+    f.grants.set(TEACHER_1, [PROJECT_A]);
+    const review = await createReview(f);
+    const lookup = vi.spyOn(f.reviews, 'findById');
+    const command = {
+      projectId: PROJECT_A,
+      reviewId: review.id,
+      user: { userId: TEACHER_1, role: 'teacher' },
+      status: 'CHANGES_REQUESTED' as const,
+      observation: 'Corregir pruebas de integración',
+    };
+    await f.respondUC.execute(command);
+    await f.reviews.recordStudentResubmission(PROJECT_A, review.id, {
+      studentId: OWNER_ID,
+      description: 'Correcciones completadas',
+    });
+    await f.respondUC.execute(command);
+    expect(lookup).toHaveBeenCalledTimes(2);
+    const detail = await f.reviews.findById(PROJECT_A, review.id);
+    expect(f.spy.calls.map((payload) => payload.responseActionId)).toEqual([
+      detail?.actions[0]?.id,
+      detail?.actions[2]?.id,
+    ]);
+    expect(f.spy.calls[0]?.responseActionId).not.toBe(f.spy.calls[1]?.responseActionId);
   });
 
   it('docente asignado puede solicitar cambios (CHANGES_REQUESTED)', async () => {
@@ -98,6 +130,65 @@ describe('RespondTeacherReviewUseCase', () => {
 
     expect(result.status).toBe('CHANGES_REQUESTED');
   });
+
+  it.each(['rolled_back', 'unknown'] as const)(
+    'conserva revisión confirmada ante guardado de notificación %s sin reintentar',
+    async (outcome) => {
+      await seedActiveMembership(f.memberships, PROJECT_A, OWNER_ID);
+      f.grants.set(TEACHER_1, [PROJECT_A]);
+      const review = await createReview(f);
+      const store = {
+        persistAuthorized: vi.fn().mockRejectedValue(new ReviewNotificationStorageError(outcome)),
+      };
+      const notifications = new PersistReviewNotificationUseCase(
+        {
+          resolve: async (payload) => {
+            const persisted = await f.reviews.findById(payload.projectId, payload.reviewId);
+            const action = persisted?.actions.find(
+              (entry) => entry.id === payload.responseActionId,
+            );
+            return persisted && action
+              ? {
+                  review: persisted,
+                  action,
+                  requesterHasActiveMembership: true,
+                  requesterCanQueryReview: true,
+                }
+              : null;
+          },
+        },
+        store,
+      );
+      const respond = new RespondTeacherReviewUseCase(
+        f.scope,
+        f.memberships,
+        f.reviews,
+        notifications,
+      );
+      const diagnostic = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const result = await respond.execute({
+          projectId: PROJECT_A,
+          reviewId: review.id,
+          user: { userId: TEACHER_1, role: 'teacher' },
+          status: 'APPROVED',
+          observation: 'Observación privada sin difusión',
+        });
+        const persisted = await f.reviews.findById(PROJECT_A, review.id);
+        expect(result.status).toBe('APPROVED');
+        expect(persisted?.actions).toHaveLength(1);
+        expect(store.persistAuthorized).toHaveBeenCalledTimes(1);
+        expect(diagnostic).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(diagnostic.mock.calls[0]![0] as string)).toMatchObject({
+          outcome,
+          responseActionId: persisted?.actions[0]?.id,
+        });
+        expect(diagnostic.mock.calls[0]![0]).not.toContain('Observación privada');
+      } finally {
+        diagnostic.mockRestore();
+      }
+    },
+  );
 
   // ─── Control de Rol e Identidad Confiable ────────────────────────────────
 

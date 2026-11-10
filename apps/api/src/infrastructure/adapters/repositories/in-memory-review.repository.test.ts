@@ -73,6 +73,7 @@ describe('InMemoryReviewRepository', () => {
 
     const detail = await repo.findById(PROJECT_1, created.id);
     expect(detail?.actions).toHaveLength(1);
+    expect(updated.responseActionId).toBe(detail?.actions[0]?.id);
     expect(detail?.actions[0]).toMatchObject({
       sequenceNumber: 1,
       actorId: TEACHER_1,

@@ -182,6 +182,10 @@ export function deriveReviewTimeline(
   return [initialEntry, ...actionEntries];
 }
 
+export interface TeacherReviewResponseResult extends TeacherReviewRequest {
+  responseActionId: string;
+}
+
 /**
  * Puerto secundario (driven) para la persistencia y consulta de revisiones docentes en arquitectura hexagonal.
  */
@@ -217,7 +221,7 @@ export interface ReviewRepositoryPort {
       status: 'CHANGES_REQUESTED' | 'APPROVED';
       observation: string;
     },
-  ): Promise<TeacherReviewRequest>;
+  ): Promise<TeacherReviewResponseResult>;
 
   /**
    * Registra de forma atómica la re-solicitud estudiantil y transiciona el estado de CHANGES_REQUESTED a PENDING.

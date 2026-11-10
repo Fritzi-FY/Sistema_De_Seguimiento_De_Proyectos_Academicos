@@ -23,4 +23,5 @@ export * from './ports/identity-session.port.js';
 
 export * from './ports/review-repository.port.js';
 export * from './ports/review-notification.port.js';
+export * from './ports/internal-review-notification.port.js';
 export * from './contracts/review.contract.js';

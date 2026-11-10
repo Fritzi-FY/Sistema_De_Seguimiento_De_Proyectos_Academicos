@@ -2,6 +2,7 @@
  * Carga de datos transmitida al emitir la notificación de conclusión de revisión docente.
  */
 export interface ReviewNotificationPayload {
+  responseActionId: string;
   /** UUID del proyecto académico evaluado. */
   projectId: string;
   /** UUID de la solicitud de revisión evaluada. */

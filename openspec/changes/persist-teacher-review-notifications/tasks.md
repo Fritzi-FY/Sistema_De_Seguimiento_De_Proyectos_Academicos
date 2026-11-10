@@ -7,9 +7,13 @@ Aprobación humana registrada el 2026-11-10: propuesta aceptada y Nivel D autori
 
 ## 2. Contratos y reglas de aplicación
 
-- [ ] 2.1 Extender el resultado de respuesta docente con la identidad de su acción confirmada y el payload de `ReviewNotificationPort`; adaptar repositorios y dobles. Unitarias: identidad exacta sin consulta de última acción y dos respuestas CHANGES_REQUESTED distintas.
-- [ ] 2.2 Definir puertos y reglas de notificación interna con metadatos mínimos. Unitarias: solicitante original activo, otro miembro rechazado, proyecto/acción/docente/estado inconsistentes y permisos no verificables sin guardado.
-- [ ] 2.3 Conectar el caso de uso conservando revisión HTTP y tratamiento post-commit. Unitarias: revisión fallida no emite; notificación fallida no revierte; diagnóstico saneado; ningún reintento automático ante resultado incierto.
+- [x] 2.1 Extender el resultado de respuesta docente con la identidad de su acción confirmada y el payload de `ReviewNotificationPort`; adaptar repositorios y dobles. Unitarias: identidad exacta sin consulta de última acción y dos respuestas CHANGES_REQUESTED distintas.
+- [x] 2.2 Definir puertos y reglas de notificación interna con metadatos mínimos. Unitarias: solicitante original activo, otro miembro rechazado, proyecto/acción/docente/estado inconsistentes y permisos no verificables sin guardado.
+- [x] 2.3 Conectar el caso de uso conservando revisión HTTP y tratamiento post-commit. Unitarias: revisión fallida no emite; notificación fallida no revierte; diagnóstico saneado; ningún reintento automático ante resultado incierto.
+
+Evidencia del bloque 2 (2026-11-10): cinco suites afectadas, 55 pruebas aprobadas, 0 fallidas y 0 omitidas. Incluyen las reglas de aplicación (18), respuesta docente (18), repositorio en memoria (6), rutas HTTP existentes (11) y contrato del resultado PostgreSQL con sesión SQL simulada (2). Esta última no acredita ejecución SQL real. Pasaron typecheck, lint, format:check global, typecheck:preparation, build local y OpenSpec estricto (13 elementos). Web y build requirieron repetición fuera del sandbox por denegación de acceso de esbuild. No se ejecutó PostgreSQL real ni se implementaron restricción única, migración, revalidación SQL transaccional o composición de producción: siguen pendientes en bloques 3 y 4. El puerto de guardado exige revalidación transaccional y deduplicación en su futura implementación; los dobles solo verifican la delegación y la ausencia de reintentos.
+
+`npm test` completo, repetido fuera del sandbox sin habilitar SQL: código 0, 783 aprobadas (shared 122, API 445, web 216), 0 fallidas, 36 SQL omitidas por configuración. No se contabilizan esas omisiones como pruebas SQL reales. El primer intento de las suites afectadas detectó un matcher no disponible en Vitest 2; se reemplazó por aserciones equivalentes de cantidad y argumentos y la repetición pasó sin debilitar cobertura.
 
 ## 3. Persistencia PostgreSQL
 

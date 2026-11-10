@@ -1,6 +1,7 @@
 import type {
   ReviewRepositoryPort,
   TeacherReviewRequest,
+  TeacherReviewResponseResult,
   TeacherReviewAction,
 } from '@is488/shared';
 import { assertValidReviewTransition } from '@is488/shared';
@@ -109,7 +110,7 @@ export class InMemoryReviewRepository implements ReviewRepositoryPort {
       status: 'CHANGES_REQUESTED' | 'APPROVED';
       observation: string;
     },
-  ): Promise<TeacherReviewRequest> {
+  ): Promise<TeacherReviewResponseResult> {
     return this.withLock(reviewId, async () => {
       const request = this.requests.get(reviewId);
       if (!request || request.projectId !== projectId) {
@@ -149,7 +150,7 @@ export class InMemoryReviewRepository implements ReviewRepositoryPort {
       };
       this.requests.set(reviewId, { ...updated });
 
-      return { ...updated };
+      return { ...updated, responseActionId: action.id };
     });
   }
 
