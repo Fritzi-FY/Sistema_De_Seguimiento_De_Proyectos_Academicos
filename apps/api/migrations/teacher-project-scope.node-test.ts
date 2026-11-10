@@ -1,4 +1,4 @@
-﻿import { test } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -9,13 +9,30 @@ import { fileURLToPath } from 'node:url';
 import { run } from './runner.ts';
 const enabled = process.env.IS488_TEACHER_SQL_TEST === '1';
 const root = dirname(fileURLToPath(import.meta.url));
+const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')) as {
+  version: number;
+}[];
+const expectedCatalogVersions = manifest.map((m) => m.version).sort((a, b) => a - b);
+if (enabled) {
+  if (
+    !/^\d+$/.test(process.env.IS488_SQL_PORT ?? '') ||
+    Number(process.env.IS488_SQL_PORT) < 1 ||
+    Number(process.env.IS488_SQL_PORT) > 65535
+  )
+    throw new Error('IS488_SQL_PORT is required when IS488_TEACHER_SQL_TEST=1');
+  if (!(process.env.IS488_MIGRATION_TEST_DIR ?? process.env.IS488_SQL_DATA_DIR)?.trim())
+    throw new Error(
+      'IS488_MIGRATION_TEST_DIR or IS488_SQL_DATA_DIR is required when IS488_TEACHER_SQL_TEST=1',
+    );
+}
 const base = {
-  host: '127.0.0.1',
-  port: 55490,
-  user: 'is488_migration_admin',
+  host: process.env.IS488_SQL_HOST ?? '127.0.0.1',
+  port: Number(process.env.IS488_SQL_PORT),
+  user: process.env.IS488_MIGRATION_ADMIN_USER ?? 'is488_migration_admin',
   database: 'postgres',
   connectionTimeoutMillis: 2000,
 };
+const normalize = (d: string) => d.replaceAll('\\', '/').toLowerCase().replace(/\/+$/, '');
 async function fixture(
   work: (f: {
     migrator: Client;
@@ -24,8 +41,8 @@ async function fixture(
     temp: string;
   }) => Promise<void>,
 ) {
-  const expected = process.env.IS488_MIGRATION_TEST_DIR;
-  assert.ok(expected && /[\\/]Temp[\\/]is488-migrator-[a-f0-9]{32}$/.test(expected));
+  const expected = process.env.IS488_MIGRATION_TEST_DIR ?? process.env.IS488_SQL_DATA_DIR;
+  assert.ok(expected, 'IS488_MIGRATION_TEST_DIR or IS488_SQL_DATA_DIR must be set');
   const admin = new Client(base);
   await admin.connect();
   const id = randomUUID().replaceAll('-', ''),
@@ -44,11 +61,8 @@ async function fixture(
       )
     ).rows[0];
     assert.equal(guard.actor, base.user);
-    assert.equal(guard.port, 55490);
-    assert.equal(
-      guard.dir.replaceAll('\\', '/').toLowerCase(),
-      expected.replaceAll('\\', '/').toLowerCase(),
-    );
+    assert.equal(guard.port, base.port);
+    assert.equal(normalize(guard.dir), normalize(expected));
     await admin.query('CREATE ROLE ' + m + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT');
     madeM = true;
     await admin.query('CREATE ROLE ' + r + ' LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT');
@@ -74,6 +88,14 @@ async function fixture(
   } finally {
     await runtime?.end();
     await migrator?.end();
+    const guard = (
+      await admin.query(
+        "SELECT current_user AS actor,current_setting('data_directory') AS dir,inet_server_port() AS port",
+      )
+    ).rows[0];
+    assert.equal(guard.actor, base.user);
+    assert.equal(guard.port, base.port);
+    assert.equal(normalize(guard.dir), normalize(expected));
     if (madeDb) await admin.query('DROP DATABASE ' + db + ' WITH (FORCE)');
     if (madeR) await admin.query('DROP ROLE ' + r);
     if (madeM) await admin.query('DROP ROLE ' + m);
@@ -87,7 +109,7 @@ test(
   { skip: !enabled },
   async () =>
     fixture(async (f) => {
-      assert.deepEqual((await run('apply', f.options)).applied, [1, 2]);
+      assert.deepEqual((await run('apply', f.options)).applied, expectedCatalogVersions);
       assert.equal((await run('apply', f.options)).outcome, 'unchanged');
       await f.runtime.query(insert);
       await f.migrator.query(
@@ -140,7 +162,10 @@ test(
       );
       await run('apply', { ...f.options, directory: dir });
       await f.runtime.query(insert);
-      assert.deepEqual((await run('apply', f.options)).applied, [2]);
+      assert.deepEqual(
+        (await run('apply', f.options)).applied,
+        expectedCatalogVersions.filter((v) => v > 1),
+      );
       assert.equal(
         (await f.runtime.query('SELECT title FROM public.projects')).rows[0].title,
         'Synthetic scoped project',

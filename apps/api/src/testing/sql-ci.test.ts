@@ -5,9 +5,27 @@ import {
   ciAdminConnection,
   ciRolePasswordClause,
   assertCiSqlTarget,
+  assertSqlTestConfiguration,
 } from './sql-ci.js';
 
 afterEach(() => vi.unstubAllEnvs());
+it('requires a valid explicit local port and directory before SQL setup, while CI takes precedence', () => {
+  vi.stubEnv('IS488_CI_SQL', '0');
+  vi.stubEnv('IS488_SQL_DATA_DIR', '');
+  vi.stubEnv('IS488_MIGRATION_TEST_DIR', '');
+  for (const port of ['', '0', '65536', 'invalid', '1.5', ' ']) {
+    vi.stubEnv('IS488_SQL_PORT', port);
+    expect(() => assertSqlTestConfiguration(true)).toThrow('IS488_SQL_PORT');
+  }
+  vi.stubEnv('IS488_SQL_PORT', '60000');
+  expect(() => assertSqlTestConfiguration(true)).toThrow('IS488_SQL_DATA_DIR');
+  vi.stubEnv('IS488_SQL_DATA_DIR', '/explicit/test-cluster');
+  expect(() => assertSqlTestConfiguration(true)).not.toThrow();
+  vi.stubEnv('IS488_SQL_PORT', '');
+  expect(() => assertSqlTestConfiguration(false)).not.toThrow();
+  profile();
+  expect(() => assertSqlTestConfiguration(true)).not.toThrow();
+});
 function profile() {
   vi.stubEnv('IS488_CI_SQL', '1');
   vi.stubEnv('CI', 'true');

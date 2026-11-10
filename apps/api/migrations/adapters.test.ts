@@ -3,6 +3,7 @@ import {
   ciAdminConnection,
   ciRolePasswordClause,
   assertCiSqlTarget,
+  assertSqlTestConfiguration,
 } from '../src/testing/sql-ci.ts';
 import { it, expect } from 'vitest';
 import { Client } from 'pg';
@@ -19,11 +20,20 @@ import {
 it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
   'adaptadores reales usan el esquema migrado como runtime sin DDL',
   async () => {
+    assertSqlTestConfiguration(true);
     const ci = ciSqlProfile();
+    if (!ci) {
+      if (!process.env.IS488_SQL_PORT)
+        throw new Error('IS488_SQL_PORT is required when IS488_MIGRATOR_TEST=1');
+      if (!process.env.IS488_MIGRATION_TEST_DIR && !process.env.IS488_SQL_DATA_DIR)
+        throw new Error(
+          'IS488_MIGRATION_TEST_DIR or IS488_SQL_DATA_DIR is required when IS488_MIGRATOR_TEST=1',
+        );
+    }
     const base = ciAdminConnection() ?? {
-      host: '127.0.0.1',
-      port: 55490,
-      user: 'is488_migration_admin',
+      host: process.env.IS488_SQL_HOST ?? '127.0.0.1',
+      port: Number(process.env.IS488_SQL_PORT),
+      user: process.env.IS488_MIGRATION_ADMIN_USER ?? 'is488_migration_admin',
       database: 'postgres',
       connectionTimeoutMillis: 2000,
     };
@@ -37,19 +47,16 @@ it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
       migratorCreated = false,
       runtimeCreated = false;
     let session: SqlSession | undefined;
+    const expectedDir = process.env.IS488_MIGRATION_TEST_DIR ?? process.env.IS488_SQL_DATA_DIR;
+    const normalize = (d: string) => d.replaceAll('\\', '/').toLowerCase().replace(/\/+$/, '');
     try {
       const check = await admin.query(
         "SELECT current_user AS actor,current_setting('data_directory') AS dir",
       );
       if (ci) await assertCiSqlTarget(admin);
       else {
-        expect(check.rows[0].actor).toBe('is488_migration_admin');
-        expect(check.rows[0].dir.replaceAll('\\', '/').toLowerCase()).toBe(
-          process.env.IS488_MIGRATION_TEST_DIR!.replaceAll('\\', '/').toLowerCase(),
-        );
-        expect(check.rows[0].dir.replaceAll('\\', '/')).toMatch(
-          /\/Temp\/is488-migrator-[a-f0-9]{32}$/,
-        );
+        expect(check.rows[0].actor).toBe(base.user);
+        expect(normalize(check.rows[0].dir)).toBe(normalize(expectedDir!));
       }
       await admin.query(
         'CREATE ROLE ' +
@@ -120,6 +127,15 @@ it.skipIf(process.env.IS488_MIGRATOR_TEST !== '1')(
       });
     } finally {
       if (session) await session.close();
+      const check = await admin.query(
+        "SELECT current_user AS actor,current_setting('data_directory') AS dir",
+      );
+      if (ci) await assertCiSqlTarget(admin);
+      else {
+        expect(expectedDir).toBeDefined();
+        expect(check.rows[0].actor).toBe(base.user);
+        expect(normalize(check.rows[0].dir)).toBe(normalize(expectedDir!));
+      }
       if (dbCreated) await admin.query('DROP DATABASE ' + db + ' WITH (FORCE)');
       if (runtimeCreated) await admin.query('DROP ROLE ' + runtime);
       if (migratorCreated) await admin.query('DROP ROLE ' + migrator);

@@ -3,6 +3,7 @@ import {
   ciAdminConnection,
   ciRolePasswordClause,
   assertCiSqlTarget,
+  assertSqlTestConfiguration,
 } from '../../testing/sql-ci.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -36,14 +37,19 @@ import {
 } from '@is488/shared';
 
 const enabled = process.env.IS488_SQL_TEST === '1';
+assertSqlTestConfiguration(enabled);
 const ci = ciSqlProfile();
 const base: ClientConfig = ciAdminConnection() ?? {
-  host: '127.0.0.1',
-  port: 55489,
-  user: 'is488_test_admin',
+  host: process.env.IS488_SQL_HOST ?? '127.0.0.1',
+  port: process.env.IS488_SQL_PORT ? Number(process.env.IS488_SQL_PORT) : undefined,
+  user: process.env.IS488_SQL_ADMIN_USER ?? 'is488_test_admin',
   database: 'postgres',
   connectionTimeoutMillis: 5000,
 };
+
+function normalizeDataDir(dir: string): string {
+  return dir.replaceAll('\\', '/').toLowerCase().replace(/\/+$/, '');
+}
 const suffix = crypto.randomUUID().replaceAll('-', '');
 const database = 'is488_test_' + suffix;
 const role = 'is488_runtime_' + suffix;
@@ -91,8 +97,19 @@ function entities() {
   return { p, m };
 }
 
-describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
+describe.skipIf(!enabled)('PostgreSQL real exclusivo (projects)', () => {
   beforeAll(async () => {
+    const expectedDir = process.env.IS488_SQL_DATA_DIR ?? process.env.IS488_MIGRATION_TEST_DIR;
+    if (!ci) {
+      if (!process.env.IS488_SQL_PORT) {
+        throw new Error('IS488_SQL_PORT is required when SQL tests are enabled');
+      }
+      if (!expectedDir) {
+        throw new Error(
+          'IS488_SQL_DATA_DIR or IS488_MIGRATION_TEST_DIR is required when SQL tests are enabled',
+        );
+      }
+    }
     admin = new Client(base);
     await admin.connect();
     const check = await admin.query(
@@ -100,8 +117,8 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     );
     if (ci) await assertCiSqlTarget(admin);
     else {
-      expect(check.rows[0].actor).toBe('is488_test_admin');
-      expect(check.rows[0].dir.replaceAll('\\', '/')).toContain('/Temp/is488-epic002-');
+      expect(check.rows[0].actor).toBe(base.user);
+      expect(normalizeDataDir(check.rows[0].dir)).toBe(normalizeDataDir(expectedDir!));
     }
     await admin.query(
       'CREATE ROLE ' +
@@ -131,7 +148,7 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
       {
         env: {
           ...process.env,
-          IS488_MIGRATION_HOST: '127.0.0.1',
+          IS488_MIGRATION_HOST: String(base.host ?? '127.0.0.1'),
           IS488_MIGRATION_PORT: String(base.port),
           IS488_MIGRATION_DATABASE: database,
           IS488_MIGRATION_USER: migrationRole,
@@ -147,6 +164,16 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
   afterAll(async () => {
     await Promise.all(sessions.map((s) => s.close()));
     if (admin) {
+      const check = await admin.query(
+        "SELECT current_setting('data_directory') AS dir, current_user AS actor",
+      );
+      const expectedDir = process.env.IS488_SQL_DATA_DIR ?? process.env.IS488_MIGRATION_TEST_DIR;
+      if (ci) await assertCiSqlTarget(admin);
+      else {
+        expect(expectedDir).toBeDefined();
+        expect(check.rows[0].actor).toBe(base.user);
+        expect(normalizeDataDir(check.rows[0].dir)).toBe(normalizeDataDir(expectedDir!));
+      }
       if (databaseCreated) await admin.query('DROP DATABASE ' + database);
       if (roleCreated) await admin.query('DROP ROLE ' + role);
       if (migrationRoleCreated) await admin.query('DROP ROLE ' + migrationRole);
@@ -469,7 +496,10 @@ describe.skipIf(!enabled)('PostgreSQL real exclusivo localhost:55489', () => {
     const sockets = new Set<Socket>();
     let commits = 0;
     const proxy = createServer((downstream) => {
-      const upstream = connect({ host: '127.0.0.1', port: base.port ?? 55489 });
+      const upstream = connect({
+        host: String(base.host ?? '127.0.0.1'),
+        port: Number(base.port),
+      });
       sockets.add(downstream);
       sockets.add(upstream);
       let armed = false;

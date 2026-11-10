@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict';
 import type { Client, ClientConfig } from 'pg';
 
+export function assertSqlTestConfiguration(enabled: boolean) {
+  if (!enabled || ciSqlProfile()) return;
+  const port = process.env.IS488_SQL_PORT ?? '';
+  assert.ok(
+    /^\d+$/.test(port) && Number(port) >= 1 && Number(port) <= 65535,
+    'IS488_SQL_PORT must be an explicit valid port when SQL tests are enabled',
+  );
+  assert.ok(
+    (process.env.IS488_SQL_DATA_DIR ?? process.env.IS488_MIGRATION_TEST_DIR)?.trim(),
+    'IS488_SQL_DATA_DIR or IS488_MIGRATION_TEST_DIR is required when SQL tests are enabled',
+  );
+}
+
 export function ciSqlProfile() {
   if (process.env.IS488_CI_SQL !== '1') return undefined;
   assert.equal(process.env.CI, 'true');
