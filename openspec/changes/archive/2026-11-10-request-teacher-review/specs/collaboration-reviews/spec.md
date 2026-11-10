@@ -5,6 +5,12 @@
 ### Requirement: Teacher review
 The system SHALL allow an authorized student with active project membership to submit a project-level teacher review request (with title, progress description, and optional evidence link), SHALL allow the currently assigned teacher to respond with an evaluation status and observations, SHALL preserve the same review entity across correction cycles by recording every re-submission and response as immutable action entries with a strictly monotonic per-review sequence number assigned within the same transactional boundary (guaranteeing exact transition order even when timestamps coincide), and SHALL limit query access to the requesting student with active membership and the currently assigned teacher, deriving the chronological history deterministically from persisted records.
 
+#### Scenario: Review deliverable
+- **WHEN** the assigned teacher submits a review
+- **THEN** the system SHALL persist the review and its immutable action atomically
+- **AND** after persistence succeeds, the system SHALL emit a verifiable review-completed event through `ReviewNotificationPort` only for the original requester who retains active project membership and query permission
+- **AND** effective notification delivery according to user preferences SHALL remain deferred to EPIC-007; event emission in EPIC-006 SHALL NOT imply delivery or retry guarantees
+
 #### Scenario: Active student member requests a project-level teacher review
 - **GIVEN** an authenticated user who holds an active membership (`owner` or `collaborator`) in project `P`
 - **AND** a valid review request payload containing `title`, `description` (detailing progress achieved), and optional `evidenceUrl` (metadata link per ADR-006)
