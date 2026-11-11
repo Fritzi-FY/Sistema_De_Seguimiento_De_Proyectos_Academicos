@@ -128,3 +128,22 @@ test('version 5 omits collaboration review tables while version 6 enforces reque
   const actionPolicy = runtimePolicy.find((p) => p.table === 'public.teacher_review_actions');
   assert.deepEqual(actionPolicy?.grants, ['SELECT', 'INSERT']);
 });
+
+test('version 7 includes append-only internal notifications while version 6 omits them', async () => {
+  const targets: string[][] = [];
+  const inner = database();
+  const capture: QueryClient = {
+    async query(sql, values) {
+      if (sql.includes('WITH targets AS')) targets.push(values![1] as string[]);
+      return inner.query(sql, values);
+    },
+  };
+  await verifyRuntime(capture, 'runtime', 6);
+  await verifyRuntime(capture, 'runtime', 7);
+  assert.equal(targets[0]?.includes('public.internal_notifications'), false);
+  assert.equal(targets[1]?.includes('public.internal_notifications'), true);
+  assert.deepEqual(
+    runtimePolicy.find((entry) => entry.table === 'public.internal_notifications')?.grants,
+    ['SELECT', 'INSERT'],
+  );
+});

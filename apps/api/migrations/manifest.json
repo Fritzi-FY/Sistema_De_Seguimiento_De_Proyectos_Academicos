@@ -28,5 +28,10 @@
     "version": 6,
     "name": "0006_collaboration_reviews.sql",
     "sha256": "8fcc1d9fce4289b72f21bb8fcfdd40548f3ca71530a5ab93ca66b0b1a26cb77f"
+  },
+  {
+    "version": 7,
+    "name": "0007_internal_review_notifications.sql",
+    "sha256": "9961626c0b38c2c4c270848130e2c12eab083ca74271cce43fdf16ad744cd7e3"
   }
 ]
