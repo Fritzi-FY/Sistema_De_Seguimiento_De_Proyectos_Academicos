@@ -53,7 +53,39 @@ Repetición global final sin SQL habilitado: `npm test`, 786 aprobadas (shared 1
 
 ## 5. Verificación y entrega
 
-- [ ] 5.1 Ejecutar suites afectadas y `npm test`; registrar aprobadas, fallidas y omitidas. Ejecutar SQL real únicamente en el clúster local autorizado o perfil CI aislado; no contar omisiones como cobertura real.
-- [ ] 5.2 Ejecutar `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm run typecheck:preparation -w @is488/api` y `npm run build`; revisar contratos OpenAPI sin ampliar API.
-- [ ] 5.3 Ejecutar `openspec validate persist-teacher-review-notifications --strict`, `openspec validate --all --strict` y `git diff --check`; revisar trazabilidad de escenarios y evidencia real.
-- [ ] 5.4 Preparar resumen de resultados, límites y reversión; comprobar 0006, ambos stashes y rama EPIC-006 preservados. Commit, publicación, PR, archivo, merge y despliegue requieren sus autorizaciones separadas.
+- [x] 5.1 Ejecutar suites afectadas y `npm test`; registrar aprobadas, fallidas y omitidas. Ejecutar SQL real únicamente en el clúster local autorizado o perfil CI aislado; no contar omisiones como cobertura real.
+- [x] 5.2 Ejecutar `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm run typecheck:preparation -w @is488/api` y `npm run build`; revisar contratos OpenAPI sin ampliar API.
+- [x] 5.3 Ejecutar `openspec validate persist-teacher-review-notifications --strict`, `openspec validate --all --strict` y `git diff --check`; revisar trazabilidad de escenarios y evidencia real.
+- [x] 5.4 Preparar resumen de resultados, límites y reversión; comprobar 0006, ambos stashes y rama EPIC-006 preservados. Commit, publicación, PR, archivo, merge y despliegue requieren sus autorizaciones separadas.
+
+### Evidencia de cierre local del bloque 5 — 2026-11-11
+
+- Base: bloque 4 revisado y guardado en el commit local `72f32b9be700f1e028cd315920a616a6d94efda8`, con únicamente sus seis archivos. `git diff --cached --check` pasó. Después del commit y de reubicar la evidencia generada por las pruebas, `git status --porcelain` y staging estaban vacíos antes de actualizar este checklist. El cierre documental se entrega sin commit ni publicación.
+- `npm test` ejecutado nuevamente sobre esa base sin habilitar SQL: código 0; **786 aprobadas, 0 fallidas, 67 omitidas** (shared 122, API 448, web 216). Las omisiones por configuración se desglosan abajo; no se cuentan como ejecución SQL dentro del comando global.
+- `npm run lint`, `npm run format:check` global, `npm run typecheck`, `npm run typecheck:preparation -w @is488/api` y `npm run build`: código 0. Formato global repetido después de reubicar el JSON de Kanban: correcto. `npm run test:preparation -w @is488/api`: 29 aprobadas, 0 fallidas/omitidas, código 0. Los contratos OpenAPI existentes se verificaron en las 21 pruebas de contrato y las 11 HTTP de revisiones incluidas en `npm test`; no se añadieron endpoints ni se amplió la API.
+- OpenSpec: cambio válido en modo estricto; validación global estricta, 13 aprobados y 0 fallidos. Markdown, enlaces relativos y `git diff --check` revisados. Trazabilidad: permisos y origen inmutable → reglas de aplicación, SQL del adaptador y HTTP; deduplicación y ciclos distintos → SQL del adaptador y equivalente en memoria; rollback/resultado incierto/cierre → pruebas de sesión e inyección sobre SQL real; best-effort y reinicio completo → HTTP con PostgreSQL real. La pérdida de confirmación y el fallo de cierre de notificaciones siguen siendo inyectados, no cortes reales de red.
+
+### SQL real separado del comando global
+
+Todas las suites siguientes se ejecutaron secuencialmente sobre bases de pruebas nuevas con catálogo 0007, exclusivamente en `127.0.0.1:55491`. Arranque con `pg_ctl -w` confirmado con código final 0; comprobación exacta de `data_directory = C:/Users/fritz/is488-db/reviews-cluster` antes de crear/migrar y al limpiar. Kanban recibió una base `is488_v5_kanban_*` y roles nuevos mediante variables de esta sesión, no `is488_dev`. No se operó en 5432, 55489, 55490 ni en el respaldo de preservación. Los fixtures limpiaron sus propios recursos; el clúster iniciado para esta verificación quedó detenido con código final 0 y estado `no server running`.
+
+| Suite | Aprobadas | Fallidas | Omitidas | Salida | Correspondencia con npm test |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `review.sql.test.ts` | 11 | 0 | 0 | 0 | 11 omitidas |
+| `internal-review-notification.sql.test.ts` | 21 | 0 | 0 | 0 | 21 omitidas |
+| `review-notification-http.sql.test.ts` | 10 | 0 | 0 | 0 | 10 omitidas |
+| `postgresql.sql.test.ts` | 7 | 0 | 0 | 0 | 7 omitidas |
+| `kanban.sql.test.ts` | 16 | 0 | 0 | 0 | 16 omitidas |
+| `teacher-project-scope.adapter.test.ts` | 2 | 0 | 0 | 0 | 1 SQL omitida y 1 unitaria ya aprobada |
+| `migrations/adapters.test.ts` | 1 | 0 | 0 | 0 | 1 omitida |
+| `migrations/teacher-project-scope.node-test.ts` | 2 | 0 | 0 | 0 | Fuera de npm test; ejecutada con node --test |
+
+Las siete suites Vitest suman **68 aprobadas: las 67 normalmente omitidas más una unitaria existente**, sin fallos ni omisiones. Las dos pruebas Node docentes son adicionales y no se suman a las 67. Evidencia JSON y resumen por suite en `apps/api/.local-dev/verification5-733f3997e3a74e9da6b662f1d9733070/{sql-vitest,summary}.json`; salida Node en `teacher-node.txt`. Kanban generó `apps/api/evidence/kanban-postgresql/sql-tests.json`; se preservó como `kanban-sql-tests.json` dentro de esa carpeta ignorada, con SHA-256 idéntico antes/después `31a5f1fea33e2a2cd23e33cba75998dd177b9ac0d3932b475a2baa2d8b1e8c00`. No se añade evidencia al staging.
+
+### Incidencias, límites y pendientes externos
+
+- Se conserva la incidencia inicial del bloque 4: timeout de 5000 ms en `BoardColumnManager.test.tsx`, escenario `creates optional review, renames, orders and refreshes List filter options from server`; aquel intento tuvo 785 aprobadas, 1 fallida y 67 omitidas, código 1. Web aislado pasó 216/0/0 y la repetición global pasó 786/0/67, código 0. La ejecución nueva del bloque 5 volvió a pasar 786/0/67. No se cambiaron código web, aserciones ni timeouts para obtener esos resultados.
+- No queda cobertura SQL local de las 67 omisiones pendiente en esta base. Sí queda pendiente su automatización completa en CI: `scripts/run-sql-ci.mjs` exige actualmente 25 casos SQL más una unitaria, pero no incluye las 11 revisiones, las 21 notificaciones ni las 10 HTTP/SQL (42 casos), ni ejecuta las dos Node SQL docentes. No se modificó el pipeline ni se afirma CI remoto verde; publicar y comprobar CI requieren autorización posterior.
+- Se revalidó el reinicio real: mismas revisiones, estados e historiales completos; la suite HTTP de notificaciones recuperó `APPROVED`, seis eventos y tres filas completas. El guardado sigue siendo best-effort post-commit: puede faltar una notificación si falla después de confirmar la revisión. Persistir no significa entregar según preferencias; bandeja, UI, canales externos, outbox y reintentos automáticos continúan fuera del incremento. Las sesiones HTTP de prueba son sintéticas, no acreditan OAuth/Better Auth real.
+- Reversión propuesta, no ejecutada: un cambio inverso y revisado del cableado de la API, conservando la migración 0007 aplicada y sus filas; no reescribir migraciones/historial ni borrar notificaciones. Cualquier reconciliación o eliminación requiere autorización separada.
+- Ambos stashes conservan sus identidades `54fc9332067969efdb9dd2684becb77131db372e` y `794dd6cfb08221fee13c2420fd7455c621d7d9cd`; rama EPIC-006 preservada en `741b84de2c86faca2259693b5cced244f98d8532`. SHA-256 intactos y coincidentes con el manifiesto: 0006 `8fcc1d9fce4289b72f21bb8fcfdd40548f3ca71530a5ab93ca66b0b1a26cb77f`; 0007 `9961626c0b38c2c4c270848130e2c12eab083ca74271cce43fdf16ad744cd7e3`. Cierre listo para revisión local, sin commit documental, push, PR, archivo, merge ni despliegue.
