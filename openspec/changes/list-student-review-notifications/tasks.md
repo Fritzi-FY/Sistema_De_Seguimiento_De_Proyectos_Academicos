@@ -5,13 +5,13 @@ Propuesta aprobada por el usuario el 2026-11-12. Nivel D autorizado exclusivamen
 ## 1. Revisión y autorización
 
 - [x] 1.1 Revisar los cuatro artefactos; acordar ruta, metadatos, orden/cursor con microsegundos, revalidación por página y vista mínima sin escrituras.
-- [ ] 1.2 Registrar aprobación humana y autorización Nivel D del bloque concreto; confirmar rama/base limpia, ambos stashes y hashes 0006/0007 antes de implementar. El uso de SQL y entorno requiere autorización explícita independiente de la planificación.
+- [x] 1.2 Registrar aprobación humana y autorización Nivel D del bloque concreto; confirmar rama/base limpia, ambos stashes y hashes 0006/0007 antes de implementar. El uso de SQL y entorno requiere autorización explícita independiente de la planificación.
 
 ## 2. Contratos y caso de uso de lectura
 
-- [ ] 2.1 Añadir DTO/query/respuesta Zod y puerto de lectura independiente de `ReviewNotificationPort`; probar campos mínimos, query estricta, limit 1–100/default 20 y ausencia de parámetros de identidad del cliente.
-- [ ] 2.2 Implementar codec de cursor v1; probar base64url/JSON inválidos, versión/claves/tamaño/fecha/UUID, conservación de seis decimales, empates por UUID y cursores válidos ajenos/inexistentes sin tratarlos como permisos.
-- [ ] 2.3 Implementar caso de uso con rol student e identidad de sesión; probar 403 antes de consultar para otros roles, parámetros del puerto, vacío real frente a fallo y ausencia de llamadas al puerto emisor/escritor.
+- [x] 2.1 Añadir DTO/query/respuesta Zod y puerto de lectura independiente de `ReviewNotificationPort`; probar campos mínimos, query estricta, limit 1–100/default 20 y ausencia de parámetros de identidad del cliente.
+- [x] 2.2 Implementar codec de cursor v1; probar base64url/JSON inválidos, versión/claves/tamaño/fecha/UUID, conservación de seis decimales, empates por UUID y cursores válidos ajenos/inexistentes sin tratarlos como permisos.
+- [x] 2.3 Implementar caso de uso con rol student e identidad de sesión; probar 403 antes de consultar para otros roles, parámetros del puerto, vacío real frente a fallo y ausencia de llamadas al puerto emisor/escritor.
 
 ## 3. Adaptadores y permisos por página
 
@@ -41,3 +41,14 @@ Propuesta aprobada por el usuario el 2026-11-12. Nivel D autorizado exclusivamen
 - [ ] 6.2 Ejecutar lint, format:check global, typecheck, typecheck:preparation y test:preparation de API, build y contratos OpenAPI; no desplegar.
 - [ ] 6.3 Ejecutar openspec validate list-student-review-notifications --strict, openspec validate --all --strict y git diff --check; revisar trazabilidad, ausencia de datos sensibles y diff exclusivamente del alcance aprobado.
 - [ ] 6.4 Entregar evidencia, límites de revocación/snapshot, reversión y git status; verificar ambos stashes y hashes 0006/0007. No marcar tareas sin su ejecución empírica; commit/push/PR/archivo/merge/despliegue requieren sus propias autorizaciones.
+
+### Evidencia local del bloque 2 — 2026-11-12
+
+- Aprobación y cuatro artefactos guardados en el commit documental `8d610063984126f6983ecb251bc1554895594fc0`, partiendo de `f075647b3f4c1a1e32fa5e309d3decf5b1908fd2`. Tras ese commit se verificó el árbol limpio antes de implementar. Código y actualización de este checklist se entregan sin commit ni publicación.
+- Contratos/cursor: `npm test -w @is488/shared -- src/contracts/review-notification-cursor.test.ts src/contracts/review-notification.contract.test.ts`: 49 casos de cursor y 23 de contrato, 72 aprobados, 0 fallidos/omitidos, salida 0. El codec conserva timestamp UTC de seis decimales y UUID, valida fecha calendárica sin Date, rechaza UTF-8/base64url/JSON/versión/claves inválidos y no incorpora identidad al cursor. Se probó orden por microsegundos antes que UUID y desempate por UUID.
+- Caso de uso: `npm test -w @is488/api -- src/application/use-cases/list-student-review-notifications.use-case.test.ts`: 34 aprobados, 0 fallidos/omitidos, salida 0. Toma userId del contexto de sesión proporcionado por el servidor, rechaza otros roles con 403 y consultas/cursores inválidos con 400 sin llamar al lector; limita lookahead, devuelve cursor del último item y falla con 500 saneado ante lectura/resultado inválidos sin reintentos ni llamadas a emisión/escritura. Son pruebas con lector simulado, no autenticación HTTP ni SQL real.
+- Regresión global final `npm test`, con todas las banderas SQL deshabilitadas: 907 aprobadas (shared 194, API 497, web 216), 0 fallidas y 67 SQL omitidas por configuración, salida 0. Las 106 pruebas nuevas se incluyen en esos totales, no se suman de nuevo. Las 21 OpenAPI y 11 HTTP de revisiones existentes pasaron; no se añadió ruta ni se modificó OpenAPI. No se ejecutó SQL ni se atribuye cobertura real a las omisiones en este bloque.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` global y `npm run build`: salida 0. Build local, con Wrangler en dry-run, sin despliegue. Son controles de regresión del bloque autorizado, no cierre de los bloques futuros.
+- Incidencias conservadas: primera ejecución del caso de uso, 31 aprobadas y 3 fallidas por matcher no disponible en Vitest 2; se sustituyó por dos aserciones equivalentes (una llamada y sus argumentos), conservando su exigencia, y la repetición pasó 34/0/0. Primer typecheck detectó incompatibilidad de tipos del pipe Zod con coerce; se corrigió usando transformación explícita de string/number y validación numérica posterior, sin ignorar tipos ni ampliar valores aceptados. Primer global aprobó shared/API, pero web no inició por acceso denegado de Vite/esbuild bajo sandbox; la repetición con permisos adecuados pasó completa sin cambiar pruebas, timeouts ni código web.
+- Límite: revalidación de membresía y filtro previo a paginar quedan exigidos por el contrato/diseño del lector, pero su implementación y prueba real corresponden al bloque 3 aún pendiente. Autenticación/ruta HTTP pertenecen al bloque 4 y web al 5. No se cambiaron adaptadores, composición HTTP, UI, migraciones, manifiesto ni privilegios. Ambos stashes y hashes 0006/0007 se conservan.
+- OpenSpec del cambio válido en modo estricto; validación global estricta: 13 aprobados, 0 fallidos, salida 0. Se revisan sintaxis Markdown y diff sin errores de espacios; staging permanece vacío y solo se marcan 1.1–1.2 y 2.1–2.3.
