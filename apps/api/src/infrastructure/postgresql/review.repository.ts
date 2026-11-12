@@ -1,6 +1,7 @@
 import type {
   ReviewRepositoryPort,
   TeacherReviewRequest,
+  TeacherReviewResponseResult,
   TeacherReviewAction,
   ReviewStatus,
   ReviewActorRole,
@@ -237,7 +238,7 @@ export class PostgresqlReviewRepository implements ReviewRepositoryPort {
       status: 'CHANGES_REQUESTED' | 'APPROVED';
       observation: string;
     },
-  ): Promise<TeacherReviewRequest> {
+  ): Promise<TeacherReviewResponseResult> {
     if (!isUuid(projectId) || !isUuid(reviewId)) {
       throw Object.assign(
         new Error(`Revisión '${reviewId}' no encontrada en el proyecto '${projectId}'`),
@@ -325,7 +326,7 @@ export class PostgresqlReviewRepository implements ReviewRepositoryPort {
             );
           }
 
-          return mapRequest(updatedRow);
+          return { ...mapRequest(updatedRow), responseActionId: actionId };
         } catch (error) {
           domainError = error;
           throw error;

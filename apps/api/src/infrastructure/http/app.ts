@@ -68,6 +68,9 @@ import { RequestTeacherReviewUseCase } from '../../application/use-cases/request
 import { RespondTeacherReviewUseCase } from '../../application/use-cases/respond-teacher-review.use-case.js';
 import { ResubmitTeacherReviewUseCase } from '../../application/use-cases/resubmit-teacher-review.use-case.js';
 import { GetTeacherReviewUseCase } from '../../application/use-cases/get-teacher-review.use-case.js';
+import { PersistReviewNotificationUseCase } from '../../application/use-cases/persist-review-notification.use-case.js';
+import { PostgresqlInternalReviewNotificationRepository } from '../postgresql/internal-review-notification.repository.js';
+import { InMemoryReviewNotificationRepository } from '../adapters/repositories/in-memory-review-notification.repository.js';
 
 export interface AppOptions {
   reviewRepository?: ReviewRepositoryPort;
@@ -141,13 +144,16 @@ export function createApp(options: AppOptions = {}) {
       },
     });
   }
+  const memoryMemberships =
+    options.membershipRepository ?? new InMemoryMembershipRepository(membershipMap);
+  const memoryReviews = options.reviewRepository ?? new InMemoryReviewRepository();
   const projectRepository = selectPort<ProjectRepositoryPort>(
     options.projectRepository ?? new InMemoryProjectRepository(projectMap),
     new PostgresqlProjectRepository(),
   );
 
   const membershipRepository = selectPort<MembershipRepositoryPort>(
-    options.membershipRepository ?? new InMemoryMembershipRepository(membershipMap),
+    memoryMemberships,
     new PostgresqlMembershipRepository(),
   );
 
@@ -190,14 +196,27 @@ export function createApp(options: AppOptions = {}) {
   );
   const app = new Hono();
   const reviewRepository = selectPort<ReviewRepositoryPort>(
-    options.reviewRepository ?? new InMemoryReviewRepository(),
+    memoryReviews,
     new PostgresqlReviewRepository(),
   );
-  const reviewNotifications: ReviewNotificationPort = options.reviewNotificationPort ?? {
-    async notifyReviewCompleted() {
-      throw new Error('Review notification delivery deferred to EPIC-007');
-    },
-  };
+  const memoryNotifications = new InMemoryReviewNotificationRepository(
+    memoryReviews,
+    memoryMemberships,
+    clock,
+  );
+  const reviewNotifications: ReviewNotificationPort =
+    options.reviewNotificationPort ??
+    selectPort<ReviewNotificationPort>(
+      new PersistReviewNotificationUseCase(memoryNotifications, memoryNotifications),
+      {
+        async notifyReviewCompleted(payload) {
+          const repository = new PostgresqlInternalReviewNotificationRepository();
+          await new PersistReviewNotificationUseCase(repository, repository).notifyReviewCompleted(
+            payload,
+          );
+        },
+      },
+    );
   const localAuth = createDevAuthMiddleware({ nodeEnv });
   const routerAuth: AuthMiddleware = async (c, next) =>
     c.get('user')

@@ -23,6 +23,7 @@ export const runtimePolicy: { table: string; grants: string[]; since?: number }[
   { table: 'public.task_activity', grants: ['SELECT', 'INSERT'], since: 3 },
   { table: 'public.teacher_review_requests', grants: ['SELECT', 'INSERT', 'UPDATE'], since: 6 },
   { table: 'public.teacher_review_actions', grants: ['SELECT', 'INSERT'], since: 6 },
+  { table: 'public.internal_notifications', grants: ['SELECT', 'INSERT'], since: 7 },
 ];
 const quote = (s: string) => {
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(s)) throw new RuntimePrivilegesError('invalid_role');
