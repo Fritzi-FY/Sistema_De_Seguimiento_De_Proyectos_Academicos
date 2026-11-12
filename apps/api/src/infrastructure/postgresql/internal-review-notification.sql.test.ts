@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Client, type ClientConfig } from 'pg';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -7,17 +7,16 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { InternalReviewNotificationInput } from '@is488/shared';
-import { assertSqlTestConfiguration } from '../../testing/sql-ci.js';
+import { notificationSqlTestTarget } from '../../testing/notification-sql-test-config.js';
 import { PostgresqlReviewRepository } from './review.repository.js';
 import { PostgresqlInternalReviewNotificationRepository } from './internal-review-notification.repository.js';
 import { PersistenceTransactionError, SqlSession } from './session.js';
 
 const enabled = process.env.IS488_NOTIFICATION_SQL_TEST === '1';
-assertSqlTestConfiguration(enabled);
-const expectedDirectory = 'C:/Users/fritz/is488-db/reviews-cluster';
+const target = notificationSqlTestTarget(enabled);
 const base: ClientConfig = {
-  host: process.env.IS488_SQL_HOST,
-  port: Number(process.env.IS488_SQL_PORT),
+  host: target.host,
+  port: target.port,
   user: process.env.IS488_SQL_ADMIN_USER ?? 'is488_test_admin',
   database: 'postgres',
   connectionTimeoutMillis: 3000,
@@ -43,7 +42,7 @@ async function validate(client: Client) {
       "SELECT host(inet_server_addr()) AS host, inet_server_port() AS port, current_setting('data_directory') AS directory",
     )
   ).rows[0];
-  expect(identity).toEqual({ host: '127.0.0.1', port: 55491, directory: expectedDirectory });
+  expect(identity).toEqual({ host: target.host, port: target.port, directory: target.directory });
 }
 
 function session() {
@@ -130,10 +129,6 @@ async function waitForLock(pid: number) {
 
 describe.skipIf(!enabled)('Internal review notifications: authorized local PostgreSQL', () => {
   beforeAll(async () => {
-    expect(base.host).toBe('127.0.0.1');
-    expect(base.port).toBe(55491);
-    expect(process.env.IS488_SQL_DATA_DIR).toBe(expectedDirectory);
-    expect(process.env.IS488_CI_SQL).not.toBe('1');
     admin = new Client(base);
     await admin.connect();
     await validate(admin);
@@ -170,6 +165,11 @@ describe.skipIf(!enabled)('Internal review notifications: authorized local Postg
     await data.connect();
     await validate(data);
   }, 30000);
+
+  beforeEach(async () => {
+    await validate(admin);
+    await validate(data);
+  });
 
   async function migrate(name: string, catalogDirectory = directory) {
     await validate(admin);

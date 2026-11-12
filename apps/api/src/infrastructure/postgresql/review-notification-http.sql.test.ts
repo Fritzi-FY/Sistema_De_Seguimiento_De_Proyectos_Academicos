@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Client } from 'pg';
 import { execFile, fork, spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
@@ -8,14 +8,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { ReviewDetailResponseSchema, ReviewRequestSummaryResponseSchema } from '@is488/shared';
-import { assertSqlTestConfiguration } from '../../testing/sql-ci.js';
+import { notificationSqlTestTarget } from '../../testing/notification-sql-test-config.js';
 
 const enabled = process.env.IS488_NOTIFICATION_HTTP_SQL_TEST === '1';
-assertSqlTestConfiguration(enabled);
-const directory = 'C:/Users/fritz/is488-db/reviews-cluster';
+const target = notificationSqlTestTarget(enabled, true);
 const base = {
-  host: process.env.IS488_SQL_HOST,
-  port: Number(process.env.IS488_SQL_PORT),
+  host: target.host,
+  port: target.port,
   user: process.env.IS488_SQL_ADMIN_USER ?? 'is488_test_admin',
   database: 'postgres',
   connectionTimeoutMillis: 3000,
@@ -55,19 +54,23 @@ async function identity(client: Client) {
     )
   ).rows[0];
   expect({ host: row.host, port: row.port, directory: row.directory }).toEqual({
-    host: '127.0.0.1',
-    port: 55491,
-    directory,
+    host: target.host,
+    port: target.port,
+    directory: target.directory,
   });
   return row;
 }
 
 async function startApi() {
+  await identity(admin);
   const child = fork(executable, [], {
     windowsHide: true,
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
     env: {
       ...process.env,
+      IS488_SQL_HOST: target.host,
+      IS488_SQL_PORT: String(target.port),
+      IS488_SQL_DATA_DIR: target.directory,
       IS488_NOTIFICATION_HTTP_DATABASE: database,
       IS488_NOTIFICATION_HTTP_USER: runtime,
     },
@@ -122,11 +125,11 @@ async function stopApi() {
 
 async function pgCtl(operation: 'stop' | 'start') {
   const child = spawn(
-    'C:/Program Files/PostgreSQL/18/bin/pg_ctl.exe',
+    target.pgCtl,
     [
       operation,
       '-D',
-      directory,
+      target.directory,
       ...(operation === 'stop' ? ['-m', 'fast'] : ['-l', join(evidenceDirectory, 'postgres.log')]),
       '-w',
       '-t',
@@ -203,10 +206,6 @@ async function rejectUnchanged(
 
 describe.skipIf(!enabled)('Review notifications HTTP with real authorized PostgreSQL', () => {
   beforeAll(async () => {
-    expect(base.host).toBe('127.0.0.1');
-    expect(base.port).toBe(55491);
-    expect(process.env.IS488_SQL_DATA_DIR).toBe(directory);
-    expect(process.env.IS488_CI_SQL).not.toBe('1');
     admin = new Client(base);
     await admin.connect();
     await identity(admin);
@@ -222,6 +221,7 @@ describe.skipIf(!enabled)('Review notifications HTTP with real authorized Postgr
     await admin.query('CREATE DATABASE ' + database + ' OWNER ' + migrator);
     databaseCreated = true;
     await admin.query('REVOKE TEMPORARY ON DATABASE ' + database + ' FROM PUBLIC,' + runtime);
+    await identity(admin);
     await promisify(execFile)(
       process.execPath,
       [fileURLToPath(new URL('../../../migrations/runner.ts', import.meta.url)), 'apply'],
@@ -230,8 +230,8 @@ describe.skipIf(!enabled)('Review notifications HTTP with real authorized Postgr
         timeout: 20000,
         env: {
           ...process.env,
-          IS488_MIGRATION_HOST: '127.0.0.1',
-          IS488_MIGRATION_PORT: '55491',
+          IS488_MIGRATION_HOST: target.host,
+          IS488_MIGRATION_PORT: String(target.port),
           IS488_MIGRATION_DATABASE: database,
           IS488_MIGRATION_USER: migrator,
           IS488_MIGRATION_PASSWORD: '',
@@ -281,6 +281,11 @@ describe.skipIf(!enabled)('Review notifications HTTP with real authorized Postgr
     });
     await startApi();
   }, 40000);
+
+  beforeEach(async () => {
+    await identity(admin);
+    await identity(data);
+  });
 
   afterAll(async () => {
     await stopApi();
