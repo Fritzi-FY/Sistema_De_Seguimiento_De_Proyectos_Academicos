@@ -10,25 +10,20 @@ import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { createServer } from 'node:https';
+import { inboxE2eSqlTarget, inboxE2eDatabaseUrl } from './review-notification-inbox-target.mjs';
 
 const root = process.cwd();
+const target = inboxE2eSqlTarget();
+assert.ok(
+  process.env.IS488_SQL_ADMIN_USER?.trim(),
+  'IS488_SQL_ADMIN_USER is required for inbox E2E',
+);
 const require = createRequire(join(root, 'apps/api/package.json'));
 const { Client } = require('pg');
 const { build } = require('esbuild');
 const { hashPassword } = await import(pathToFileURL(require.resolve('better-auth/crypto')));
 const { createServer: createVite } = await import('vite');
 const { chromium } = await import(pathToFileURL(process.env.IS488_PLAYWRIGHT_MODULE));
-const target = {
-  host: process.env.IS488_SQL_HOST,
-  port: Number(process.env.IS488_SQL_PORT),
-  directory: process.env.IS488_SQL_DATA_DIR,
-};
-assert.deepEqual(target, {
-  host: '127.0.0.1',
-  port: 55491,
-  directory: 'C:/Users/fritz/is488-db/reviews-cluster',
-});
-assert.ok(process.env.IS488_SQL_ADMIN_USER);
 const suffix = randomUUID().replaceAll('-', '');
 const database = 'is488_test_inbox_e2e_' + suffix;
 const migrator = 'is488_iem_' + suffix;
@@ -185,7 +180,7 @@ try {
     AUTH_MODE: 'session',
     NODE_ENV: 'development',
     AUTH_SECRET: randomBytes(48).toString('base64url'),
-    DATABASE_URL: `postgresql://${runtime}@127.0.0.1:55491/${database}`,
+    DATABASE_URL: inboxE2eDatabaseUrl(target, runtime, database),
   };
   server = createServer(
     {
