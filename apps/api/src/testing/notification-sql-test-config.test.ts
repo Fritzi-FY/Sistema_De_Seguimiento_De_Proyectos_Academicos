@@ -13,6 +13,8 @@ beforeEach(() => {
   vi.stubEnv('IS488_SQL_PG_CTL', process.execPath);
   vi.stubEnv('IS488_NOTIFICATION_SQL_TEST', '1');
   vi.stubEnv('IS488_NOTIFICATION_HTTP_SQL_TEST', '1');
+  vi.stubEnv('IS488_INBOX_SQL_TEST', '1');
+  vi.stubEnv('IS488_INBOX_HTTP_SQL_TEST', '1');
 });
 
 afterEach(() => {
@@ -29,6 +31,14 @@ describe('Notification SQL test configuration without database access', () => {
     {
       name: 'HTTP restart',
       load: () => import('../infrastructure/postgresql/review-notification-http.sql.test.js'),
+    },
+    {
+      name: 'inbox reader',
+      load: () => import('../infrastructure/postgresql/review-notification-reader.sql.test.js'),
+    },
+    {
+      name: 'inbox HTTP',
+      load: () => import('../infrastructure/postgresql/review-notification-inbox-http.sql.test.js'),
     },
   ];
   for (const suite of suites) {

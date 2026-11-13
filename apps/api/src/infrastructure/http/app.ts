@@ -71,10 +71,15 @@ import { GetTeacherReviewUseCase } from '../../application/use-cases/get-teacher
 import { PersistReviewNotificationUseCase } from '../../application/use-cases/persist-review-notification.use-case.js';
 import { PostgresqlInternalReviewNotificationRepository } from '../postgresql/internal-review-notification.repository.js';
 import { InMemoryReviewNotificationRepository } from '../adapters/repositories/in-memory-review-notification.repository.js';
+import { PostgresqlReviewNotificationReader } from '../postgresql/review-notification-reader.repository.js';
+import type { ReviewNotificationReaderPort } from '@is488/shared';
+import { ListStudentReviewNotificationsUseCase } from '../../application/use-cases/list-student-review-notifications.use-case.js';
+import { createReviewNotificationsRouter } from './routes/review-notifications.route.js';
 
 export interface AppOptions {
   reviewRepository?: ReviewRepositoryPort;
   reviewNotificationPort?: ReviewNotificationPort;
+  reviewNotificationReader?: ReviewNotificationReaderPort;
   authentication?: AuthMiddleware;
   remoteValidation?: 'A' | 'B';
   teacherProjectScope?: TeacherProjectScopePort;
@@ -129,6 +134,7 @@ export function createApp(options: AppOptions = {}) {
       options.membershipRepository ||
       options.projectCreationPort ||
       options.reviewRepository ||
+      options.reviewNotificationReader ||
       options.teacherProjectScope)
   ) {
     throw new Error('SQL persistence requires joint composition of all three ports');
@@ -226,7 +232,10 @@ export function createApp(options: AppOptions = {}) {
         : localAuth(c, next);
   let accessCache: { key: string; auth: AuthMiddleware } | undefined;
   app.use('*', async (c, next) => {
-    if (/^\/api\/projects\/[^/]+\/reviews(?:\/|$)/.test(c.req.path))
+    if (
+      c.req.path === '/api/review-notifications' ||
+      /^\/api\/projects\/[^/]+\/reviews(?:\/|$)/.test(c.req.path)
+    )
       c.header('Cache-Control', 'no-store');
     const env = c.env as Record<string, unknown> | undefined;
     const deployment = options.remoteValidation ?? env?.VALIDATION_DEPLOYMENT;
@@ -419,6 +428,20 @@ export function createApp(options: AppOptions = {}) {
       ),
       new ResubmitTeacherReviewUseCase(membershipRepository, reviewRepository),
       new GetTeacherReviewUseCase(membershipRepository, teacherScope, reviewRepository),
+      routerAuth,
+    ),
+  );
+
+  app.route(
+    '/api/review-notifications',
+    createReviewNotificationsRouter(
+      new ListStudentReviewNotificationsUseCase(
+        options.reviewNotificationReader ??
+          selectPort<ReviewNotificationReaderPort>(
+            memoryNotifications,
+            new PostgresqlReviewNotificationReader(),
+          ),
+      ),
       routerAuth,
     ),
   );
