@@ -95,7 +95,7 @@ export function SessionGate() {
   }
   const button =
     'rounded-md bg-unsch-garnet px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-unsch-garnet focus:ring-offset-2 disabled:opacity-50';
-  if (loading)
+  if (loading && !user)
     return (
       <main className="p-8" role="status">
         Comprobando sesión…
@@ -104,21 +104,28 @@ export function SessionGate() {
   if (user)
     return (
       <>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-white p-3">
-          <span data-testid="session-user" data-user-id={user.userId} data-role={user.role}>
-            {user.name} · {user.email} · {user.role}
-          </span>
-          <button
-            className={button}
-            disabled={busy}
-            data-testid="logout"
-            onClick={() => void signOut()}
-          >
-            Cerrar sesión
-          </button>
-          {message && <p role="alert">{message}</p>}
+        {loading && <p role="status">Comprobando sesión...</p>}
+        <div hidden={loading}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-white p-3">
+            <span data-testid="session-user" data-user-id={user.userId} data-role={user.role}>
+              {user.name} · {user.email} · {user.role}
+            </span>
+            <button
+              className={button}
+              disabled={busy}
+              data-testid="logout"
+              onClick={() => void signOut()}
+            >
+              Cerrar sesión
+            </button>
+            {message && <p role="alert">{message}</p>}
+          </div>
+          <AppShell
+            key={`${user.userId}/${user.role}`}
+            user={user}
+            sessionSuspended={loading || busy}
+          />
         </div>
-        <AppShell key={user.userId} user={user} />
       </>
     );
   const token =

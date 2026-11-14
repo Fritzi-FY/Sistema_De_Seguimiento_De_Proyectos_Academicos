@@ -1,5 +1,9 @@
 import { identityPaths } from './identity.openapi.js';
 import { reviewPaths, reviewSchemas } from './reviews.openapi.js';
+import {
+  reviewNotificationPaths,
+  reviewNotificationSchemas,
+} from './review-notifications.openapi.js';
 /**
  * Especificación OpenAPI 3.1 declarada para el contrato de la API del sistema IS488.
  * Garantiza total coincidencia con los esquemas Zod de @is488/shared.
@@ -16,6 +20,7 @@ export const openApiSpec = {
   paths: {
     ...identityPaths,
     ...reviewPaths,
+    ...reviewNotificationPaths,
     '/api/projects/{projectId}/tasks/{taskId}/activity': {
       get: {
         operationId: 'getTaskActivity',
@@ -1246,6 +1251,7 @@ export const openApiSpec = {
     },
     schemas: {
       ...reviewSchemas,
+      ...reviewNotificationSchemas,
       TaskActivityResponse: {
         type: 'object',
         required: ['id', 'taskId', 'projectId', 'actorId', 'action', 'createdAt'],

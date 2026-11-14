@@ -25,3 +25,6 @@ export * from './ports/review-repository.port.js';
 export * from './ports/review-notification.port.js';
 export * from './ports/internal-review-notification.port.js';
 export * from './contracts/review.contract.js';
+export * from './ports/review-notification-reader.port.js';
+export * from './contracts/review-notification-cursor.js';
+export * from './contracts/review-notification.contract.js';
