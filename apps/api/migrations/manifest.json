@@ -33,5 +33,10 @@
     "version": 7,
     "name": "0007_internal_review_notifications.sql",
     "sha256": "9961626c0b38c2c4c270848130e2c12eab083ca74271cce43fdf16ad744cd7e3"
+  },
+  {
+    "version": 8,
+    "name": "0008_task_activity_correlation.sql",
+    "sha256": "c26f795069e76c999a590305142db9f09143eb10689da074b97a9d97b22123fc"
   }
 ]

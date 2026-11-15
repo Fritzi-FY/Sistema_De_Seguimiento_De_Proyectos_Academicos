@@ -5,6 +5,7 @@ import type {
   TaskActivityRepositoryPort,
   TaskActivityEvent,
 } from '@is488/shared';
+import { normalizeTaskActivityCorrelation } from '@is488/shared';
 import { currentSqlSession } from './session.js';
 import { KanbanSqlStore, taskFromRow, eventFromRow, taskSelection } from './kanban-store.js';
 import { PostgresqlTaskListAdapter } from './kanban-list.adapter.js';
@@ -146,8 +147,9 @@ export class PostgresqlTaskActivityRepository implements TaskActivityRepositoryP
     return event;
   }
   async recordEventsBatch(inputs: Parameters<TaskActivityRepositoryPort['recordEventsBatch']>[0]) {
-    const events: TaskActivityEvent[] = inputs.map((event) => ({
+    const events: TaskActivityEvent[] = inputs.map(({ correlationId, ...event }) => ({
       ...event,
+      ...normalizeTaskActivityCorrelation(correlationId),
       id: event.id ?? crypto.randomUUID(),
       createdAt: event.createdAt ?? new Date().toISOString(),
     }));
