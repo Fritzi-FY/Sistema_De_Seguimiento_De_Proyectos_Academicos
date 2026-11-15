@@ -15,6 +15,7 @@ import {
   LastColumnDeletionError,
   ColumnNotEmptyError,
   InvalidDestinationColumnError,
+  normalizeTaskActivityCorrelation,
 } from '@is488/shared';
 import type { ProjectLockManager, ProjectKanbanState } from './in-memory-kanban-project.storage.js';
 import { InMemoryKanbanProjectStorage } from './in-memory-kanban-project.storage.js';
@@ -145,11 +146,13 @@ export class InMemoryBoardColumnDeletionAdapter implements BoardColumnDeletionPo
           updatedAt: params.timestamp, // Preservar exactamente la marca de tiempo de la operacion
         }));
 
+        const correlation = normalizeTaskActivityCorrelation(params.correlationId);
         stagedEvents = sortedSourceTasks.map((t) => ({
           id: crypto.randomUUID(),
           taskId: t.id,
           projectId: params.projectId,
           actorId: params.actorId,
+          ...correlation,
           action: 'COLUMN_DELETED_REALLOCATION',
           fromColumnId: params.columnId,
           toColumnId: targetColumnId,

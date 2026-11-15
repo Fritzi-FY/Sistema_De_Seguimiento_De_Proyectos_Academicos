@@ -477,4 +477,59 @@ describe('InMemoryBoardColumnDeletionAdapter (Atomic Project Storage)', () => {
       expect(event.createdAt).toBe('2026-10-22T20:00:00.000Z');
     }
   });
+
+  it.each(['ABCDEFAB-1234-4ABC-8DEF-123456789ABC', undefined, 'invalid-correlation'])(
+    'validates optional correlation for direct atomic-port callers',
+    async (input) => {
+      const board = (await boardRepo.findByProjectId(projectId))!;
+      const source = board.columns[0]!;
+      const target = board.columns[1]!;
+      const tasks = [];
+      for (let index = 0; index < 2; index += 1) {
+        tasks.push(
+          await taskRepo.create({
+            projectId,
+            columnId: source.id,
+            title: `Source task ${index}`,
+            priority: 'MEDIUM',
+            orderIndex: index,
+            labels: [],
+            creatorId: actorId,
+            assigneeIds: [],
+          }),
+        );
+      }
+      const timestamp = '2026-11-15T12:00:00.000Z';
+      const result = await adapter.executeAtomicColumnDeletion({
+        projectId,
+        columnId: source.id,
+        targetColumnId: target.id,
+        actorId,
+        timestamp,
+        correlationId: input,
+      });
+      expect(result.migratedTasksCount).toBe(2);
+      const events = await activityRepo.findByProjectId(projectId);
+      expect(events).toHaveLength(2);
+      expect(new Set(events.map((event) => event.id)).size).toBe(2);
+      for (const task of tasks) {
+        const event = events.find((entry) => entry.taskId === task.id)!;
+        expect(event).toMatchObject({
+          actorId,
+          action: 'COLUMN_DELETED_REALLOCATION',
+          taskId: task.id,
+          projectId,
+          createdAt: timestamp,
+          fromColumnId: source.id,
+          toColumnId: target.id,
+        });
+        if (input === 'ABCDEFAB-1234-4ABC-8DEF-123456789ABC') {
+          expect(event).toHaveProperty('correlationId', input.toLowerCase());
+        } else {
+          expect(event).not.toHaveProperty('correlationId');
+          expect(JSON.stringify(event)).not.toContain('invalid-correlation');
+        }
+      }
+    },
+  );
 });
