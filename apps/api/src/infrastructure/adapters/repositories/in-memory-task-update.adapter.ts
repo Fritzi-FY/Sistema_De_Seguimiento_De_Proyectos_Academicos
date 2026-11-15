@@ -5,7 +5,7 @@ import type {
   Task,
   TaskActivityEvent,
 } from '@is488/shared';
-import { TaskNotFoundError } from '@is488/shared';
+import { TaskNotFoundError, normalizeTaskActivityCorrelation } from '@is488/shared';
 import {
   type InMemoryKanbanProjectStorage,
   cloneTask,
@@ -145,6 +145,7 @@ export class InMemoryTaskUpdateAdapter implements TaskUpdatePort {
         taskId: params.taskId,
         projectId: params.projectId,
         actorId: params.actorId,
+        ...normalizeTaskActivityCorrelation(params.correlationId),
         action: 'UPDATED',
         toColumnId: currentTask.columnId,
         details,

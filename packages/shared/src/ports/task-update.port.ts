@@ -40,6 +40,7 @@ export interface UpdateTaskTransactionParams {
   patch: UpdateTaskPatch;
   /** Marca temporal ISO-8601 UTC provista por SystemClockPort. */
   timestamp: string;
+  correlationId?: string;
 }
 
 /**

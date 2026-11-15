@@ -6,11 +6,17 @@ import type {
   TaskResponse,
   TaskPriority,
 } from '@is488/shared';
-import { CreateTaskSchema, TaskResponseSchema, IneligibleAssigneeError } from '@is488/shared';
+import {
+  CreateTaskSchema,
+  TaskResponseSchema,
+  IneligibleAssigneeError,
+  normalizeTaskActivityCorrelation,
+} from '@is488/shared';
 
 export interface CreateTaskCommand {
   projectId: string;
   requesterId: string;
+  correlationId?: string;
   columnId: string;
   title: string;
   description?: string;
@@ -100,6 +106,7 @@ export class CreateTaskUseCase {
       creatorId: command.requesterId,
       assigneeIds: validated.assigneeIds,
       timestamp: now,
+      ...normalizeTaskActivityCorrelation(command.correlationId),
     });
 
     return TaskResponseSchema.parse(result.task);

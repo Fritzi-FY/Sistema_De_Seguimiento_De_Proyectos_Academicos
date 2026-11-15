@@ -5,7 +5,7 @@ import type {
   Task,
   TaskActivityEvent,
 } from '@is488/shared';
-import { BoardColumnNotFoundError } from '@is488/shared';
+import { BoardColumnNotFoundError, normalizeTaskActivityCorrelation } from '@is488/shared';
 import {
   type InMemoryKanbanProjectStorage,
   cloneTask,
@@ -76,6 +76,7 @@ export class InMemoryTaskCreationAdapter implements TaskCreationPort {
         taskId,
         projectId: params.projectId,
         actorId: params.creatorId,
+        ...normalizeTaskActivityCorrelation(params.correlationId),
         action: 'CREATED',
         toColumnId: params.columnId,
         details: {

@@ -11,6 +11,7 @@ export * from './contracts/project.contract.js';
 export * from './contracts/membership.contract.js';
 export * from './contracts/board.contract.js';
 export * from './contracts/task.contract.js';
+export * from './contracts/task-activity-correlation.js';
 export * from './ports/task-creation.port.js';
 export * from './ports/task-move.port.js';
 export * from './ports/task-update.port.js';

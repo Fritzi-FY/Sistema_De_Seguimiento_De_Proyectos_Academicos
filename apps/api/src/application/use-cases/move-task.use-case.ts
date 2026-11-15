@@ -6,7 +6,11 @@ import type {
   TaskResponse,
   TaskActivityEvent,
 } from '@is488/shared';
-import { MoveTaskSchema, TaskResponseSchema } from '@is488/shared';
+import {
+  MoveTaskSchema,
+  TaskResponseSchema,
+  normalizeTaskActivityCorrelation,
+} from '@is488/shared';
 
 export interface MoveTaskCommand {
   projectId: string;
@@ -14,6 +18,7 @@ export interface MoveTaskCommand {
   destinationColumnId: string;
   destinationIndex: number;
   requestingUserId: string;
+  correlationId?: string;
 }
 
 export interface MoveTaskResult {
@@ -91,6 +96,7 @@ export class MoveTaskUseCase {
       destinationIndex: validated.destinationIndex,
       actorId: command.requestingUserId,
       timestamp: now,
+      ...normalizeTaskActivityCorrelation(command.correlationId),
     });
 
     return {

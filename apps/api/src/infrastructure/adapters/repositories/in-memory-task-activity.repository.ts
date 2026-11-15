@@ -1,4 +1,5 @@
 import type { TaskActivityEvent, TaskActivityRepositoryPort } from '@is488/shared';
+import { normalizeTaskActivityCorrelation } from '@is488/shared';
 import type { ProjectLockManager } from './in-memory-kanban-project.storage.js';
 import { InMemoryKanbanProjectStorage, cloneEvent } from './in-memory-kanban-project.storage.js';
 
@@ -23,6 +24,7 @@ export class InMemoryTaskActivityRepository implements TaskActivityRepositoryPor
         taskId: event.taskId,
         projectId: event.projectId,
         actorId: event.actorId,
+        ...normalizeTaskActivityCorrelation(event.correlationId),
         action: event.action,
         fromColumnId: event.fromColumnId,
         toColumnId: event.toColumnId,
@@ -58,6 +60,7 @@ export class InMemoryTaskActivityRepository implements TaskActivityRepositoryPor
           taskId: ev.taskId,
           projectId: ev.projectId,
           actorId: ev.actorId,
+          ...normalizeTaskActivityCorrelation(ev.correlationId),
           action: ev.action,
           fromColumnId: ev.fromColumnId,
           toColumnId: ev.toColumnId,

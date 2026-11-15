@@ -7,12 +7,18 @@ import type {
   TaskPriority,
   TaskActivityEvent,
 } from '@is488/shared';
-import { UpdateTaskSchema, TaskResponseSchema, IneligibleAssigneeError } from '@is488/shared';
+import {
+  UpdateTaskSchema,
+  TaskResponseSchema,
+  IneligibleAssigneeError,
+  normalizeTaskActivityCorrelation,
+} from '@is488/shared';
 
 export interface UpdateTaskCommand {
   projectId: string;
   taskId: string;
   requesterId: string;
+  correlationId?: string;
   title?: string;
   description?: string;
   columnId?: string;
@@ -160,6 +166,7 @@ export class UpdateTaskUseCase {
         assigneeIds: validated.assigneeIds,
       },
       timestamp: now,
+      ...normalizeTaskActivityCorrelation(command.correlationId),
     });
 
     return {
