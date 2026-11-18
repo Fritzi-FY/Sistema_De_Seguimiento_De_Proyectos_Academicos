@@ -6,7 +6,9 @@ El 2026-11-15 el usuario autorizó Nivel D exclusivamente para 2.4 desde `2d2042
 
 Posteriormente autorizó guardar los seis archivos verificados de 2.4 en un commit local separado, creado como `814d8b1cc795178309cbfbfb342b183ca181c16e`, y Nivel D para 3.1–3.3. SQL queda limitado a bases efímeras nuevas en `127.0.0.1:55491`, configurado por variables de sesión y con coincidencia exacta de `data_directory = C:/Users/fritz/is488-db/reviews-cluster` antes de operar y limpiar. La entrega del bloque 3 queda sin staging ni commit; HTTP sigue pendiente.
 
-Tras revisar los ocho archivos, el usuario autorizó guardar el bloque 3 en el commit local `bf78a9a9e4e4f17cd2a6b6d421a77bfcfd208485`, `feat(audit): persist Kanban activity correlation`, y Nivel D exclusivamente para el bloque 4. Las pruebas HTTP con PostgreSQL conservan el mismo destino exacto y solo bases efímeras nuevas. El bloque 4 se entrega para revisión local, sin staging, commit ni publicación; el bloque 5 permanece pendiente.
+Tras revisar los ocho archivos, el usuario autorizó guardar el bloque 3 en el commit local `bf78a9a9e4e4f17cd2a6b6d421a77bfcfd208485`, `feat(audit): persist Kanban activity correlation`, y Nivel D exclusivamente para el bloque 4. Las pruebas HTTP con PostgreSQL conservan el mismo destino exacto y solo bases efímeras nuevas. El bloque 4 se entregó para revisión local, sin staging, commit ni publicación.
+
+El 2026-11-18 el usuario autorizó formalmente Nivel D para registrar el bloque 4 en el commit local `aca444cc87df83d17d552b9c647c315c7aa1f16b`, `feat(audit): correlate Kanban task activity via HTTP and OpenAPI`, y autorizó la ejecución del bloque 5 (5.1–5.2). Los controles y verificaciones completas se registran a continuación. No se archiva OpenSpec, no se hace push ni merge; stashes y evidencias permanecen intactos.
 
 ## 1. Planificación y revisión
 
@@ -37,8 +39,8 @@ Tras revisar los ocho archivos, el usuario autorizó guardar el bloque 3 en el c
 
 ## 5. Controles y revisión de implementación futura
 
-- [ ] 5.1 Ejecutar `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check`, `npm.cmd test`, `npm.cmd run build`, pruebas afectadas de migrador/preparación y contrato OpenAPI. Registrar aprobadas, fallidas y omitidas por suite, sin contar SQL omitido como aprobado.
-- [ ] 5.2 Ejecutar validación OpenSpec estricta del cambio/global y `git diff --check`; revisar alcance, ausencia de secretos, hashes 0006/0007, ambos stashes y evidencia preexistente intactos. No marcar eliminación de tareas como verificada ni archivar/publicar sin autorización.
+- [x] 5.1 Ejecutar `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check`, `npm.cmd test`, `npm.cmd run build`, pruebas afectadas de migrador/preparación y contrato OpenAPI. Registrar aprobadas, fallidas y omitidas por suite, sin contar SQL omitido como aprobado.
+- [x] 5.2 Ejecutar validación OpenSpec estricta del cambio/global y `git diff --check`; revisar alcance, ausencia de secretos, hashes 0006/0007, ambos stashes y evidencia preexistente intactos. No marcar eliminación de tareas como verificada ni archivar/publicar sin autorización.
 
 ## Evidencia de Nivel C — 2026-11-14
 
@@ -142,3 +144,20 @@ npm.cmd run test -w @is488/api -- src/infrastructure/http/routes/task-activity-c
 - `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check`: aprobados, exit 0. `npm.cmd test`, con perfiles SQL desactivados: **1140 aprobadas, 0 fallidas y 177 SQL omitidas**, exit 0 (shared 215, API 675, web 250); [log completo](../../../.local-dev/correlate-kanban-task-activity/block4-npm-test.log). Las 57 SQL nuevas se ejecutaron por separado; las 120 SQL anteriores no se reejecutaron en este bloque. Las suites del bloque 3 (32 y 35 aprobadas) siguen vinculadas en su evidencia, sin contarlas como nuevas ejecuciones. Preparación/migrador no se repitieron fuera de la migración real de esta base nueva, al no cambiar sus archivos.
 - `npm.cmd run build`: aprobado, exit 0; shared, Worker dry-run y web compilados; [log](../../../.local-dev/correlate-kanban-task-activity/block4-build.log). Avisos previos de Rollup sobre anotaciones de Zod, sin publicación ni despliegue. OpenSpec del cambio y global estrictos: aprobados, 13 ítems globales; formato/enlaces de los artefactos y `git diff --check`: aprobados.
 - Las migraciones 0001–0008 y el manifiesto se comparan byte a byte con el commit del bloque 3; hashes coincidentes. Ambos stashes y las 12 evidencias preexistentes intactos, índice vacío. [Diff completo del bloque 4](../../../.local-dev/correlate-kanban-task-activity/block-4.patch), incluidos los dos archivos de pruebas nuevos, fuera del staging y sin commit/publicación. Solo se marcan 4.1–4.3; el bloque 5 conserva su revisión posterior independiente.
+
+## Evidencia de Nivel D — bloque 5.1–5.2 — 2026-11-18
+
+- Confirmado commit del bloque 4: `aca444cc87df83d17d552b9c647c315c7aa1f16b`, `feat(audit): correlate Kanban task activity via HTTP and OpenAPI`. Staging limpio antes de iniciar.
+- `openspec validate correlate-kanban-task-activity --strict`: cambio válido, exit 0. `openspec validate --all --strict`: **13 aprobadas, 0 fallidas**, exit 0.
+- `npm.cmd run typecheck`: exit 0; workspaces `@is488/shared`, `@is488/api` y `@is488/web` aprobados sin errores de tipos.
+- `npm.cmd run lint`: exit 0; ESLint aprobado en todo el repositorio sin advertencias.
+- `npm.cmd run format:check`: exit 0; Prettier verificado en todos los archivos coincidentes.
+- `npm.cmd test`, con perfiles SQL desactivados: **1140 aprobadas, 0 fallidas y 177 SQL omitidas**, exit 0 (shared 215 en 13 suites, API 675 y 177 omitidas en 64 suites, web 250 en 34 suites; 102 suites pasadas). Las 57 pruebas SQL del bloque 4 y las 120 SQL anteriores permanecen omitidas en este comando y acreditadas por sus ejecuciones con base de datos real.
+- Pruebas de migrador y preparación: `npm.cmd run typecheck:migrations -w @is488/api`, `npm.cmd run typecheck:preparation -w @is488/api` y `npm.cmd run test:preparation -w @is488/api`: **29 aprobadas, 0 fallidas, 0 omitidas**, exit 0.
+- Contrato OpenAPI: `npm.cmd run test -w @is488/api -- src/infrastructure/openapi/openapi.contract.test.ts src/infrastructure/openapi/task-activity-correlation.contract.test.ts`: **26 aprobadas, 0 fallidas, 0 omitidas**, exit 0.
+- `npm.cmd run build`: exit 0; compilación exitosa de `@is488/shared` (`tsc`), `@is488/api` (`wrangler build`, 3104.65 KiB dry-run) y `@is488/web` (`vite build`, dist/index.html, CSS y JS generados en 5.55s). Avisos de Rollup sobre anotaciones en comentarios de Zod v4 sin impacto. Sin publicación ni despliegue.
+- `git diff --check`: aprobado, exit 0; sin errores de formato ni espacios en blanco corruptos.
+- Integridad de base de datos: hashes SHA-256 de las migraciones 0001–0008 verificados byte a byte contra `apps/api/migrations/manifest.json`. Hash 0006 = `8fcc1d9fce4289b72f21bb8fcfdd40548f3ca71530a5ab93ca66b0b1a26cb77f`, hash 0007 = `9961626c0b38c2c4c270848130e2c12eab083ca74271cce43fdf16ad744cd7e3`, hash 0008 = `c26f795069e76c999a590305142db9f09143eb10689da074b97a9d97b22123fc`, todos idénticos.
+- Seguridad y stashes: ausencia total de secretos o credenciales en código, logs y configuración. `stash@{0}` (`54fc9332...`) y `stash@{1}` (`794dd6cf...`) intactos. Las 12 evidencias preexistentes en `evidence/` y `.local-dev/` conservan su integridad.
+- Límite de alcance canónico: la eliminación individual de tareas permanece identificada como no implementada (sin caso de uso, ruta ni UI); no se marca como verificada.
+- No se archiva OpenSpec, no se realiza push ni merge; estado listo para la compuerta final humana.
