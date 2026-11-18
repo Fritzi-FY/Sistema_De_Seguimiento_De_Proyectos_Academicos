@@ -4,7 +4,11 @@ import type {
   MoveTaskTransactionResult,
   TaskActivityEvent,
 } from '@is488/shared';
-import { TaskNotFoundError, BoardColumnNotFoundError } from '@is488/shared';
+import {
+  TaskNotFoundError,
+  BoardColumnNotFoundError,
+  normalizeTaskActivityCorrelation,
+} from '@is488/shared';
 import {
   type InMemoryKanbanProjectStorage,
   cloneTask,
@@ -118,6 +122,7 @@ export class InMemoryTaskMoveAdapter implements TaskMovePort {
           taskId: params.taskId,
           projectId: params.projectId,
           actorId: params.actorId,
+          ...normalizeTaskActivityCorrelation(params.correlationId),
           action: 'MOVED',
           fromColumnId: sourceColumnId,
           toColumnId: sourceColumnId,
@@ -174,6 +179,7 @@ export class InMemoryTaskMoveAdapter implements TaskMovePort {
           taskId: params.taskId,
           projectId: params.projectId,
           actorId: params.actorId,
+          ...normalizeTaskActivityCorrelation(params.correlationId),
           action: 'MOVED',
           fromColumnId: sourceColumnId,
           toColumnId: params.destinationColumnId,

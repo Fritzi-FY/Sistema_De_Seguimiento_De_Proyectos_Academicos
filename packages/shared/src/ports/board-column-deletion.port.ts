@@ -20,6 +20,7 @@ export interface DeleteColumnTransactionParams {
   reason?: string;
   /** Marca de tiempo ISO-8601 UTC en que se ejecuta la operación. */
   timestamp: string;
+  correlationId?: string;
 }
 
 /**

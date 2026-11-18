@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DeleteBoardColumnUseCase } from './delete-board-column.use-case.js';
 import { InMemoryBoardColumnDeletionAdapter } from '../../infrastructure/adapters/repositories/in-memory-board-column-deletion.adapter.js';
 import { InMemoryBoardRepository } from '../../infrastructure/adapters/repositories/in-memory-board.repository.js';
@@ -11,6 +11,7 @@ import {
   LastColumnDeletionError,
   ColumnNotEmptyError,
   InvalidDestinationColumnError,
+  TaskActivityListResponseSchema,
 } from '@is488/shared';
 import type { Project, SystemClockPort } from '@is488/shared';
 
@@ -85,6 +86,8 @@ describe('DeleteBoardColumnUseCase', () => {
     // Inicializar tablero por defecto con 3 columnas ('Por hacer', 'En progreso', 'Completado')
     await boardRepository.findOrCreateDefaultBoard(projectId);
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   it('rejects deletion with 404 when requester is a teacher without real assignment evidence (default denial)', async () => {
     const board = await boardRepository.findByProjectId(projectId);
@@ -490,6 +493,201 @@ describe('DeleteBoardColumnUseCase', () => {
       expect(finalBoard!.columns.map((c) => c.orderIndex)).toEqual([0, 1]);
       expect(finalBoard!.columns.find((c) => c.id === col0.id)).toBeUndefined();
       expect(finalBoard!.columns.find((c) => c.id === col1.id)).toBeUndefined();
+    });
+  });
+
+  describe('Reallocation activity correlation', () => {
+    const correlationId = 'abcdefab-1234-4abc-8def-123456789abc';
+
+    async function seedReallocation() {
+      const board = (await boardRepository.findByProjectId(projectId))!;
+      const source = board.columns[0]!;
+      const target = board.columns[1]!;
+      const createTask = (columnId: string, orderIndex: number, title: string) =>
+        taskRepository.create({
+          projectId,
+          columnId,
+          title,
+          priority: 'MEDIUM',
+          orderIndex,
+          labels: [],
+          creatorId,
+          assigneeIds: [collaboratorId],
+        });
+      const targetTask = await createTask(target.id, 0, 'Existing target task');
+      const sourceTasks = [
+        await createTask(source.id, 0, 'First source task'),
+        await createTask(source.id, 1, 'Second source task'),
+      ];
+      const historic = await taskActivityRepository.recordEvent({
+        projectId,
+        taskId: sourceTasks[0]!.id,
+        actorId: creatorId,
+        action: 'CREATED',
+        details: { title: sourceTasks[0]!.title },
+        createdAt: '2026-03-09T12:00:00.000Z',
+      });
+      return { source, target, sourceTasks, targetTask, historic };
+    }
+
+    it.each([correlationId.toUpperCase(), undefined, 'invalid-correlation'])(
+      'publishes a distinct event per reassigned task with only usable correlation',
+      async (input) => {
+        const { source, target, sourceTasks, targetTask, historic } = await seedReallocation();
+        const port = vi.spyOn(deletionAdapter, 'executeAtomicColumnDeletion');
+        const publish = vi.spyOn(storage, 'commitSnapshot');
+        const result = await useCase.execute({
+          projectId,
+          columnId: source.id,
+          targetColumnId: target.id,
+          requesterId: collaboratorId,
+          correlationId: input,
+        });
+        expect(result).toEqual({
+          success: true,
+          deletedColumnId: source.id,
+          migratedTasksCount: 2,
+        });
+        expect(publish).toHaveBeenCalledTimes(1);
+        const snapshot = storage.getSnapshot(projectId);
+        expect(snapshot.board!.columns.some((column) => column.id === source.id)).toBe(false);
+        expect(snapshot.tasks.find((task) => task.id === targetTask.id)).toEqual(targetTask);
+        expect(snapshot.events[0]).toEqual(historic);
+        expect(snapshot.events[0]).not.toHaveProperty('correlationId');
+        const events = snapshot.events.slice(1);
+        expect(events).toHaveLength(sourceTasks.length);
+        expect(new Set(events.map((event) => event.id)).size).toBe(sourceTasks.length);
+        for (const [index, task] of sourceTasks.entries()) {
+          const event = events.find((entry) => entry.taskId === task.id)!;
+          expect(event).toMatchObject({
+            actorId: collaboratorId,
+            action: 'COLUMN_DELETED_REALLOCATION',
+            taskId: task.id,
+            projectId,
+            createdAt: clock.isoString(),
+            fromColumnId: source.id,
+            toColumnId: target.id,
+          });
+          expect(snapshot.tasks.find((entry) => entry.id === task.id)).toMatchObject({
+            columnId: target.id,
+            orderIndex: index + 1,
+            updatedAt: clock.isoString(),
+          });
+          if (input === correlationId.toUpperCase()) {
+            expect(event).toHaveProperty('correlationId', correlationId);
+          } else {
+            expect(event).not.toHaveProperty('correlationId');
+          }
+        }
+        if (input === correlationId.toUpperCase()) {
+          expect(port.mock.calls[0]![0]).toHaveProperty('correlationId', correlationId);
+        } else {
+          expect(port.mock.calls[0]![0]).not.toHaveProperty('correlationId');
+          expect(JSON.stringify(events)).not.toContain('invalid-correlation');
+        }
+        expect(TaskActivityListResponseSchema.parse(snapshot.events)).toEqual(snapshot.events);
+      },
+    );
+
+    it.each(['unauthorized', 'missing-destination', 'same-destination', 'unknown-destination'])(
+      'keeps the complete original snapshot when rejecting %s',
+      async (rejection) => {
+        const { source, target } = await seedReallocation();
+        const before = storage.getSnapshot(projectId);
+        const targetColumnId =
+          rejection === 'missing-destination'
+            ? undefined
+            : rejection === 'same-destination'
+              ? source.id
+              : rejection === 'unknown-destination'
+                ? '99999999-9999-4999-8999-999999999999'
+                : target.id;
+        const publish = vi.spyOn(storage, 'commitSnapshot');
+        await expect(
+          useCase.execute({
+            projectId,
+            columnId: source.id,
+            targetColumnId,
+            requesterId: rejection === 'unauthorized' ? unassignedTeacherId : collaboratorId,
+            correlationId,
+          }),
+        ).rejects.toMatchObject({
+          statusCode:
+            rejection === 'unauthorized' ? 404 : rejection === 'missing-destination' ? 409 : 400,
+        });
+        expect(publish).not.toHaveBeenCalled();
+        expect(storage.getSnapshot(projectId)).toEqual(before);
+      },
+    );
+
+    it('does not fabricate activity for an empty column with correlation', async () => {
+      const board = (await boardRepository.findByProjectId(projectId))!;
+      const before = storage.getSnapshot(projectId);
+      const result = await useCase.execute({
+        projectId,
+        columnId: board.columns[0]!.id,
+        requesterId: collaboratorId,
+        correlationId,
+      });
+      expect(result.migratedTasksCount).toBe(0);
+      expect(storage.getSnapshot(projectId).events).toEqual(before.events);
+      expect(storage.getSnapshot(projectId).tasks).toEqual(before.tasks);
+    });
+
+    it('preserves the original column, tasks and historic activity on failure before publication', async () => {
+      const { source, target } = await seedReallocation();
+      const before = storage.getSnapshot(projectId);
+      deletionAdapter.setFaultInjectionPoint('before_publish');
+      await expect(
+        useCase.execute({
+          projectId,
+          columnId: source.id,
+          targetColumnId: target.id,
+          requesterId: collaboratorId,
+          correlationId,
+        }),
+      ).rejects.toThrow('Simulated failure before publishing atomic state');
+      expect(storage.getSnapshot(projectId)).toEqual(before);
+    });
+
+    it('retains the full original snapshot when recording the second event fails', async () => {
+      const { source, target } = await seedReallocation();
+      const before = storage.getSnapshot(projectId);
+      const publish = vi.spyOn(storage, 'commitSnapshot');
+      const stringify = JSON.stringify;
+      let serializedEvents = 0;
+      const serialize = vi.spyOn(JSON, 'stringify').mockImplementation((value) => {
+        if (
+          value &&
+          typeof value === 'object' &&
+          value.reason === 'Reasignacion automatica por eliminacion de columna'
+        ) {
+          serializedEvents += 1;
+          if (serializedEvents === 2)
+            throw new Error('Simulated second activity serialization failure');
+        }
+        return stringify(value);
+      });
+      try {
+        await expect(
+          useCase.execute({
+            projectId,
+            columnId: source.id,
+            targetColumnId: target.id,
+            requesterId: collaboratorId,
+            correlationId,
+          }),
+        ).rejects.toThrow('Simulated second activity serialization failure');
+      } finally {
+        serialize.mockRestore();
+      }
+      expect(serializedEvents).toBe(2);
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(storage.getSnapshot(projectId)).toEqual(before);
+      expect(await taskRepository.findByColumnId(source.id)).toEqual(
+        before.tasks.filter((task) => task.columnId === source.id),
+      );
+      expect(await taskActivityRepository.findByProjectId(projectId)).toEqual(before.events);
     });
   });
 });

@@ -4,6 +4,15 @@ import {
   reviewNotificationPaths,
   reviewNotificationSchemas,
 } from './review-notifications.openapi.js';
+
+const taskActivityCorrelationHeader = {
+  name: 'X-Correlation-ID',
+  in: 'header',
+  required: false,
+  description:
+    'Un único UUID opcional de 36 caracteres, normalizado a minúsculas en los eventos de actividad. Ausente, vacío, inválido o con múltiples valores se omite sin alterar la validación de negocio. No establece identidad, permisos ni idempotencia.',
+  schema: { type: 'string', format: 'uuid', minLength: 36, maxLength: 36 },
+} as const;
 /**
  * Especificación OpenAPI 3.1 declarada para el contrato de la API del sistema IS488.
  * Garantiza total coincidencia con los esquemas Zod de @is488/shared.
@@ -751,6 +760,7 @@ export const openApiSpec = {
           'Elimina una columna de forma atómica. Si la columna contiene tareas activas, exige targetColumnId en query params para migración atómica (409 Conflict si falta). Rechaza con 400 Bad Request si es la última columna restante o si el destino es inválido.',
         operationId: 'deleteBoardColumn',
         parameters: [
+          taskActivityCorrelationHeader,
           {
             name: 'projectId',
             in: 'path',
@@ -975,6 +985,7 @@ export const openApiSpec = {
           'Crea una nueva tarea en una columna del tablero del proyecto y registra el evento inmutable de auditoría CREATED. Requiere membresía activa en el proyecto.',
         operationId: 'createTask',
         parameters: [
+          taskActivityCorrelationHeader,
           {
             name: 'projectId',
             in: 'path',
@@ -1059,6 +1070,7 @@ export const openApiSpec = {
           'Actualiza campos editables (título, descripción, prioridad, fecha límite, etiquetas, responsables) y registra evento de auditoría UPDATED. Rechaza estrictamente la inclusión de campos protegidos o de movimiento.',
         operationId: 'updateTask',
         parameters: [
+          taskActivityCorrelationHeader,
           {
             name: 'projectId',
             in: 'path',
@@ -1150,6 +1162,7 @@ export const openApiSpec = {
           'Mueve una tarea a otra columna o altera su posición contigua dentro de la misma columna, registrando evento inmutable de auditoría MOVED. Clampea índices fuera de rango al final de la columna destino.',
         operationId: 'moveTask',
         parameters: [
+          taskActivityCorrelationHeader,
           {
             name: 'projectId',
             in: 'path',
@@ -1260,6 +1273,14 @@ export const openApiSpec = {
           taskId: { type: 'string', format: 'uuid' },
           projectId: { type: 'string', format: 'uuid' },
           actorId: { type: 'string', minLength: 1 },
+          correlationId: {
+            type: 'string',
+            format: 'uuid',
+            minLength: 36,
+            maxLength: 36,
+            description:
+              'UUID opcional normalizado a minúsculas; omitido en eventos sin correlación.',
+          },
           action: {
             type: 'string',
             enum: ['CREATED', 'UPDATED', 'MOVED', 'COLUMN_DELETED_REALLOCATION', 'DELETED'],

@@ -19,6 +19,8 @@ export interface TaskActivityEvent {
   projectId: string;
   /** UUID del usuario responsable que ejecutó la acción. */
   actorId: string;
+  /** UUID opcional de correlación, normalizado a minúsculas. */
+  correlationId?: string;
   /** Acción ejecutada. */
   action: TaskActivityAction;
   /** Columna origen en transiciones o traslados. */

@@ -1,0 +1,163 @@
+# Tareas: correlación de actividad Kanban
+
+Nivel C aprobado y Nivel D autorizado el 2026-11-14 para 2.1–2.3, exclusivamente crear, editar y mover tareas. Base revisada: `8dbf8b4e495d5e9d16789ce2e03842b53bd41e5d`. Tras la entrega local, el usuario autorizó guardar 2.1–2.3 en el commit `2d2042fcdc7e6bc898b15c76a03c5b109519bde3`. El avance posterior de 2.4 se registra a continuación; SQL y HTTP quedan pendientes. Las marcas de planificación solo acreditan lectura y validación documental; ninguna acredita implementación ni pruebas de aplicación. Diagnóstico y límites: [design.md](design.md).
+
+El 2026-11-15 el usuario autorizó Nivel D exclusivamente para 2.4 desde `2d2042fcdc7e6bc898b15c76a03c5b109519bde3`, commit local posterior que guarda 2.1–2.3. La entrega de 2.4 queda sin staging ni commit para revisión local; SQL y HTTP siguen fuera de este bloque.
+
+Posteriormente autorizó guardar los seis archivos verificados de 2.4 en un commit local separado, creado como `814d8b1cc795178309cbfbfb342b183ca181c16e`, y Nivel D para 3.1–3.3. SQL queda limitado a bases efímeras nuevas en `127.0.0.1:55491`, configurado por variables de sesión y con coincidencia exacta de `data_directory = C:/Users/fritz/is488-db/reviews-cluster` antes de operar y limpiar. La entrega del bloque 3 queda sin staging ni commit; HTTP sigue pendiente.
+
+Tras revisar los ocho archivos, el usuario autorizó guardar el bloque 3 en el commit local `bf78a9a9e4e4f17cd2a6b6d421a77bfcfd208485`, `feat(audit): persist Kanban activity correlation`, y Nivel D exclusivamente para el bloque 4. Las pruebas HTTP con PostgreSQL conservan el mismo destino exacto y solo bases efímeras nuevas. El bloque 4 se entregó para revisión local, sin staging, commit ni publicación.
+
+El 2026-11-18 el usuario autorizó formalmente Nivel D para registrar el bloque 4 en el commit local `aca444cc87df83d17d552b9c647c315c7aa1f16b`, `feat(audit): correlate Kanban task activity via HTTP and OpenAPI`, y autorizó la ejecución del bloque 5 (5.1–5.2). Los controles y verificaciones completas se registran a continuación. No se archiva OpenSpec, no se hace push ni merge; stashes y evidencias permanecen intactos.
+
+## 1. Planificación y revisión
+
+- [x] 1.1 Ejecutar fetch, confirmar que `origin/main` contiene el SHA solicitado y avanzar la rama EPIC-007 solo con `git merge --ff-only origin/main`; comprobar conservación de ambos stashes y evidencia local.
+- [x] 1.2 Contrastar el requisito canónico con código/pruebas de crear, editar, mover y eliminar; distinguir borrado de tarea, reasignación de columna, correlación ausente y cobertura no ejecutada.
+- [x] 1.3 Preparar proposal, design, tasks y delta únicamente para correlación opcional de las operaciones existentes.
+- [x] 1.4 Validar el cambio y todas las specs en modo estricto, comprobar Markdown/enlaces y `git diff --check`; registrar salidas reales.
+- [x] 1.5 Obtener revisión humana C y autorización D explícita para bloques concretos antes de modificar código: el usuario aprobó C y autorizó 2.1–2.3 para crear/editar/mover el 2026-11-14, junto con un commit previo de los cuatro artefactos. Operaciones SQL, commit de código y publicación conservan compuertas independientes.
+
+## 2. Contratos y propagación
+
+- [x] 2.1 Añadir contexto/UUID opcional al evento, contratos y puertos atómicos de crear/editar/mover. Pruebas de contrato: campo válido, normalización de mayúsculas a minúsculas, ausente y valor inválido; preservar formatos de actor, tarea/proyecto, acción y fecha, incluyendo eventos históricos.
+- [x] 2.2 Pasar el contexto por crear, editar y mover sin cambiar actor, reloj ni autorización. Unitarias con y sin correlación para las tres operaciones, entrada inválida en el puerto y comprobación explícita de actor/acción/taskId/projectId/createdAt.
+- [x] 2.3 Conservar el campo en eventos/copias de los adaptadores en memoria de esas tres operaciones. Unitarias de no-op sin evento adicional, rechazo sin efectos, fallo antes de publicación sin correlación huérfana, eventos históricos y correlación repetida sin deduplicar cambios reales.
+- [x] 2.4 Con autorización D posterior, extender contexto al caso de uso/puerto/adaptador de eliminación de columna. Probar varios eventos con UUID de evento distintos y correlación común, actor/recurso/fecha por tarea, ausencia/entrada inválida, rechazo y fallo atómico sin efectos parciales.
+
+## 3. Persistencia PostgreSQL
+
+- [x] 3.1 Añadir migración 0008 nullable/manifiesto sin editar 0001–0007, y mapear inserción/lectura. Pruebas de migrador desde vacío y 0007 con eventos previos: hashes anteriores, IDs/fechas/metadatos intactos, NULL sin backfill y privilegios append-only.
+- [x] 3.2 Con autorización SQL específica y configuración explícita del clúster de pruebas, ejecutar integración de las cuatro operaciones: UUID exacto, los otros cuatro campos y lectura desde nueva instancia; registros previos sin campo, correlación ausente/inválida y lote con correlación compartida.
+- [x] 3.3 Ejecutar regresiones SQL de no-op, aislamiento, rollback tras estado/evento y denegación runtime de UPDATE/DELETE. Comprobar que correlaciones repetidas no deduplican cambios reales. Conservar evidencia saneada y limpiar solo recursos propios tras revalidar destino autorizado.
+
+## 4. HTTP y OpenAPI
+
+- [x] 4.1 Extraer solo `X-Correlation-ID` UUID opcional en las cuatro mutaciones afectadas. Pruebas HTTP de valor válido, ausente, vacío, largo, múltiples valores e inválido: se omite lo inválido y no cambia la semántica actual de la mutación; no se copian headers/cookies/tokens a auditoría ni al error.
+- [x] 4.2 Documentar cabecera opcional y campo de respuesta en OpenAPI; probar historial con/sin campo y compatibilidad de esquemas, `no-store`, 401/404, IDs de otro proyecto y bodies que intentan fijar actor/correlación. Una correlación coincidente no concede acceso ni altera la identidad de sesión.
+- [x] 4.3 Verificar HTTP con PostgreSQL real en el destino autorizado: crear/editar/mover/reasignar y consultar historial, comparación exacta de los cinco campos, no-op/rechazos sin eventos y rollback conjunto. Registrar resultado sin presentarlo como E2E de navegador.
+
+## 5. Controles y revisión de implementación futura
+
+- [x] 5.1 Ejecutar `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check`, `npm.cmd test`, `npm.cmd run build`, pruebas afectadas de migrador/preparación y contrato OpenAPI. Registrar aprobadas, fallidas y omitidas por suite, sin contar SQL omitido como aprobado.
+- [x] 5.2 Ejecutar validación OpenSpec estricta del cambio/global y `git diff --check`; revisar alcance, ausencia de secretos, hashes 0006/0007, ambos stashes y evidencia preexistente intactos. No marcar eliminación de tareas como verificada ni archivar/publicar sin autorización.
+
+## Evidencia de Nivel C — 2026-11-14
+
+- `git fetch origin`: aprobado; `origin/main` pasó de `92e1ee7` a `8dbf8b4`.
+- `git merge-base --is-ancestor 8dbf8b4e495d5e9d16789ce2e03842b53bd41e5d origin/main`: exit 0.
+- `git merge --ff-only origin/main`: aprobado; la rama pasó de `34f17f2021e6238448e0a615939038287845fecc` a `8dbf8b4e495d5e9d16789ce2e03842b53bd41e5d`, sin commit de merge.
+- Stashes conservados: `stash@{0}` = `54fc9332067969efdb9dd2684becb77131db372e`; `stash@{1}` = `794dd6cfb08221fee13c2420fd7455c621d7d9cd`.
+- `evidence/review-notification-inbox/` sigue local y fuera del staging. No se ejecutan SQL, E2E ni suites de aplicación en esta revisión documental; las pruebas citadas en el diagnóstico son cobertura inspeccionada, no nuevas aprobaciones.
+- OpenSpec instalado: `1.7.0`. `openspec validate correlate-kanban-task-activity --strict`: cambio válido, exit 0. `openspec validate --all --strict`: 13 aprobadas, 0 fallidas, exit 0.
+- `node node_modules/prettier/bin/prettier.cjs --check --ignore-path .git/info/exclude` con los cuatro archivos explícitos: aprobado. Comprobador Node de enlaces relativos en stdin: 38 enlaces existentes en 4 archivos, sin espacios finales ni falta de newline.
+- `git diff --check`: aprobado. Los archivos nuevos, aún sin staging, también se comprobaron individualmente con `git -c core.autocrlf=false diff --no-index --check -- NUL <archivo>`: sin diagnósticos de espacios; exit 1 corresponde a la diferencia frente al archivo vacío, no a un fallo de formato.
+- Integridad: los 12 archivos de evidencia conservan su SHA-256 respecto al inventario previo local. Hash 0006 = `8fcc1d9fce4289b72f21bb8fcfdd40548f3ca71530a5ab93ca66b0b1a26cb77f`; hash 0007 = `9961626c0b38c2c4c270848130e2c12eab083ca74271cce43fdf16ad744cd7e3`, sin cambios. No se añadieron archivos al índice.
+
+## Evidencia de Nivel D — bloque 2.1–2.3 — 2026-11-14
+
+- Commit documental autorizado: `70adc5f7029358ae1c6860865167cf9024e3ff04`, `docs(openspec): approve Kanban activity correlation`; contiene exclusivamente los cuatro artefactos, después de `git diff --cached --check` aprobado. El diff de código y este registro posterior se entregan sin staging ni commit.
+- Implementación: validador compartido de UUID de 36 caracteres normalizado a minúsculas; contexto opcional en evento, DTO, comandos y puertos de crear/editar/mover. Los casos de uso y adaptadores atómicos omiten metadatos inválidos, sin generar IDs ni cambiar identidad/permisos. La publicación única sigue guardando tarea y evento juntos. El repositorio de actividad en memoria conserva el campo validado al registrar y devuelve copias; los eventos históricos permanecen sin el campo.
+- `npm.cmd run test -w @is488/shared -- src/contracts/task-activity-correlation.test.ts src/contracts/task-activity.contract.test.ts`: 26 aprobadas, 0 fallidas, 0 omitidas; incluye 21 nuevas de correlación/contrato histórico.
+- `npm.cmd run test -w @is488/api -- src/application/use-cases/task-activity-correlation.use-cases.test.ts`: 33 aprobadas, 0 fallidas, 0 omitidas. Integración local en memoria de casos de uso/puertos/adaptadores: campos de auditoría exactos, contexto ausente/inválido, validación en llamada directa al puerto, fallo antes de publicación con snapshot intacto, acceso ajeno denegado aun compartiendo correlación, IDs de evento distintos en cambios efectivos repetidos, lectura/copia, no-op y reordenamiento dentro de columna. No acredita PostgreSQL ni navegador.
+- `npm.cmd run lint`, `npm.cmd run typecheck` y `npm.cmd run format:check`: aprobados, exit 0.
+- Primer `npm.cmd test` en sandbox: shared 215 y API 604 aprobadas, 88 SQL omitidas; web no arrancó por `Acceso denegado` de esbuild al leer configuración. Primer `npm.cmd run build` en sandbox: exit 1 por la misma restricción y `EPERM` al crear logs de Wrangler. No hubo aserciones fallidas ni cambios de pruebas para resolverlo.
+- Reejecución de `npm.cmd test` con permisos ampliados: exit 0; shared 215 + API 604 + web 250 = **1069 aprobadas, 0 fallidas y 88 SQL omitidas**. Incluye la regresión existente de permisos, Kanban, historial y contrato OpenAPI. Las 54 pruebas nuevas ya están incluidas en ese total; las ejecuciones focalizadas no se suman otra vez.
+- Reejecución de `npm.cmd run build` con permisos ampliados: exit 0; shared, Worker en dry-run y frontend compilados. Rollup emitió avisos sobre anotaciones de comentarios de Zod. Sin publicación ni despliegue.
+- `openspec validate correlate-kanban-task-activity --strict`: válido; `openspec validate --all --strict`: 13 aprobadas, 0 fallidas, exit 0. Formato de los cuatro artefactos y `git diff --check`: aprobados. Diff local completo, incluidos los tres archivos TypeScript nuevos: `.local-dev/correlate-kanban-task-activity/block-2.patch`, generado contra el SHA documental y fuera del staging.
+- SQL real, migraciones/preparación y E2E: no ejecutados en este bloque; no se activaron sus variables de pruebas. Permanecen pendientes 2.4 y los bloques 3–5 del cambio completo. HTTP aún no extrae la cabecera y PostgreSQL aún no persiste el nuevo campo.
+- Se vuelven a comprobar ambos stashes, los 12 hashes de evidencia y hashes 0006/0007: intactos. No se cambia el manifiesto, SQL ni código de eliminación de columnas/tareas.
+
+## Evidencia de Nivel D — tarea 2.4 — 2026-11-15
+
+- Autorización del usuario limitada a 2.4, desde `2d2042fcdc7e6bc898b15c76a03c5b109519bde3`. Se modifica únicamente el puerto, caso de uso y adaptador en memoria de eliminación de columna, sus dos suites existentes y este checklist. Sin staging, commit ni publicación.
+- `correlationId` opcional se valida/normaliza con el helper compartido en el caso de uso y en el adaptador para llamadas directas. Los eventos `COLUMN_DELETED_REALLOCATION` tienen UUID de evento distintos, la misma correlación aceptada y actor de sesión/caso de uso, `taskId`, `projectId` y fecha exactos. Se conservan los históricos; UUID ausente o inválido se omite. Columna vacía no fabrica eventos.
+- Pruebas de rechazo: usuario no autorizado (404), columna con tareas sin destino (409), destino igual al origen o inexistente (400). En todos se compara el snapshot completo y se comprueba que no se publica estado.
+- Fallos atómicos: antes de publicar y durante el registro real en memoria al serializar el segundo evento. Se inyecta el error en `JSON.stringify` usado por `cloneEvent` durante `commitSnapshot`, tras serializar el primer evento nuevo. La copia completa falla antes de sustituir la referencia compartida: columna, tareas de origen/destino, índices, revisión y eventos históricos permanecen exactamente iguales; no hay eventos parciales. No se simula un escritor independiente ni se acredita PostgreSQL.
+- `npm.cmd run test -w @is488/api -- src/application/use-cases/delete-board-column.use-case.test.ts src/infrastructure/adapters/repositories/in-memory-board-column-deletion.adapter.test.ts src/application/use-cases/task-activity-correlation.use-cases.test.ts src/infrastructure/http/routes/board.route.test.ts src/infrastructure/http/routes/task-activity.route.test.ts`: **106 aprobadas, 0 fallidas, 0 omitidas**, incluidas 13 nuevas (10 del caso de uso y 3 del adaptador).
+- `npm.cmd run test -w @is488/shared -- src/contracts/task-activity-correlation.test.ts src/contracts/task-activity.contract.test.ts`: **26 aprobadas, 0 fallidas, 0 omitidas**. Las dos ejecuciones afectadas suman 132 aprobadas.
+- `npm.cmd test`, con permisos ampliados por la restricción de esbuild ya comprobada en el bloque anterior: exit 0; shared 215 + API 617 + web 250 = **1082 aprobadas, 0 fallidas y 88 SQL omitidas**. Los perfiles SQL se verificaron desactivados. Las 13 nuevas y las ejecuciones focalizadas ya están incluidas en el total, sin sumarlas dos veces.
+- `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check`: aprobados, exit 0. `npm.cmd run build` con permisos ampliados: exit 0, shared/Worker dry-run/web compilados; avisos de Rollup sobre anotaciones de Zod, sin publicación/despliegue.
+- `openspec validate correlate-kanban-task-activity --strict`: válido, exit 0; `openspec validate --all --strict`: **13 aprobadas, 0 fallidas**, exit 0. Formato Markdown y `git diff --check`: aprobados. Diff completo contra la base: `.local-dev/correlate-kanban-task-activity/block-2.4.patch`, fuera del staging.
+- Integridad: HEAD y rama se conservan, índice vacío, ambos stashes y los 12 SHA-256 de evidencia intactos, hashes 0006/0007 sin cambios. No se ejecutan SQL real ni E2E y no se modifican migraciones, manifiesto, HTTP/OpenAPI o frontend. Los bloques 3–5 siguen pendientes.
+
+## Evidencia de Nivel D — bloque 3.1–3.3 — 2026-11-15
+
+- Revisión de 2.4: los seis archivos coinciden con su checklist y el diff entregado. Añadidos por ruta; `git diff --cached --check` aprobado antes del commit local `814d8b1cc795178309cbfbfb342b183ca181c16e`, `feat(audit): correlate column reallocation activity`, cuyo padre es `2d2042fcdc7e6bc898b15c76a03c5b109519bde3`.
+- Migración 0008: añade únicamente `public.task_activity.correlation_id uuid NULL`, sin backfill ni unicidad. SHA-256 del SQL = `c26f795069e76c999a590305142db9f09143eb10689da074b97a9d97b22123fc`. Los bytes y entradas del manifiesto de 0001–0007 se compararon con el commit base: intactos, incluidos los hashes 0006/0007 registrados arriba. El adaptador PostgreSQL normaliza escritura/lectura; `NULL` omite el campo en el evento histórico. El cambio y su evento siguen en la transacción existente.
+- Destino configurado exclusivamente en la sesión PowerShell, antes de las suites SQL:
+
+```powershell
+$env:IS488_CI_SQL = '0'
+$env:IS488_SQL_HOST = '127.0.0.1'
+$env:IS488_SQL_PORT = '55491'
+$env:IS488_SQL_DATA_DIR = 'C:/Users/fritz/is488-db/reviews-cluster'
+$env:IS488_SQL_ADMIN_USER = 'is488_test_admin'
+$env:NODE_OPTIONS = '--experimental-transform-types'
+```
+
+- El clúster estaba detenido. `pg_ctl start -D C:/Users/fritz/is488-db/reviews-cluster -l C:/Users/fritz/Sistema_De_Seguimiento_De_Proyectos_Academicos/.local-dev/correlate-kanban-task-activity/postgres-block3.log -o "-p 55491 -h 127.0.0.1" -w -t 15` terminó con exit 0 antes de conectar. La consulta de host, puerto y `current_setting('data_directory')` confirmó el destino exacto. La suite revalida ese mismo destino antes de crear recursos, migrar y eliminar cada base/rol propio; conexiones administrativas, migrador y adaptadores usan el mismo host/puerto.
+- [Suite SQL del bloque](../../../apps/api/src/infrastructure/postgresql/kanban-activity-correlation.sql.test.ts), activada con `$env:IS488_KANBAN_ACTIVITY_SQL_TEST = '1'`:
+
+```powershell
+npm.cmd run test -w @is488/api -- src/infrastructure/postgresql/kanban-activity-correlation.sql.test.ts --no-file-parallelism --reporter=default --reporter=json --outputFile=C:/Users/fritz/Sistema_De_Seguimiento_De_Proyectos_Academicos/.local-dev/correlate-kanban-task-activity/block3-sql-results.json
+```
+
+- Resultado final: **32 aprobadas, 0 fallidas, 0 omitidas**, exit 0; [reporte](../../../.local-dev/correlate-kanban-task-activity/block3-sql-results.json). El [primer intento](../../../.local-dev/correlate-kanban-task-activity/block3-sql-attempt-1.json) tuvo 31 aprobadas y 1 fallida: el CHECK temporal usado para provocar un rechazo SQL afectaba también filas válidas de otros fixtures. Se acotó al proyecto de prueba sin retirar aserciones de rollback; la reejecución completa pasó.
+- Migración real desde vacío: aplicadas 1–8. Segunda base nueva: aplicadas 1–7, insertado evento histórico, aplicada solo 8; ledger previo, UUID, fecha y metadatos conservados, nueva columna `NULL`, lectura histórica válida sin propiedad. Se comprobaron SELECT/INSERT permitidos y UPDATE/DELETE/TRUNCATE denegados al runtime, así como el acceso denegado al ledger.
+- Crear, editar, mover y eliminar columna: UUID normalizado exacto, actor/acción/tarea/proyecto/fecha exactos, persistencia y lectura desde una nueva instancia y conexión del adaptador. Se verifican ausencia/valor inválido como SQL NULL, dos eventos distintos de reasignación con correlación común, no-op sin cambios, aislamiento aun usando una correlación existente, ocho fallos inyectados tras estado/eventos y un rechazo SQL real al persistir el lote sin estado ni eventos parciales. Reutilizar UUID en cambios efectivos produce eventos distintos; también se verifica escritura directa del repositorio.
+- Regresiones SQL, en otra sesión con la misma configuración y `$env:IS488_NOTIFICATION_SQL_TEST = '1'`, `$env:IS488_INBOX_SQL_TEST = '1'`:
+
+```powershell
+npm.cmd run test -w @is488/api -- src/infrastructure/postgresql/internal-review-notification.sql.test.ts src/infrastructure/postgresql/review-notification-reader.sql.test.ts --no-file-parallelism --reporter=default --reporter=json --outputFile=C:/Users/fritz/Sistema_De_Seguimiento_De_Proyectos_Academicos/.local-dev/correlate-kanban-task-activity/block3-regression-sql-results.json
+```
+
+- Resultado: **35 aprobadas, 0 fallidas, 0 omitidas**, exit 0; 21 de notificaciones internas y 14 del lector, [reporte](../../../.local-dev/correlate-kanban-task-activity/block3-regression-sql-results.json). Solo se actualizó su ledger esperado a 1–8.
+- Limpieza confirmada en ambos intentos y regresiones: únicamente bases y roles efímeros creados por cada suite, tras revalidar el directorio exacto. [Auditoría de migraciones y limpieza](../../../.local-dev/correlate-kanban-task-activity/sql-Di9zEf/summary.json): inventarios completos de bases/roles previos intactos. [Comprobación final](../../../.local-dev/correlate-kanban-task-activity/final-sql-state.json): las cuatro bases y ocho roles del bloque (dos intentos) ausentes, sin conexiones ajenas. Se restauró el estado detenido con `pg_ctl stop -D C:/Users/fritz/is488-db/reviews-cluster -m smart -w -t 15`, exit 0; `pg_ctl status` posterior: exit 3, servidor detenido.
+- `npm.cmd run test:preparation -w @is488/api`: **29 aprobadas, 0 fallidas, 0 omitidas**. `npm.cmd run typecheck:migrations -w @is488/api`, `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check` y `npm.cmd run build`: aprobados, exit 0. El primer control de formato señaló el nuevo archivo SQL de pruebas; se aplicó Prettier y el control completo pasó. Build shared/Worker dry-run/web, con los avisos previos de Rollup sobre Zod; sin publicación.
+- `npm.cmd test`, con perfiles SQL desactivados: **1082 aprobadas, 0 fallidas y 120 SQL omitidas**, exit 0 (shared 215, API 617, web 250). Las 32 SQL nuevas y las 88 existentes quedan omitidas en este comando; las 67 SQL ejecutadas arriba se acreditan por separado. SQL y preparación se informan por separado, sin sumarlas al total global. No se ejecutó el antiguo `test:migrations` que fija otro puerto; el migrador real se verificó en las dos bases nuevas autorizadas mediante esta suite.
+- `openspec validate correlate-kanban-task-activity --strict`: válido; `openspec validate --all --strict`: **13 aprobadas, 0 fallidas**, exit 0. Markdown/enlaces y `git diff --check`: aprobados. Diff completo de los ocho archivos, incluidos los dos nuevos: [block-3.patch](../../../.local-dev/correlate-kanban-task-activity/block-3.patch).
+- Ambos stashes y los 12 hashes de evidencia preexistente permanecen intactos. HEAD sigue en el commit de 2.4; bloque 3 y evidencia fuera del staging, sin commit ni publicación. HTTP/OpenAPI, E2E de navegador y bloques 4–5 permanecen pendientes; estas pruebas SQL no acreditan HTTP ni navegador.
+
+## Evidencia de Nivel D — bloque 4.1–4.3 — 2026-11-15
+
+- Se confirmó HEAD `814d8b1cc795178309cbfbfb342b183ca181c16e` y se compararon los ocho archivos del bloque 3 con el patch entregado: coincidencia exacta. SQL 0008 conserva `uuid NULL`, hash `c26f795069e76c999a590305142db9f09143eb10689da074b97a9d97b22123fc` igual al manifiesto; eventos históricos siguen omitiendo el campo. Este checklist conserva el fallo inicial del fixture y la reejecución exitosa. Archivos añadidos por ruta, `git diff --cached --check` aprobado y commit local `bf78a9a9e4e4f17cd2a6b6d421a77bfcfd208485`, `feat(audit): persist Kanban activity correlation`.
+- Implementación HTTP: las rutas de crear/editar/mover tarea y eliminar columna extraen únicamente `X-Correlation-ID` con el validador compartido y propagan su resultado al comando existente. No se modifican middleware de autenticación, permisos, cuerpos aceptados, reloj ni límite transaccional. OpenAPI documenta la cabecera opcional en las cuatro operaciones y el campo de actividad opcional; conserva la autenticación global por cookie.
+- [Suite HTTP](../../../apps/api/src/infrastructure/http/routes/task-activity-correlation.route.test.ts): 53 casos en memoria y 57 con PostgreSQL. Ambas variantes comprueban las cuatro operaciones con UUID válido en mayúsculas normalizado, ausente, vacío, inválido, largo, lista y cabecera duplicada. Solo la cabecera permitida aporta correlación; otro `X-Request-ID`, cookies y tokens sintéticos no aparecen en el evento. Se comparan actor, acción, tarea/proyecto, fecha y correlación exactos; dos reasignaciones producen eventos distintos con UUID común y su tarea respectiva. Historial nuevo e histórico cumplen Zod y `no-store`.
+- Seguridad y efectos: 401 sin autenticación y 404 para cuenta ajena aun con correlación coincidente, consulta y mutación con recurso de otro proyecto, rechazo 400 de `actorId`/`requesterId`/`correlationId` en los tres cuerpos de tarea, no-op y rechazos sin estado/eventos nuevos. DELETE de columna conserva su comportamiento previo sin interpretar el body: actor/correlación enviados allí no se usan. Un middleware de sesión de prueba fija un actor autorizado y demuestra que cabeceras de identidad/correlación no lo sustituyen. La variante SQL verifica los campos directamente en la tabla y consulta historial mediante una nueva aplicación/adaptador/conexión. Cuatro fallos después del INSERT SQL real verifican rollback del estado y todos sus eventos, con respuesta 500 genérica sin el detalle privado del error.
+- Comando de regresión HTTP/contrato sin SQL:
+
+```powershell
+npm.cmd run test -w @is488/api -- src/infrastructure/http/routes/task-activity-correlation.route.test.ts src/infrastructure/openapi/task-activity-correlation.contract.test.ts src/infrastructure/http/routes/task-activity.route.test.ts src/infrastructure/http/routes/board.route.test.ts src/infrastructure/http/routes/tasks.route.test.ts src/infrastructure/openapi/openapi.contract.test.ts --reporter=default --reporter=json --outputFile=C:/Users/fritz/Sistema_De_Seguimiento_De_Proyectos_Academicos/.local-dev/correlate-kanban-task-activity/block4-http-results.json
+```
+
+- Resultado final: **142 aprobadas, 0 fallidas, 57 SQL omitidas**, exit 0; [reporte](../../../.local-dev/correlate-kanban-task-activity/block4-http-results.json). Incluye los cinco casos nuevos del [contrato OpenAPI](../../../apps/api/src/infrastructure/openapi/task-activity-correlation.contract.test.ts). [Primer intento](../../../.local-dev/correlate-kanban-task-activity/block4-http-attempt-1.json): 138 aprobadas, 4 fallidas, 57 omitidas. Las cuatro nuevas aserciones suponían `security` por operación, pero el documento existente la hereda del nivel global; el primer typecheck detectó el mismo acceso inexistente. Se corrigió la comprobación de herencia sin cambiar la autenticación, y la reejecución completa pasó.
+- SQL usa exclusivamente variables de sesión con la configuración del bloque 3 (`IS488_CI_SQL=0`, host `127.0.0.1`, puerto `55491`, `IS488_SQL_DATA_DIR=C:/Users/fritz/is488-db/reviews-cluster`, administrador `is488_test_admin`, `NODE_OPTIONS=--experimental-transform-types`) y el perfil explícito siguiente:
+
+```powershell
+$env:IS488_KANBAN_CORRELATION_HTTP_SQL_TEST = '1'
+npm.cmd run test -w @is488/api -- src/infrastructure/http/routes/task-activity-correlation.route.test.ts --no-file-parallelism --reporter=default --reporter=json --outputFile=C:/Users/fritz/Sistema_De_Seguimiento_De_Proyectos_Academicos/.local-dev/correlate-kanban-task-activity/block4-http-sql-results.json
+```
+
+- Resultado: **110 aprobadas, 0 fallidas, 0 omitidas**, exit 0; **57 HTTP + PostgreSQL real** y 53 en memoria, [reporte](../../../.local-dev/correlate-kanban-task-activity/block4-http-sql-results.json). Los 53 casos repetidos no se suman nuevamente al total global. Se ejercita `app.request` de Hono, rutas y adaptadores PostgreSQL reales, con autenticación de desarrollo existente y el middleware de sesión sintético indicado; no acredita login real, transporte HTTP de red ni E2E de navegador.
+- Clúster inicialmente detenido: arranque con `pg_ctl start -D C:/Users/fritz/is488-db/reviews-cluster -l C:/Users/fritz/Sistema_De_Seguimiento_De_Proyectos_Academicos/.local-dev/correlate-kanban-task-activity/postgres-block4.log -o "-p 55491 -h 127.0.0.1" -w -t 15`, código final 0 antes de conectar. Se validaron host, puerto y directorio exactos antes de crear/migrar y antes de cada limpieza. Una base efímera nueva, migraciones 1–8 y dos roles propios, sin bases persistentes reutilizadas. [Auditoría de limpieza](../../../.local-dev/correlate-kanban-task-activity/http-sql-EIzb8Q/summary.json): base/roles eliminados e inventario previo completo intacto. [Verificación final independiente](../../../.local-dev/correlate-kanban-task-activity/block4-final-sql-state.json): base ausente, dos roles ausentes y cero conexiones ajenas tras revalidar destino. `pg_ctl stop -D C:/Users/fritz/is488-db/reviews-cluster -m smart -w -t 15`: exit 0; `pg_ctl status` posterior: exit 3, detenido como al inicio.
+- `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run format:check`: aprobados, exit 0. `npm.cmd test`, con perfiles SQL desactivados: **1140 aprobadas, 0 fallidas y 177 SQL omitidas**, exit 0 (shared 215, API 675, web 250); [log completo](../../../.local-dev/correlate-kanban-task-activity/block4-npm-test.log). Las 57 SQL nuevas se ejecutaron por separado; las 120 SQL anteriores no se reejecutaron en este bloque. Las suites del bloque 3 (32 y 35 aprobadas) siguen vinculadas en su evidencia, sin contarlas como nuevas ejecuciones. Preparación/migrador no se repitieron fuera de la migración real de esta base nueva, al no cambiar sus archivos.
+- `npm.cmd run build`: aprobado, exit 0; shared, Worker dry-run y web compilados; [log](../../../.local-dev/correlate-kanban-task-activity/block4-build.log). Avisos previos de Rollup sobre anotaciones de Zod, sin publicación ni despliegue. OpenSpec del cambio y global estrictos: aprobados, 13 ítems globales; formato/enlaces de los artefactos y `git diff --check`: aprobados.
+- Las migraciones 0001–0008 y el manifiesto se comparan byte a byte con el commit del bloque 3; hashes coincidentes. Ambos stashes y las 12 evidencias preexistentes intactos, índice vacío. [Diff completo del bloque 4](../../../.local-dev/correlate-kanban-task-activity/block-4.patch), incluidos los dos archivos de pruebas nuevos, fuera del staging y sin commit/publicación. Solo se marcan 4.1–4.3; el bloque 5 conserva su revisión posterior independiente.
+
+## Evidencia de Nivel D — bloque 5.1–5.2 — 2026-11-18
+
+- Confirmado commit del bloque 4: `aca444cc87df83d17d552b9c647c315c7aa1f16b`, `feat(audit): correlate Kanban task activity via HTTP and OpenAPI`. Staging limpio antes de iniciar.
+- `openspec validate correlate-kanban-task-activity --strict`: cambio válido, exit 0. `openspec validate --all --strict`: **13 aprobadas, 0 fallidas**, exit 0.
+- `npm.cmd run typecheck`: exit 0; workspaces `@is488/shared`, `@is488/api` y `@is488/web` aprobados sin errores de tipos.
+- `npm.cmd run lint`: exit 0; ESLint aprobado en todo el repositorio sin advertencias.
+- `npm.cmd run format:check`: exit 0; Prettier verificado en todos los archivos coincidentes.
+- `npm.cmd test`, con perfiles SQL desactivados: **1140 aprobadas, 0 fallidas y 177 SQL omitidas**, exit 0 (shared 215 en 13 suites, API 675 y 177 omitidas en 64 suites, web 250 en 34 suites; 102 suites pasadas). Las 57 pruebas SQL del bloque 4 y las 120 SQL anteriores permanecen omitidas en este comando y acreditadas por sus ejecuciones con base de datos real.
+- Pruebas de migrador y preparación: `npm.cmd run typecheck:migrations -w @is488/api`, `npm.cmd run typecheck:preparation -w @is488/api` y `npm.cmd run test:preparation -w @is488/api`: **29 aprobadas, 0 fallidas, 0 omitidas**, exit 0.
+- Contrato OpenAPI: `npm.cmd run test -w @is488/api -- src/infrastructure/openapi/openapi.contract.test.ts src/infrastructure/openapi/task-activity-correlation.contract.test.ts`: **26 aprobadas, 0 fallidas, 0 omitidas**, exit 0.
+- `npm.cmd run build`: exit 0; compilación exitosa de `@is488/shared` (`tsc`), `@is488/api` (`wrangler build`, 3104.65 KiB dry-run) y `@is488/web` (`vite build`, dist/index.html, CSS y JS generados en 5.55s). Avisos de Rollup sobre anotaciones en comentarios de Zod v4 sin impacto. Sin publicación ni despliegue.
+- `git diff --check`: aprobado, exit 0; sin errores de formato ni espacios en blanco corruptos.
+- Integridad de base de datos: hashes SHA-256 de las migraciones 0001–0008 verificados byte a byte contra `apps/api/migrations/manifest.json`. Hash 0006 = `8fcc1d9fce4289b72f21bb8fcfdd40548f3ca71530a5ab93ca66b0b1a26cb77f`, hash 0007 = `9961626c0b38c2c4c270848130e2c12eab083ca74271cce43fdf16ad744cd7e3`, hash 0008 = `c26f795069e76c999a590305142db9f09143eb10689da074b97a9d97b22123fc`, todos idénticos.
+- Seguridad y stashes: ausencia total de secretos o credenciales en código, logs y configuración. `stash@{0}` (`54fc9332...`) y `stash@{1}` (`794dd6cf...`) intactos. Las 12 evidencias preexistentes en `evidence/` y `.local-dev/` conservan su integridad.
+- Límite de alcance canónico: la eliminación individual de tareas permanece identificada como no implementada (sin caso de uso, ruta ni UI); no se marca como verificada.
+- No se archiva OpenSpec, no se realiza push ni merge; estado listo para la compuerta final humana.

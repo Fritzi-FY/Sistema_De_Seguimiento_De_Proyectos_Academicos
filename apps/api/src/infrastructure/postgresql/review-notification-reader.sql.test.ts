@@ -288,7 +288,7 @@ describe.skipIf(!enabled)('Student inbox reader: real local PostgreSQL', () => {
       (await data.query('SELECT version FROM is488_migrations.versions ORDER BY version')).rows.map(
         (row) => row.version,
       ),
-    ).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     const privileges = (
       await data.query(
         `SELECT privilege,has_table_privilege($1,'public.internal_notifications',privilege) AS allowed FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) privilege`,

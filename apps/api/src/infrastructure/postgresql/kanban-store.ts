@@ -1,4 +1,4 @@
-import { IneligibleAssigneeError } from '@is488/shared';
+import { IneligibleAssigneeError, normalizeTaskActivityCorrelation } from '@is488/shared';
 import type { Board, BoardColumn, Task, TaskActivityEvent } from '@is488/shared';
 import { currentSqlSession, PersistenceTransactionError, type SqlSession } from './session.js';
 import {
@@ -43,6 +43,7 @@ export function eventFromRow(row: Row): TaskActivityEvent {
     projectId: String(row.project_id),
     taskId: String(row.task_id),
     actorId: String(row.actor_id),
+    ...normalizeTaskActivityCorrelation(row.correlation_id),
     action: row.action as TaskActivityEvent['action'],
     fromColumnId: row.from_column_id == null ? undefined : String(row.from_column_id),
     toColumnId: row.to_column_id == null ? undefined : String(row.to_column_id),
@@ -259,7 +260,7 @@ export class KanbanSqlStore {
   async appendEvents(session: SqlSession, events: TaskActivityEvent[]) {
     if (!events.length) return;
     await session.query(
-      `INSERT INTO public.task_activity(id,project_id,task_id,actor_id,action,from_column_id,to_column_id,details,created_at) SELECT id,project_id,task_id,actor_id,action,from_column_id,to_column_id,details,created_at FROM jsonb_to_recordset($1::jsonb) AS x(id uuid,project_id uuid,task_id uuid,actor_id text,action text,from_column_id uuid,to_column_id uuid,details jsonb,created_at timestamptz)`,
+      `INSERT INTO public.task_activity(id,project_id,task_id,actor_id,correlation_id,action,from_column_id,to_column_id,details,created_at) SELECT id,project_id,task_id,actor_id,correlation_id,action,from_column_id,to_column_id,details,created_at FROM jsonb_to_recordset($1::jsonb) AS x(id uuid,project_id uuid,task_id uuid,actor_id text,correlation_id uuid,action text,from_column_id uuid,to_column_id uuid,details jsonb,created_at timestamptz)`,
       [
         JSON.stringify(
           events.map((e) => ({
@@ -267,6 +268,7 @@ export class KanbanSqlStore {
             project_id: e.projectId,
             task_id: e.taskId,
             actor_id: e.actorId,
+            correlation_id: normalizeTaskActivityCorrelation(e.correlationId).correlationId ?? null,
             action: e.action,
             from_column_id: e.fromColumnId ?? null,
             to_column_id: e.toColumnId ?? null,

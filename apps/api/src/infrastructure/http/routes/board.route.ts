@@ -12,6 +12,7 @@ import {
   CreateBoardColumnSchema,
   UpdateBoardColumnSchema,
   DeleteBoardColumnQuerySchema,
+  normalizeTaskActivityCorrelation,
 } from '@is488/shared';
 import { GetProjectBoardUseCase } from '../../../application/use-cases/get-project-board.use-case.js';
 import { CreateBoardColumnUseCase } from '../../../application/use-cases/create-board-column.use-case.js';
@@ -317,6 +318,7 @@ export function createBoardRouter(
 
     try {
       const result = await deleteColumnUseCase.execute({
+        ...normalizeTaskActivityCorrelation(c.req.header('X-Correlation-ID')),
         projectId: parseProjectId.data,
         columnId: parseColumnId.data,
         requesterId: user.userId,

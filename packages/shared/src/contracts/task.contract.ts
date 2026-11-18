@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TaskActivityCorrelationIdSchema } from './task-activity-correlation.js';
 
 /**
  * Esquema para la prioridad de una tarea.
@@ -162,6 +163,7 @@ export const TaskActivityResponseSchema = z.object({
   taskId: z.string().uuid(),
   projectId: z.string().uuid(),
   actorId: z.string().min(1),
+  correlationId: TaskActivityCorrelationIdSchema.optional(),
   action: z.enum([
     'CREATED',
     'UPDATED',

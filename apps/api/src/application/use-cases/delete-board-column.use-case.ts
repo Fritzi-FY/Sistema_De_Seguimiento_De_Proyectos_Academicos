@@ -4,13 +4,14 @@ import type {
   MembershipRepositoryPort,
   SystemClockPort,
 } from '@is488/shared';
-import { DeleteBoardColumnQuerySchema } from '@is488/shared';
+import { DeleteBoardColumnQuerySchema, normalizeTaskActivityCorrelation } from '@is488/shared';
 
 export interface DeleteBoardColumnCommand {
   projectId: string;
   columnId: string;
   requesterId: string;
   targetColumnId?: string;
+  correlationId?: string;
 }
 
 export interface DeleteBoardColumnResult {
@@ -65,6 +66,7 @@ export class DeleteBoardColumnUseCase {
       actorId: command.requesterId,
       reason: 'Reasignacion automatica por eliminacion de columna',
       timestamp: this.clock.isoString(),
+      ...normalizeTaskActivityCorrelation(command.correlationId),
     });
 
     return {

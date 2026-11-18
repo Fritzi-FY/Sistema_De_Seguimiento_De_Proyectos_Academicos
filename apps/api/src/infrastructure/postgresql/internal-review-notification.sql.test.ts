@@ -216,7 +216,7 @@ describe.skipIf(!enabled)('Internal review notifications: authorized local Postg
         const before = (
           await client.query('SELECT * FROM is488_migrations.versions ORDER BY version')
         ).rows;
-        expect(before.map((entry) => entry.version)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+        expect(before.map((entry) => entry.version)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
         await migrate(name);
         expect(
           (await client.query('SELECT * FROM is488_migrations.versions ORDER BY version')).rows,
