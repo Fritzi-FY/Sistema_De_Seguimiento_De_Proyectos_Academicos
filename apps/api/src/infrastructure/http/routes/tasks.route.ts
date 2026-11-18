@@ -15,6 +15,7 @@ import {
   UpdateTaskSchema,
   MoveTaskSchema,
   ListTasksQuerySchema,
+  normalizeTaskActivityCorrelation,
 } from '@is488/shared';
 import { CreateTaskUseCase } from '../../../application/use-cases/create-task.use-case.js';
 import { ListTasksUseCase } from '../../../application/use-cases/list-tasks.use-case.js';
@@ -260,6 +261,7 @@ export function createTasksRouter(
 
     try {
       const task = await createTaskUseCase.execute({
+        ...normalizeTaskActivityCorrelation(c.req.header('X-Correlation-ID')),
         projectId: parseProjectId.data,
         requesterId: user.userId,
         columnId: parseBody.data.columnId,
@@ -367,6 +369,7 @@ export function createTasksRouter(
 
     try {
       const result = await moveTaskUseCase.execute({
+        ...normalizeTaskActivityCorrelation(c.req.header('X-Correlation-ID')),
         projectId: parseProjectId.data,
         taskId: parseTaskId.data,
         destinationColumnId: parseBody.data.destinationColumnId,
@@ -483,6 +486,7 @@ export function createTasksRouter(
 
     try {
       const result = await updateTaskUseCase.execute({
+        ...normalizeTaskActivityCorrelation(c.req.header('X-Correlation-ID')),
         projectId: parseProjectId.data,
         taskId: parseTaskId.data,
         requesterId: user.userId,
