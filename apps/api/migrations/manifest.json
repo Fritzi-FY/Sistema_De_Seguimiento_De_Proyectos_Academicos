@@ -38,5 +38,10 @@
     "version": 8,
     "name": "0008_task_activity_correlation.sql",
     "sha256": "c26f795069e76c999a590305142db9f09143eb10689da074b97a9d97b22123fc"
+  },
+  {
+    "version": 9,
+    "name": "0009_ai_analysis_quota.sql",
+    "sha256": "1a3c099041e5b3e11c339471bcc9c1768c2526a460fb11668ee6eb530ba11910"
   }
 ]

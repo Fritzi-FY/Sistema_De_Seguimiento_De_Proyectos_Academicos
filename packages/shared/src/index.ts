@@ -29,3 +29,9 @@ export * from './contracts/review.contract.js';
 export * from './ports/review-notification-reader.port.js';
 export * from './contracts/review-notification-cursor.js';
 export * from './contracts/review-notification.contract.js';
+
+export * from './ports/ai-provider.port.js';
+export * from './ports/ai-quota.port.js';
+export * from './contracts/ai-assistant.contract.js';
+export * from './testing/fake-ai-provider.js';
+export * from './testing/in-memory-ai-quota.adapter.js';

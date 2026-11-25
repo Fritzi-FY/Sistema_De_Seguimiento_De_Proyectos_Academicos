@@ -60,6 +60,15 @@ EMAIL_PROVIDER_API_KEY=
 APP_BASE_URL=http://localhost:5173
 ```
 
+### Variables del Asistente IA (EPIC-008)
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `OPENROUTER_API_KEY` | En producción | API key de OpenRouter. Obtenida en https://openrouter.ai/settings/keys. En tests se usa `FakeAIProvider` (no requiere clave). |
+| `OPENROUTER_MODEL` | No | Modelo a utilizar. Defecto: `google/gemini-2.0-flash-lite:free`. |
+
+**Local (desarrollo sin IA real):** omitir `OPENROUTER_API_KEY` o dejarla vacía. El endpoint `/api/projects/:id/ai/analysis` responderá `503` de forma controlada. Las demás funciones no se ven afectadas.
+
 El esquema real de variables dependerá de la biblioteca de autenticación y de Wrangler. No copiar variables de producción al entorno local.
 
 ## 11.5 Primeros pasos del repositorio

@@ -76,3 +76,54 @@ La migración automática debe diseñarse con cuidado: evitar cambios destructiv
 - Configurar redirect URI exacto de Google OAuth para cada ambiente.
 - No activar HSTS de larga duración hasta validar que todos los subdominios y flujos HTTPS funcionan.
 - Comprobar certificado, redirecciones, cookies seguras y mixed content tras desplegar.
+
+## 7.9 Asistente IA — OpenRouter (EPIC-008)
+
+### Variables de entorno
+
+| Variable | Requerida en prod | Descripción |
+|---|---|---|
+| `OPENROUTER_API_KEY` | Sí | API key de OpenRouter. Configurar como secreto de Wrangler. Ausente → el endpoint responde `503 Service Unavailable` sin afectar otras funciones. |
+| `OPENROUTER_MODEL` | No | Nombre del modelo. Valor por defecto: `google/gemini-2.0-flash-lite:free`. |
+
+### Configurar secreto en Cloudflare Workers
+
+```bash
+wrangler secret put OPENROUTER_API_KEY
+# Introduce el valor cuando lo solicite; nunca lo pongas como argumento en la línea de comandos.
+```
+
+### Comportamiento ante indisponibilidad
+
+- Si `OPENROUTER_API_KEY` no está configurada o es vacía → `503 Service Unavailable` con body `{ "error": "AI_PROVIDER_UNAVAILABLE" }`.
+- Si OpenRouter responde 5xx o el timeout de 8 s expira → `503` o `504` según el caso.
+- Ningún fallo del asistente afecta las rutas de Kanban, colaboración, revisiones o autenticación.
+
+### Límites de uso y cuotas
+
+- Máximo **5 análisis por proyecto** en ventana deslizante de **10 minutos**.
+- Máximo **1 análisis simultáneo** por par `(user_id, project_id)`.
+- Reservas `in_flight` expiran automáticamente a los **30 segundos** si el Worker termina abruptamente.
+- Límites aplicados por `PostgresqlAIQuotaAdapter` con bloqueo advisory transaccional (`pg_advisory_xact_lock`).
+
+### Tabla de base de datos
+
+Migración: `0009_ai_analysis_quota.sql`
+
+```sql
+public.ai_analysis_quota (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      TEXT NOT NULL,
+  project_id   UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  status       TEXT NOT NULL CHECK (status IN ('in_flight', 'completed', 'failed', 'timeout')),
+  started_at   TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  completed_at TIMESTAMPTZ
+)
+```
+
+### Restricciones éticas — cumplimiento obligatorio
+
+- El endpoint **nunca emite calificaciones, notas ni decisiones académicas**.
+- El `disclaimer` siempre es inyectado por el servidor; no se acepta del modelo.
+- El `systemPrompt` incluye prohibición explícita de evaluación académica.
+- El frontend muestra el disclaimer de forma permanente e ineludible en cada resultado.

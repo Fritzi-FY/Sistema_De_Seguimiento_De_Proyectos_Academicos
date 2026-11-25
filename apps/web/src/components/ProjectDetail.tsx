@@ -6,14 +6,19 @@ import type {
   AddMemberRequest,
   BoardResponse,
   TaskResponse,
+  AIAnalysisRequest,
+  AIAnalysisResponse,
+  ProjectAICapabilitiesResponse,
 } from '@is488/shared';
 import { getMembers, addMember, removeMember } from '../services/membership.service.js';
 import { getBoard } from '../services/board.service.js';
 import { getAllProjectTasks } from '../services/task.service.js';
+import { getProjectAICapabilities } from '../services/ai-assistant.service.js';
 import { ProjectMembersList } from './ProjectMembersList.js';
 import { AddMemberModal } from './AddMemberModal.js';
 import { KanbanBoard } from './KanbanBoard.js';
 import { TaskListView, type TaskPageFetcher } from './TaskListView.js';
+import { ProjectAIAssistantModal } from './ProjectAIAssistantModal.js';
 import {
   ArrowLeft,
   Calendar,
@@ -22,6 +27,7 @@ import {
   FolderKanban,
   UserPlus,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react';
 
 export interface ProjectDetailProps {
@@ -38,12 +44,22 @@ export interface ProjectDetailProps {
   ) => Promise<MembershipResponse>;
   boardFetcher?: (projectId: string, options?: { signal?: AbortSignal }) => Promise<BoardResponse>;
   tasksFetcher?: (projectId: string, options?: { signal?: AbortSignal }) => Promise<TaskResponse[]>;
+  aiSummaryFetcher?: (
+    projectId: string,
+    request?: AIAnalysisRequest,
+  ) => Promise<AIAnalysisResponse>;
+  aiCapabilitiesFetcher?: (
+    projectId: string,
+    options?: { signal?: AbortSignal },
+  ) => Promise<ProjectAICapabilitiesResponse>;
 }
 
 const defaultBoardFetcher = (id: string, options?: { signal?: AbortSignal }) =>
   getBoard(id, undefined, options);
 const defaultTasksFetcher = (id: string, options?: { signal?: AbortSignal }) =>
   getAllProjectTasks(id, undefined, options);
+const defaultAICapabilitiesFetcher = (id: string, options?: { signal?: AbortSignal }) =>
+  getProjectAICapabilities(id, undefined, options);
 
 function formatUtcDate(isoString: string): string {
   try {
@@ -72,6 +88,8 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
   boardFetcher = defaultBoardFetcher,
   tasksFetcher = defaultTasksFetcher,
   taskPageFetcher,
+  aiSummaryFetcher,
+  aiCapabilitiesFetcher = defaultAICapabilitiesFetcher,
 }) => {
   const [view, setView] = useState<'board' | 'list'>('board');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -80,6 +98,8 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [canUseAIAssistant, setCanUseAIAssistant] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const isCreator = project.creatorId === currentUserId;
@@ -102,6 +122,25 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
   useEffect(() => {
     void loadMembers();
   }, [loadMembers]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setCanUseAIAssistant(false);
+
+    void aiCapabilitiesFetcher(project.id, { signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setCanUseAIAssistant(result.canUseAIAssistant);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setCanUseAIAssistant(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [aiCapabilitiesFetcher, project.id, currentUserId]);
 
   const handleAddMember = async (data: AddMemberRequest) => {
     const created = await memberAdder(project.id, data);
@@ -126,8 +165,8 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
       className="space-y-6"
       aria-labelledby="project-detail-title"
     >
-      {/* Botón de volver */}
-      <div>
+      {/* Botón de volver y acciones superiores */}
+      <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={onBack}
@@ -137,6 +176,18 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
           <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
           Volver a la lista
         </button>
+
+        {canUseAIAssistant && (
+          <button
+            type="button"
+            onClick={() => setIsAIModalOpen(true)}
+            data-testid="open-ai-assistant-modal-btn"
+            className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-unsch-garnet focus:outline-none focus:ring-2 focus:ring-unsch-garnet"
+          >
+            <Sparkles className="mr-1.5 h-4 w-4 text-unsch-garnet" aria-hidden="true" />
+            Asistente IA
+          </button>
+        )}
       </div>
 
       {/* Encabezado y resumen del proyecto */}
@@ -348,6 +399,15 @@ const ProjectDetailContent: React.FC<ProjectDetailProps> = ({
         isCreator={isCreator}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddMember}
+      />
+
+      {/* Modal del Asistente IA */}
+      <ProjectAIAssistantModal
+        isOpen={isAIModalOpen}
+        projectId={project.id}
+        projectTitle={project.title}
+        onClose={() => setIsAIModalOpen(false)}
+        summaryFetcher={aiSummaryFetcher}
       />
     </article>
   );
