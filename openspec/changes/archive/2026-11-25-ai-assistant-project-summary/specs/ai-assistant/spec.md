@@ -3,10 +3,11 @@
 ### Requirement: Provider abstraction
 The system SHALL access AI capabilities through an internal `AIProviderPort` interface with OpenRouter as the initial infrastructure adapter. Application use cases and domain models SHALL NOT import or depend on provider-specific SDK types, direct network endpoints, or vendor wire schemas.
 
-#### Scenario: Provider replacement without domain coupling
+#### Scenario: Provider replacement
 - **GIVEN** an application use case invoking AI capabilities
 - **WHEN** the infrastructure provider is replaced or reconfigured from OpenRouter to another model provider
 - **THEN** domain contracts, use cases, and HTTP controllers SHALL remain unchanged
+- **AND** application use cases SHALL NOT depend directly on provider-specific SDK types
 - **AND** all AI interactions SHALL pass exclusively through `AIProviderPort`
 
 #### Scenario: Deterministic testing with fake provider
@@ -17,6 +18,11 @@ The system SHALL access AI capabilities through an internal `AIProviderPort` int
 
 ### Requirement: Authorized project summary
 The assistant SHALL generate structured project summaries, risk assessments, and next-step planning recommendations on demand for users with verified project authorization. The analysis SHALL compile only the minimum authorized project data using deterministic selection and bounded length, and SHALL label every response with an unconditional server-injected non-binding assistance notice.
+
+#### Scenario: Request summary
+- **WHEN** an authorized user requests a summary for a project
+- **THEN** the system SHALL send only the minimum relevant authorized data to the configured provider
+- **AND** SHALL label the result as AI-generated assistance
 
 #### Scenario: Structured on-demand analysis for authorized project members
 - **GIVEN** an authenticated user with active membership in project P or an assigned teacher for project P
@@ -49,6 +55,11 @@ The assistant SHALL generate structured project summaries, risk assessments, and
 
 ### Requirement: AI safety and cost limits
 The system SHALL enforce persistent multi-instance usage quotas, concurrency guards, strict timeouts, bounded prompt/completion token limits, and controlled error handling. Failures, timeouts, or rate limits from the AI provider SHALL degrade cleanly without compromising non-AI system capabilities.
+
+#### Scenario: Provider unavailable
+- **WHEN** the provider times out, returns a rate limit, or fails
+- **THEN** the system SHALL return a controlled error or a clearly marked fallback
+- **AND** SHALL preserve access to non-AI project functions
 
 #### Scenario: Enforce concurrency guard per user and project
 - **GIVEN** an in-flight analysis request currently being processed for user U and project P
@@ -98,6 +109,10 @@ The system SHALL enforce persistent multi-instance usage quotas, concurrency gua
 
 ### Requirement: No automated grading
 The assistant SHALL NOT issue official grades, approve or reject academic deliverables, or make binding academic evaluation decisions.
+
+#### Scenario: User asks for a grade
+- **WHEN** a user requests automated grading of a project
+- **THEN** the assistant SHALL redirect to feedback/summarization support rather than produce an official grade
 
 #### Scenario: Prompt redirect away from grading requests
 - **GIVEN** an AI analysis prompt constructed for project P
