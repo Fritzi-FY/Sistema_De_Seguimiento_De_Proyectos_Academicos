@@ -331,7 +331,9 @@ describe.skipIf(!enabled)('PostgresqlAIQuotaAdapter — integración SQL', () =>
       );
 
       const allowedCount = results.filter((r) => r.allowed).length;
-      const rejectedCount = results.filter((r) => !r.allowed && r.reason === 'RATE_LIMIT_EXCEEDED').length;
+      const rejectedCount = results.filter(
+        (r) => !r.allowed && r.reason === 'RATE_LIMIT_EXCEEDED',
+      ).length;
 
       // Exactamente 1 solicitud debe ser permitida (4 existentes + 1 = 5)
       expect(allowedCount).toBe(1);

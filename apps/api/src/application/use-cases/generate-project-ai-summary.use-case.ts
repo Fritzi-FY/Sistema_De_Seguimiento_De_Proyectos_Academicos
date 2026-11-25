@@ -61,7 +61,11 @@ export class GenerateProjectAISummaryUseCase {
     private readonly clock: () => number = () => Date.now(),
   ) {}
 
-  private async hasProjectAccess(creatorId: string, projectId: string, userId: string): Promise<boolean> {
+  private async hasProjectAccess(
+    creatorId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<boolean> {
     if (creatorId === userId) {
       return true;
     }
@@ -143,7 +147,13 @@ export class GenerateProjectAISummaryUseCase {
       const selectedTasks = this.selectRelevantTasks(allTasks, board);
 
       // 6. Construir prompt seguro y acotado (máx. 10.000 caracteres)
-      const userPrompt = this.buildUserPrompt(project.title, board, allTasks.length, selectedTasks, focus);
+      const userPrompt = this.buildUserPrompt(
+        project.title,
+        board,
+        allTasks.length,
+        selectedTasks,
+        focus,
+      );
 
       // 7. Invocar proveedor desacoplado
       const completion = await this.aiProvider.generateCompletion({
@@ -174,7 +184,8 @@ export class GenerateProjectAISummaryUseCase {
     } catch (error) {
       if (
         error instanceof AITimeoutError ||
-        (error instanceof Error && (error.name === 'AbortError' || error.message.includes('tiempo')))
+        (error instanceof Error &&
+          (error.name === 'AbortError' || error.message.includes('tiempo')))
       ) {
         outcome = 'timeout';
       }

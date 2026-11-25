@@ -3,10 +3,7 @@ import type {
   AICompletionResponse,
   AIProviderPort,
 } from '../ports/ai-provider.port.js';
-import {
-  AIProviderUnavailableError,
-  AIRateLimitError,
-} from '../ports/ai-provider.port.js';
+import { AIProviderUnavailableError, AIRateLimitError } from '../ports/ai-provider.port.js';
 
 export interface FakeAIProviderOptions {
   defaultResponse?: AICompletionResponse | string;

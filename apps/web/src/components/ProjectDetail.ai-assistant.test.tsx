@@ -162,9 +162,7 @@ describe('ProjectDetail - Integración del Asistente IA', () => {
     const commonProps = {
       onBack: vi.fn(),
       membersFetcher: vi.fn().mockResolvedValue([]),
-      boardFetcher: vi.fn((id: string) =>
-        Promise.resolve(id === projectB.id ? boardB : mockBoard),
-      ),
+      boardFetcher: vi.fn((id: string) => Promise.resolve(id === projectB.id ? boardB : mockBoard)),
       tasksFetcher: vi.fn().mockResolvedValue([]),
       aiCapabilitiesFetcher,
     };
@@ -216,9 +214,7 @@ describe('ProjectDetail - Integración del Asistente IA', () => {
     const commonProps = {
       onBack: vi.fn(),
       membersFetcher: vi.fn().mockResolvedValue([]),
-      boardFetcher: vi.fn((id: string) =>
-        Promise.resolve(id === projectB.id ? boardB : mockBoard),
-      ),
+      boardFetcher: vi.fn((id: string) => Promise.resolve(id === projectB.id ? boardB : mockBoard)),
       tasksFetcher: vi.fn().mockResolvedValue([]),
       aiCapabilitiesFetcher,
     };

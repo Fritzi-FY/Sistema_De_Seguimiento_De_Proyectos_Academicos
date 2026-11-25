@@ -51,7 +51,9 @@ export class AIProviderUnavailableError extends AIProviderError {
 }
 
 export class AITimeoutError extends AIProviderUnavailableError {
-  constructor(message: string = 'El proveedor de IA no respondió dentro del tiempo máximo permitido.') {
+  constructor(
+    message: string = 'El proveedor de IA no respondió dentro del tiempo máximo permitido.',
+  ) {
     super(message, 504);
     this.name = 'AITimeoutError';
   }
@@ -79,7 +81,9 @@ export class AIAuthenticationError extends AIProviderError {
 }
 
 export class AIInvalidResponseError extends AIProviderError {
-  constructor(message: string = 'La respuesta generada por el proveedor de IA no tiene un formato válido.') {
+  constructor(
+    message: string = 'La respuesta generada por el proveedor de IA no tiene un formato válido.',
+  ) {
     super(message, 502);
     this.name = 'AIInvalidResponseError';
   }

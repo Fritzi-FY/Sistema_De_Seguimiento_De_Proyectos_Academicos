@@ -512,10 +512,13 @@ describe('AI Assistant HTTP Route: POST /api/projects/:projectId/ai/analysis', (
       });
       expect(badId.status).toBe(400);
 
-      const missing = await testApp.request(`/api/projects/${nonExistentProjectId}/ai/capabilities`, {
-        method: 'GET',
-        headers: { 'X-Dev-User-Id': studentId, 'X-Dev-User-Role': 'student' },
-      });
+      const missing = await testApp.request(
+        `/api/projects/${nonExistentProjectId}/ai/capabilities`,
+        {
+          method: 'GET',
+          headers: { 'X-Dev-User-Id': studentId, 'X-Dev-User-Role': 'student' },
+        },
+      );
       expect(missing.status).toBe(404);
     });
 

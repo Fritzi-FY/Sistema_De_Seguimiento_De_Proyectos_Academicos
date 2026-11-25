@@ -46,7 +46,8 @@ function mapHttpErrorToUserMessage(
   switch (status) {
     case 400:
       return {
-        userMessage: 'Parámetros de solicitud inválidos. Por favor verifique los datos del proyecto.',
+        userMessage:
+          'Parámetros de solicitud inválidos. Por favor verifique los datos del proyecto.',
       };
     case 401:
       return {
@@ -85,19 +86,23 @@ function mapHttpErrorToUserMessage(
     }
     case 502:
       return {
-        userMessage: 'La respuesta generada por el proveedor de IA no tiene un formato válido. Intente nuevamente.',
+        userMessage:
+          'La respuesta generada por el proveedor de IA no tiene un formato válido. Intente nuevamente.',
       };
     case 503:
       return {
-        userMessage: 'El asistente de IA no se encuentra disponible temporalmente. Intente nuevamente en unos momentos.',
+        userMessage:
+          'El asistente de IA no se encuentra disponible temporalmente. Intente nuevamente en unos momentos.',
       };
     case 504:
       return {
-        userMessage: 'El proveedor de IA tardó demasiado en responder (tiempo límite de 8 segundos agotado). Intente nuevamente.',
+        userMessage:
+          'El proveedor de IA tardó demasiado en responder (tiempo límite de 8 segundos agotado). Intente nuevamente.',
       };
     default:
       return {
-        userMessage: 'Ocurrió un error inesperado al procesar la solicitud del asistente de IA. Intente nuevamente más tarde.',
+        userMessage:
+          'Ocurrió un error inesperado al procesar la solicitud del asistente de IA. Intente nuevamente más tarde.',
       };
   }
 }

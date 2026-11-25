@@ -80,11 +80,7 @@ export class InMemoryAIQuotaAdapter implements AIQuotaPort {
     return { allowed: true };
   }
 
-  async release(
-    userId: string,
-    projectId: string,
-    _outcome: AIQuotaReleaseOutcome,
-  ): Promise<void> {
+  async release(userId: string, projectId: string, _outcome: AIQuotaReleaseOutcome): Promise<void> {
     const key = this.getKey(userId, projectId);
     this.inFlightMap.delete(key);
   }

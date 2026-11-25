@@ -20,7 +20,8 @@ const mockSuccessResponse: AIAnalysisResponse = {
   meta: {
     generatedAt: '2026-11-23T20:30:00.000Z',
     model: 'fake-ai-model-v1',
-    disclaimer: 'Orientación formativa generada por IA. No constituye calificación ni evaluación académica oficial.',
+    disclaimer:
+      'Orientación formativa generada por IA. No constituye calificación ni evaluación académica oficial.',
   },
 };
 
@@ -102,7 +103,9 @@ describe('ProjectAIAssistantModal', () => {
     const loadingStatus = screen.getByRole('status');
     expect(loadingStatus).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByText('Analizando el estado del proyecto...')).toBeInTheDocument();
-    expect(screen.getByText('Procesando tablero Kanban, tareas y métricas de avance operativo.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Procesando tablero Kanban, tareas y métricas de avance operativo.'),
+    ).toBeInTheDocument();
 
     // Resolve
     resolvePromise(mockSuccessResponse);
@@ -140,7 +143,9 @@ describe('ProjectAIAssistantModal', () => {
 
     // 3 structured sections
     const progressSummary = screen.getByTestId('ai-progress-summary');
-    expect(progressSummary).toHaveTextContent('El equipo ha completado el 60% de los entregables del sprint.');
+    expect(progressSummary).toHaveTextContent(
+      'El equipo ha completado el 60% de los entregables del sprint.',
+    );
 
     const riskSignals = screen.getByTestId('ai-risk-signals');
     expect(riskSignals).toHaveTextContent('Cuello de botella en la fase de pruebas.');
@@ -156,14 +161,16 @@ describe('ProjectAIAssistantModal', () => {
   });
 
   it('maneja error 429 con mensaje comprensible e información de reintento', async () => {
-    const summaryFetcher = vi.fn().mockRejectedValue(
-      new AIAssistantServiceError(
-        429,
-        'Has alcanzado el límite de análisis para este proyecto. Podrás generar uno nuevo en 4 minutos.',
-        'RATE_LIMIT_EXCEEDED',
-        240,
-      ),
-    );
+    const summaryFetcher = vi
+      .fn()
+      .mockRejectedValue(
+        new AIAssistantServiceError(
+          429,
+          'Has alcanzado el límite de análisis para este proyecto. Podrás generar uno nuevo en 4 minutos.',
+          'RATE_LIMIT_EXCEEDED',
+          240,
+        ),
+      );
 
     render(
       <ProjectAIAssistantModal
@@ -189,13 +196,15 @@ describe('ProjectAIAssistantModal', () => {
   });
 
   it('maneja error 504 de timeout adecuadamente', async () => {
-    const summaryFetcher = vi.fn().mockRejectedValue(
-      new AIAssistantServiceError(
-        504,
-        'El asistente tardó demasiado en responder (timeout de 8 segundos). Por favor intenta nuevamente.',
-        'GATEWAY_TIMEOUT',
-      ),
-    );
+    const summaryFetcher = vi
+      .fn()
+      .mockRejectedValue(
+        new AIAssistantServiceError(
+          504,
+          'El asistente tardó demasiado en responder (timeout de 8 segundos). Por favor intenta nuevamente.',
+          'GATEWAY_TIMEOUT',
+        ),
+      );
 
     render(
       <ProjectAIAssistantModal
@@ -217,13 +226,15 @@ describe('ProjectAIAssistantModal', () => {
   });
 
   it('maneja error 503 de proveedor no disponible adecuadamente', async () => {
-    const summaryFetcher = vi.fn().mockRejectedValue(
-      new AIAssistantServiceError(
-        503,
-        'El servicio de IA no está configurado o no se encuentra disponible temporalmente.',
-        'PROVIDER_UNAVAILABLE',
-      ),
-    );
+    const summaryFetcher = vi
+      .fn()
+      .mockRejectedValue(
+        new AIAssistantServiceError(
+          503,
+          'El servicio de IA no está configurado o no se encuentra disponible temporalmente.',
+          'PROVIDER_UNAVAILABLE',
+        ),
+      );
 
     render(
       <ProjectAIAssistantModal
@@ -245,13 +256,15 @@ describe('ProjectAIAssistantModal', () => {
   });
 
   it('maneja error 502 de respuesta inválida adecuadamente', async () => {
-    const summaryFetcher = vi.fn().mockRejectedValue(
-      new AIAssistantServiceError(
-        502,
-        'La respuesta del proveedor de IA no cumplió con el formato estructurado esperado.',
-        'BAD_GATEWAY',
-      ),
-    );
+    const summaryFetcher = vi
+      .fn()
+      .mockRejectedValue(
+        new AIAssistantServiceError(
+          502,
+          'La respuesta del proveedor de IA no cumplió con el formato estructurado esperado.',
+          'BAD_GATEWAY',
+        ),
+      );
 
     render(
       <ProjectAIAssistantModal
@@ -269,7 +282,9 @@ describe('ProjectAIAssistantModal', () => {
       expect(screen.getByTestId('ai-assistant-error')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/no cumplió con el formato estructurado esperado/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/no cumplió con el formato estructurado esperado/i),
+    ).toBeInTheDocument();
   });
 
   it('cierra el modal al pulsar la tecla Escape', () => {

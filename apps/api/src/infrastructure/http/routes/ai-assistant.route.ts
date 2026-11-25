@@ -43,11 +43,9 @@ export function createAIAssistantRouter(
   router.get('/:projectId/ai/capabilities', async (c: Context) => {
     const user = c.get('user');
     if (!user || !user.userId) {
-      return c.json(
-        { error: 'Unauthorized', message: 'Sesión no autenticada' },
-        401,
-        { 'Cache-Control': 'no-store' },
-      );
+      return c.json({ error: 'Unauthorized', message: 'Sesión no autenticada' }, 401, {
+        'Cache-Control': 'no-store',
+      });
     }
 
     const parsedParams = ParamSchema.safeParse(c.req.param());
@@ -73,18 +71,12 @@ export function createAIAssistantRouter(
     } catch (error: unknown) {
       const status = (error as { statusCode?: number } | null)?.statusCode;
       if (status === 404) {
-        return c.json(
-          { error: 'Not Found', message: (error as Error).message },
-          404,
-          { 'Cache-Control': 'no-store' },
-        );
+        return c.json({ error: 'Not Found', message: (error as Error).message }, 404, {
+          'Cache-Control': 'no-store',
+        });
       }
 
-      return c.json(
-        { error: 'Internal Server Error' },
-        500,
-        { 'Cache-Control': 'no-store' },
-      );
+      return c.json({ error: 'Internal Server Error' }, 500, { 'Cache-Control': 'no-store' });
     }
   });
 
@@ -92,11 +84,9 @@ export function createAIAssistantRouter(
     // 1. Extraer usuario autenticado del contexto de sesión
     const user = c.get('user');
     if (!user || !user.userId) {
-      return c.json(
-        { error: 'Unauthorized', message: 'Sesión no autenticada' },
-        401,
-        { 'Cache-Control': 'no-store' },
-      );
+      return c.json({ error: 'Unauthorized', message: 'Sesión no autenticada' }, 401, {
+        'Cache-Control': 'no-store',
+      });
     }
 
     // 2. Validar parámetro de ruta projectId
@@ -163,19 +153,15 @@ export function createAIAssistantRouter(
       const status = (error as { statusCode?: number } | null)?.statusCode;
 
       if (status === 403) {
-        return c.json(
-          { error: 'Forbidden', message: (error as Error).message },
-          403,
-          { 'Cache-Control': 'no-store' },
-        );
+        return c.json({ error: 'Forbidden', message: (error as Error).message }, 403, {
+          'Cache-Control': 'no-store',
+        });
       }
 
       if (status === 404) {
-        return c.json(
-          { error: 'Not Found', message: (error as Error).message },
-          404,
-          { 'Cache-Control': 'no-store' },
-        );
+        return c.json({ error: 'Not Found', message: (error as Error).message }, 404, {
+          'Cache-Control': 'no-store',
+        });
       }
 
       if (status === 429) {
@@ -235,11 +221,7 @@ export function createAIAssistantRouter(
         );
       }
 
-      return c.json(
-        { error: 'Internal Server Error' },
-        500,
-        { 'Cache-Control': 'no-store' },
-      );
+      return c.json({ error: 'Internal Server Error' }, 500, { 'Cache-Control': 'no-store' });
     }
   });
 

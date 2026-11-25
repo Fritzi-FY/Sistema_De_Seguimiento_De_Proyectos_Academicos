@@ -356,7 +356,9 @@ describe('GenerateProjectAISummaryUseCase', () => {
 
     it('excluye tareas completadas hace más de 7 días pero conserva las completadas recientes', async () => {
       const board = await boardRepository.findOrCreateDefaultBoard(projectId);
-      const doneCol = board.columns.find((c) => /done|completad/i.test(c.name)) ?? board.columns[board.columns.length - 1];
+      const doneCol =
+        board.columns.find((c) => /done|completad/i.test(c.name)) ??
+        board.columns[board.columns.length - 1];
       const doneColId = doneCol?.id ?? 'col-done';
 
       // Tarea completada hace 10 días (debe excluirse)
@@ -372,7 +374,8 @@ describe('GenerateProjectAISummaryUseCase', () => {
         assigneeIds: [],
       });
       // Sobrescribir updatedAt manualmente en storage y hacer commit
-      const storageAccess = (taskRepository as unknown as { storage: InMemoryKanbanProjectStorage }).storage;
+      const storageAccess = (taskRepository as unknown as { storage: InMemoryKanbanProjectStorage })
+        .storage;
 
       // Tarea completada hace 2 días (debe conservarse)
       const recentDoneDate = new Date(fixedNow - 2 * 24 * 60 * 60 * 1000).toISOString();

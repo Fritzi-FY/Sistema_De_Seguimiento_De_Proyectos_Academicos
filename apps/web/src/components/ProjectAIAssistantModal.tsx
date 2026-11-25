@@ -22,10 +22,7 @@ export interface ProjectAIAssistantModalProps {
   projectId: string;
   projectTitle: string;
   onClose: () => void;
-  summaryFetcher?: (
-    projectId: string,
-    request?: AIAnalysisRequest,
-  ) => Promise<AIAnalysisResponse>;
+  summaryFetcher?: (projectId: string, request?: AIAnalysisRequest) => Promise<AIAnalysisResponse>;
 }
 
 export type ModalState = 'idle' | 'loading' | 'success' | 'error';
@@ -133,9 +130,7 @@ export const ProjectAIAssistantModal: React.FC<ProjectAIAssistantModalProps> = (
               >
                 Asistente de Gestión y Seguimiento IA
               </h3>
-              <p className="text-xs text-slate-500 truncate max-w-sm sm:max-w-md">
-                {projectTitle}
-              </p>
+              <p className="text-xs text-slate-500 truncate max-w-sm sm:max-w-md">{projectTitle}</p>
             </div>
           </div>
           <button
@@ -179,7 +174,9 @@ export const ProjectAIAssistantModal: React.FC<ProjectAIAssistantModalProps> = (
                   onChange={(e) => setFocus(e.target.value as AIAnalysisFocus)}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm focus:border-unsch-garnet focus:outline-none focus:ring-1 focus:ring-unsch-garnet"
                 >
-                  <option value="full">Análisis Completo (Progreso + Riesgos + Próximos pasos)</option>
+                  <option value="full">
+                    Análisis Completo (Progreso + Riesgos + Próximos pasos)
+                  </option>
                   <option value="risks">Énfasis en Riesgos y Bloqueos</option>
                   <option value="progress">Énfasis en Avance de Tareas</option>
                 </select>
@@ -230,7 +227,9 @@ export const ProjectAIAssistantModal: React.FC<ProjectAIAssistantModalProps> = (
               <div className="flex items-start space-x-3">
                 <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" aria-hidden="true" />
                 <div className="space-y-1 text-xs">
-                  <h4 className="font-bold text-rose-900 text-sm">No se pudo completar el análisis</h4>
+                  <h4 className="font-bold text-rose-900 text-sm">
+                    No se pudo completar el análisis
+                  </h4>
                   <p className="leading-relaxed text-rose-800">{errorMessage}</p>
                   {retryAfterSeconds !== null && retryAfterSeconds > 0 && (
                     <p className="font-medium text-rose-700">
@@ -280,13 +279,11 @@ export const ProjectAIAssistantModal: React.FC<ProjectAIAssistantModalProps> = (
                     <h4 className="font-bold uppercase tracking-wider text-amber-900 text-[11px]">
                       Aviso Académico Importante (IS488)
                     </h4>
-                    <p className="font-semibold text-amber-900">
-                      {analysis.meta.disclaimer}
-                    </p>
+                    <p className="font-semibold text-amber-900">{analysis.meta.disclaimer}</p>
                     <p className="text-amber-800 leading-relaxed">
-                      Las sugerencias generadas son exclusivamente recomendaciones operativas para apoyar
-                      la organización del trabajo en equipo. La IA no tiene potestad evaluativa ni
-                      reemplaza las revisiones o calificaciones oficiales del docente.
+                      Las sugerencias generadas son exclusivamente recomendaciones operativas para
+                      apoyar la organización del trabajo en equipo. La IA no tiene potestad
+                      evaluativa ni reemplaza las revisiones o calificaciones oficiales del docente.
                     </p>
                   </div>
                 </div>
@@ -330,7 +327,8 @@ export const ProjectAIAssistantModal: React.FC<ProjectAIAssistantModalProps> = (
                   </ul>
                 ) : (
                   <p className="text-xs text-slate-500 italic rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                    No se identificaron señales críticas de riesgo en las tareas activas en este momento.
+                    No se identificaron señales críticas de riesgo en las tareas activas en este
+                    momento.
                   </p>
                 )}
               </section>

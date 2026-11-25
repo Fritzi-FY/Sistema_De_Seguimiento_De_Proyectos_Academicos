@@ -128,10 +128,11 @@ describe('OpenRouterAIAdapter', () => {
   describe('manejo de AbortSignal y timeout', () => {
     it('rechaza con AITimeoutError (statusCode 504 e instancia de AIProviderUnavailableError) al expirar el timeout interno (8 s)', async () => {
       fetchMock.mockImplementationOnce(
-        () => new Promise<Response>((_, reject) => {
-          // Simula que fetch nunca resuelve; el AbortController interno lo cancelará
-          setTimeout(() => reject(Object.assign(new DOMException('aborted', 'AbortError'))), 50);
-        }),
+        () =>
+          new Promise<Response>((_, reject) => {
+            // Simula que fetch nunca resuelve; el AbortController interno lo cancelará
+            setTimeout(() => reject(Object.assign(new DOMException('aborted', 'AbortError'))), 50);
+          }),
       );
       const adapter = new OpenRouterAIAdapter({ apiKey: 'test-key', timeoutMs: 10 });
 
@@ -150,12 +151,13 @@ describe('OpenRouterAIAdapter', () => {
     it('rechaza con AITimeoutError cuando la señal externa es abortada con error de timeout o AbortError', async () => {
       const controller = new AbortController();
       fetchMock.mockImplementationOnce(
-        () => new Promise<Response>((_, reject) => {
-          setTimeout(() => {
-            controller.abort();
-            reject(Object.assign(new DOMException('aborted', 'AbortError')));
-          }, 10);
-        }),
+        () =>
+          new Promise<Response>((_, reject) => {
+            setTimeout(() => {
+              controller.abort();
+              reject(Object.assign(new DOMException('aborted', 'AbortError')));
+            }, 10);
+          }),
       );
       const adapter = new OpenRouterAIAdapter({ apiKey: 'test-key' });
 

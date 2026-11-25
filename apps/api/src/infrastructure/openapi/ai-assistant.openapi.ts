@@ -72,7 +72,8 @@ export const aiAssistantPaths = {
           headers: { 'Cache-Control': { schema: { type: 'string', const: 'no-store' } } },
         },
         '403': {
-          description: 'Acceso denegado: el usuario no es creador, miembro activo ni docente asignado.',
+          description:
+            'Acceso denegado: el usuario no es creador, miembro activo ni docente asignado.',
           headers: { 'Cache-Control': { schema: { type: 'string', const: 'no-store' } } },
         },
         '404': {

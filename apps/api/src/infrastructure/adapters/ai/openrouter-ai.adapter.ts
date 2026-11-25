@@ -47,7 +47,8 @@ export class OpenRouterAIAdapter implements AIProviderPort {
 
   constructor(config: OpenRouterAIAdapterConfig = {}) {
     this.apiKey = config.apiKey ?? process.env['OPENROUTER_API_KEY'];
-    this.model = config.model ?? process.env['OPENROUTER_MODEL'] ?? 'google/gemini-2.0-flash-lite:free';
+    this.model =
+      config.model ?? process.env['OPENROUTER_MODEL'] ?? 'google/gemini-2.0-flash-lite:free';
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
@@ -86,7 +87,7 @@ export class OpenRouterAIAdapter implements AIProviderPort {
       response = await fetch(OPENROUTER_ENDPOINT, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://is488.unsch.edu.pe',
           'X-Title': 'IS488 Academic Projects Tracker',
@@ -104,9 +105,7 @@ export class OpenRouterAIAdapter implements AIProviderPort {
           'La solicitud al proveedor de IA superó el tiempo máximo permitido.',
         );
       }
-      throw new AIProviderUnavailableError(
-        'No se pudo conectar con el proveedor de IA.',
-      );
+      throw new AIProviderUnavailableError('No se pudo conectar con el proveedor de IA.');
     } finally {
       clearTimeout(timer);
     }
@@ -154,21 +153,15 @@ export class OpenRouterAIAdapter implements AIProviderPort {
 
     switch (response.status) {
       case 401:
-        throw new AIAuthenticationError(
-          'Credenciales del proveedor de IA rechazadas.',
-        );
+        throw new AIAuthenticationError('Credenciales del proveedor de IA rechazadas.');
       case 402:
-        throw new AIInsufficientCreditsError(
-          'Los créditos del proveedor de IA han sido agotados.',
-        );
+        throw new AIInsufficientCreditsError('Los créditos del proveedor de IA han sido agotados.');
       case 429:
         throw new AIRateLimitError(
           'El proveedor de IA ha rechazado la solicitud por exceso de tasa.',
         );
       case 504:
-        throw new AITimeoutError(
-          'El proveedor de IA no respondió a tiempo (504 Gateway Timeout).',
-        );
+        throw new AITimeoutError('El proveedor de IA no respondió a tiempo (504 Gateway Timeout).');
       default:
         throw new AIProviderUnavailableError(
           'El proveedor de IA no está disponible temporalmente.',
