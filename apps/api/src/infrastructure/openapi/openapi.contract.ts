@@ -4,6 +4,7 @@ import {
   reviewNotificationPaths,
   reviewNotificationSchemas,
 } from './review-notifications.openapi.js';
+import { aiAssistantPaths, aiAssistantSchemas } from './ai-assistant.openapi.js';
 
 const taskActivityCorrelationHeader = {
   name: 'X-Correlation-ID',
@@ -30,6 +31,7 @@ export const openApiSpec = {
     ...identityPaths,
     ...reviewPaths,
     ...reviewNotificationPaths,
+    ...aiAssistantPaths,
     '/api/projects/{projectId}/tasks/{taskId}/activity': {
       get: {
         operationId: 'getTaskActivity',
@@ -1265,6 +1267,7 @@ export const openApiSpec = {
     schemas: {
       ...reviewSchemas,
       ...reviewNotificationSchemas,
+      ...aiAssistantSchemas,
       TaskActivityResponse: {
         type: 'object',
         required: ['id', 'taskId', 'projectId', 'actorId', 'action', 'createdAt'],

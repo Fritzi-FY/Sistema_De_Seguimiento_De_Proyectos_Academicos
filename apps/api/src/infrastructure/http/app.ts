@@ -75,11 +75,21 @@ import { PostgresqlReviewNotificationReader } from '../postgresql/review-notific
 import type { ReviewNotificationReaderPort } from '@is488/shared';
 import { ListStudentReviewNotificationsUseCase } from '../../application/use-cases/list-student-review-notifications.use-case.js';
 import { createReviewNotificationsRouter } from './routes/review-notifications.route.js';
+import type { AIProviderPort, AIQuotaPort } from '@is488/shared';
+import { InMemoryAIQuotaAdapter } from '@is488/shared';
+import { OpenRouterAIAdapter } from '../adapters/ai/openrouter-ai.adapter.js';
+import { PostgresqlAIQuotaAdapter } from '../adapters/ai/postgresql-ai-quota.adapter.js';
+import { GenerateProjectAISummaryUseCase } from '../../application/use-cases/generate-project-ai-summary.use-case.js';
+import { createAIAssistantRouter } from './routes/ai-assistant.route.js';
 
 export interface AppOptions {
   reviewRepository?: ReviewRepositoryPort;
   reviewNotificationPort?: ReviewNotificationPort;
   reviewNotificationReader?: ReviewNotificationReaderPort;
+  aiProvider?: AIProviderPort;
+  aiQuota?: AIQuotaPort;
+  openRouterApiKey?: string;
+  openRouterModel?: string;
   authentication?: AuthMiddleware;
   remoteValidation?: 'A' | 'B';
   teacherProjectScope?: TeacherProjectScopePort;
@@ -444,6 +454,40 @@ export function createApp(options: AppOptions = {}) {
       ),
       routerAuth,
     ),
+  );
+
+  const aiProvider =
+    options.aiProvider ??
+    new OpenRouterAIAdapter({
+      apiKey: options.openRouterApiKey ?? process.env.OPENROUTER_API_KEY,
+      model: options.openRouterModel,
+    });
+
+  const aiQuota = selectPort<AIQuotaPort>(
+    options.aiQuota ?? new InMemoryAIQuotaAdapter(),
+    new PostgresqlAIQuotaAdapter(),
+  );
+
+  const generateProjectAISummaryUseCase = new GenerateProjectAISummaryUseCase(
+    projectRepository,
+    boardRepository,
+    selectPort<TaskRepositoryPort>(
+      options.taskRepository ?? new InMemoryTaskRepository(kanbanStorage),
+      new PostgresqlTaskRepository(),
+    ),
+    membershipRepository,
+    teacherScope,
+    aiProvider,
+    aiQuota,
+    () => clock.now().getTime(),
+  );
+
+  app.route(
+    '/api/projects',
+    createAIAssistantRouter(generateProjectAISummaryUseCase, {
+      nodeEnv,
+      authentication: routerAuth,
+    }),
   );
 
   return app;
